@@ -14,4 +14,7 @@ export default {
 	updateLeadStatus(id, status) {
 		return api.patch(`/leads/${id}`, { status });
 	},
+	triggerScan(payload) {
+		return api.post("/scan", payload);
+	},
 };

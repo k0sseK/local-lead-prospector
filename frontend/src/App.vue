@@ -20,6 +20,44 @@ const fetchLeads = async () => {
 	}
 };
 
+const searchKeyword = ref("");
+const searchLocation = ref("");
+const searchRadius = ref(5.0);
+const isScanning = ref(false);
+const scanMessage = ref(null);
+
+const runScan = async () => {
+	if (!searchKeyword.value || !searchLocation.value) {
+		error.value = "Please provide both keyword and location to scan.";
+		return;
+	}
+
+	try {
+		isScanning.value = true;
+		error.value = null;
+		scanMessage.value = null;
+
+		const payload = {
+			keyword: searchKeyword.value,
+			location: searchLocation.value,
+			radius_km: searchRadius.value,
+		};
+
+		const response = await api.triggerScan(payload);
+		scanMessage.value = response.data.message;
+
+		// Refresh the list after scanning
+		await fetchLeads();
+	} catch (err) {
+		error.value =
+			err.response?.data?.detail ||
+			"Failed to trigger scan. Check if API key is set in .env";
+		console.error(err);
+	} finally {
+		isScanning.value = false;
+	}
+};
+
 const changeStatus = async (lead, newStatus) => {
 	try {
 		const response = await api.updateLeadStatus(lead.id, newStatus);
@@ -39,8 +77,123 @@ onMounted(() => {
 	<div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
 		<div class="max-w-4xl mx-auto">
 			<h1 class="text-3xl font-bold text-gray-900 mb-8 text-center">
-				B2B Lead Generator MVP
+				B2B Lead Generator MVP (Google Places)
 			</h1>
+
+			<!-- Formularz skanowania -->
+			<div
+				class="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6 mb-8 border border-gray-200"
+			>
+				<div class="md:grid md:grid-cols-3 md:gap-6">
+					<div class="md:col-span-1">
+						<h3 class="text-lg font-medium leading-6 text-gray-900">
+							Pozyskaj Nowe Leady
+						</h3>
+						<p class="mt-1 text-sm text-gray-500">
+							Wyszukaj lokalne firmy bez stron WWW lub ze słabymi
+							ocenami.
+						</p>
+					</div>
+					<div class="mt-5 md:mt-0 md:col-span-2">
+						<form @submit.prevent="runScan">
+							<div class="grid grid-cols-6 gap-6">
+								<div class="col-span-6 sm:col-span-3">
+									<label
+										for="keyword"
+										class="block text-sm font-medium text-gray-700"
+										>Słowo klucz / Branża</label
+									>
+									<input
+										v-model="searchKeyword"
+										type="text"
+										name="keyword"
+										id="keyword"
+										placeholder="np. restaurant"
+										class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2"
+									/>
+								</div>
+
+								<div class="col-span-6 sm:col-span-3">
+									<label
+										for="location"
+										class="block text-sm font-medium text-gray-700"
+										>Miasto / Lokalizacja</label
+									>
+									<input
+										v-model="searchLocation"
+										type="text"
+										name="location"
+										id="location"
+										placeholder="np. Warsaw"
+										class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2"
+									/>
+								</div>
+
+								<div class="col-span-6 sm:col-span-3">
+									<label
+										for="radius"
+										class="block text-sm font-medium text-gray-700"
+										>Promień (w km)</label
+									>
+									<input
+										v-model="searchRadius"
+										type="number"
+										step="0.5"
+										name="radius"
+										id="radius"
+										class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2"
+									/>
+								</div>
+							</div>
+
+							<div
+								class="pt-5 text-right flex justify-end items-center space-x-3"
+							>
+								<div
+									v-if="isScanning"
+									class="flex items-center text-indigo-600 text-sm"
+								>
+									<svg
+										class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-600"
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+									>
+										<circle
+											class="opacity-25"
+											cx="12"
+											cy="12"
+											r="10"
+											stroke="currentColor"
+											stroke-width="4"
+										></circle>
+										<path
+											class="opacity-75"
+											fill="currentColor"
+											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+										></path>
+									</svg>
+									Skanowanie Google Places...
+								</div>
+								<button
+									type="submit"
+									:disabled="isScanning"
+									class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+								>
+									Szukaj Leadów
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+
+				<div
+					v-if="scanMessage"
+					class="mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm"
+				>
+					{{ scanMessage }}
+				</div>
+			</div>
 
 			<div v-if="loading" class="text-center text-gray-500">
 				Loading leads...
