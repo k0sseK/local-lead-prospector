@@ -6,6 +6,7 @@ class Lead(Base):
     __tablename__ = "leads"
 
     id = Column(Integer, primary_key=True, index=True)
+    place_id = Column(String, unique=True, index=True, nullable=True) # Google Places ID
     company_name = Column(String, index=True)
     phone = Column(String, nullable=True)
     address = Column(String, nullable=True)

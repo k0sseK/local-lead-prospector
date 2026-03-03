@@ -19,4 +19,7 @@ class Lead(LeadBase):
     created_at: datetime
 
     class Config:
-        from_attributes = True
+class ScanRequest(BaseModel):
+    keyword: str
+    location: str
+    radius_km: float = 5.0

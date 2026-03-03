@@ -33,3 +33,21 @@ def update_lead_status(lead_id: int, lead_update: schemas.LeadUpdate, db: Sessio
     db.commit()
     db.refresh(db_lead)
     return db_lead
+
+@app.post("/api/scan")
+async def scan_for_leads(scan_request: schemas.ScanRequest, db: Session = Depends(database.get_db)):
+    from backend.scraper import scan_google_places
+    
+    try:
+        new_leads_added = await scan_google_places(
+            keyword=scan_request.keyword,
+            location=scan_request.location,
+            radius_km=scan_request.radius_km,
+            db=db
+        )
+        return {"message": f"Scan completed. Added {new_leads_added} new leads."}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
