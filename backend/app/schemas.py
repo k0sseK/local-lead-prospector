@@ -8,6 +8,10 @@ class LeadBase(BaseModel):
     address: Optional[str] = None
     rating: Optional[float] = None
     reviews_count: Optional[int] = None
+    website_uri: Optional[str] = None
+    email: Optional[str] = None
+    has_ssl: Optional[bool] = None
+    audited: Optional[bool] = False
     status: Optional[str] = "new"
 
 class LeadCreate(LeadBase):
@@ -19,7 +23,7 @@ class LeadUpdate(BaseModel):
 class Lead(LeadBase):
     id: int
     created_at: datetime
-
+    
     class Config:
         from_attributes = True
 

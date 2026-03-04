@@ -12,5 +12,9 @@ class Lead(Base):
     address = Column(String, nullable=True)
     rating = Column(Float, nullable=True)
     reviews_count = Column(Integer, nullable=True)
+    website_uri = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    has_ssl = Column(Boolean, nullable=True)
+    audited = Column(Boolean, default=False)
     status = Column(String, default="new") # options: 'new', 'to_contact', 'contacted', 'rejected', 'closed'
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

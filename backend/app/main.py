@@ -53,3 +53,25 @@ async def scan_for_leads(scan_request: schemas.ScanRequest, db: Session = Depend
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.post("/api/leads/{lead_id}/audit", response_model=schemas.Lead)
+async def audit_lead_endpoint(lead_id: int, db: Session = Depends(database.get_db)):
+    db_lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+    if db_lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    if not db_lead.website_uri:
+        raise HTTPException(status_code=400, detail="Lead has no website to audit")
+
+    from .website_auditor import audit_website
+    
+    audit_result = await audit_website(db_lead.website_uri)
+    
+    db_lead.has_ssl = audit_result.get("has_ssl", False)
+    if audit_result.get("email"):
+        db_lead.email = audit_result.get("email")
+    db_lead.audited = True
+    
+    db.commit()
+    db.refresh(db_lead)
+    return db_lead
+
