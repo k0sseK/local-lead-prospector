@@ -35,6 +35,26 @@ const onMapClick = (e) => {
 	markerPosition.value = [e.latlng.lat, e.latlng.lng];
 };
 
+const locateUser = () => {
+	if ("geolocation" in navigator) {
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				const lat = position.coords.latitude;
+				const lng = position.coords.longitude;
+				mapCenter.value = [lat, lng];
+				markerPosition.value = [lat, lng];
+				mapZoom.value = 13;
+			},
+			(error) => {
+				console.error("Error getting location: ", error);
+				alert("Nie udało się pobrać Twojej lokalizacji.");
+			},
+		);
+	} else {
+		alert("Geolokalizacja nie jest obsługiwana przez Twoją przeglądarkę.");
+	}
+};
+
 const runScan = async () => {
 	if (!searchKeyword.value || !markerPosition.value) {
 		error.value =
@@ -162,11 +182,42 @@ onMounted(() => {
 								</div>
 
 								<div class="col-span-6">
-									<p
-										class="block text-sm font-medium text-gray-700 mb-2"
+									<div
+										class="flex justify-between items-end mb-2"
 									>
-										Wybierz obszar na mapie
-									</p>
+										<p
+											class="block text-sm font-medium text-gray-700"
+										>
+											Wybierz obszar na mapie
+										</p>
+										<button
+											type="button"
+											@click="locateUser"
+											class="text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded border border-indigo-200 transition-colors flex items-center gap-1"
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												class="h-4 w-4"
+												fill="none"
+												viewBox="0 0 24 24"
+												stroke="currentColor"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+												/>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+												/>
+											</svg>
+											Moja lokalizacja
+										</button>
+									</div>
 									<div
 										style="
 											height: 350px;
