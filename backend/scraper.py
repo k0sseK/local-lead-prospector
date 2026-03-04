@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 # Load environment variables
 load_dotenv()
 
-GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
 
 async def scan_google_places(keyword: str, location: str, radius_km: float, db: Session):
     """
