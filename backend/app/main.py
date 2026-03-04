@@ -41,8 +41,10 @@ async def scan_for_leads(scan_request: schemas.ScanRequest, db: Session = Depend
     try:
         new_leads_added = await scan_google_places(
             keyword=scan_request.keyword,
-            location=scan_request.location,
+            lat=scan_request.lat,
+            lng=scan_request.lng,
             radius_km=scan_request.radius_km,
+            limit=scan_request.limit,
             db=db
         )
         return {"message": f"Scan completed. Added {new_leads_added} new leads."}

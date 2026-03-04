@@ -9,15 +9,13 @@ load_dotenv()
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
 
-async def scan_google_places(keyword: str, location: str, radius_km: float, db: Session):
+async def scan_google_places(keyword: str, lat: float, lng: float, radius_km: float, limit: int, db: Session):
     """
     Scans Google Places API (New) via Text Search.
     Filters places based on criteria and adds them to DB without duplicates.
     """
     if not GOOGLE_PLACES_API_KEY or GOOGLE_PLACES_API_KEY == "your_google_api_key_here":
         raise ValueError("Missing GOOGLE_PLACES_API_KEY in environment.")
-
-    query = f"{keyword} in {location}"
 
     # Places API (New) Text Search Endpoint
     url = "https://places.googleapis.com/v1/places:searchText"
@@ -29,7 +27,17 @@ async def scan_google_places(keyword: str, location: str, radius_km: float, db: 
     }
     
     payload = {
-        "textQuery": query
+        "textQuery": keyword,
+        "locationBias": {
+            "circle": {
+                "center": {
+                    "latitude": lat,
+                    "longitude": lng
+                },
+                "radius": radius_km * 1000.0
+            }
+        },
+        "maxResultCount": limit
     }
 
     from app.models import Lead # Local import to avoid circular dependency
