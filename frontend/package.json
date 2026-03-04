@@ -9,7 +9,9 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
+		"@vue-leaflet/vue-leaflet": "^0.10.1",
 		"axios": "^1.6.8",
+		"leaflet": "^1.9.4",
 		"vue": "^3.4.21"
 	},
 	"devDependencies": {

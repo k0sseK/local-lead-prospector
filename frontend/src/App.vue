@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import api from "./services/api.js";
+import "leaflet/dist/leaflet.css";
+import { LMap, LTileLayer, LMarker, LCircle } from "@vue-leaflet/vue-leaflet";
 
 const leads = ref([]);
 const loading = ref(true);
@@ -21,14 +23,22 @@ const fetchLeads = async () => {
 };
 
 const searchKeyword = ref("");
-const searchLocation = ref("");
 const searchRadius = ref(5.0);
+const searchLimit = ref(10);
+const mapCenter = ref([52.069, 19.48]);
+const mapZoom = ref(6);
+const markerPosition = ref(null);
 const isScanning = ref(false);
 const scanMessage = ref(null);
 
+const onMapClick = (e) => {
+	markerPosition.value = [e.latlng.lat, e.latlng.lng];
+};
+
 const runScan = async () => {
-	if (!searchKeyword.value || !searchLocation.value) {
-		error.value = "Please provide both keyword and location to scan.";
+	if (!searchKeyword.value || !markerPosition.value) {
+		error.value =
+			"Please provide both keyword and select a location on the map to scan.";
 		return;
 	}
 
@@ -39,8 +49,10 @@ const runScan = async () => {
 
 		const payload = {
 			keyword: searchKeyword.value,
-			location: searchLocation.value,
-			radius_km: searchRadius.value,
+			lat: markerPosition.value[0],
+			lng: markerPosition.value[1],
+			radius_km: parseFloat(searchRadius.value),
+			limit: parseInt(searchLimit.value, 10),
 		};
 
 		const response = await api.triggerScan(payload);
@@ -90,8 +102,8 @@ onMounted(() => {
 							Pozyskaj Nowe Leady
 						</h3>
 						<p class="mt-1 text-sm text-gray-500">
-							Wyszukaj lokalne firmy bez stron WWW lub ze słabymi
-							ocenami.
+							Wyszukaj lokalne firmy używając interaktywnej mapy.
+							Zaznacz punkt i dostosuj promień.
 						</p>
 					</div>
 					<div class="mt-5 md:mt-0 md:col-span-2">
@@ -115,34 +127,91 @@ onMounted(() => {
 
 								<div class="col-span-6 sm:col-span-3">
 									<label
-										for="location"
+										for="limit"
 										class="block text-sm font-medium text-gray-700"
-										>Miasto / Lokalizacja</label
+										>Limit wyników</label
 									>
 									<input
-										v-model="searchLocation"
-										type="text"
-										name="location"
-										id="location"
-										placeholder="np. Warsaw"
+										v-model="searchLimit"
+										type="number"
+										min="1"
+										max="20"
+										name="limit"
+										id="limit"
 										class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2"
 									/>
 								</div>
 
-								<div class="col-span-6 sm:col-span-3">
+								<div class="col-span-6">
 									<label
 										for="radius"
-										class="block text-sm font-medium text-gray-700"
-										>Promień (w km)</label
+										class="block text-sm font-medium text-gray-700 font-semibold"
+										>Promień wyszukiwania:
+										{{ searchRadius }} km</label
 									>
 									<input
 										v-model="searchRadius"
-										type="number"
-										step="0.5"
+										type="range"
+										min="1"
+										max="50"
+										step="1"
 										name="radius"
 										id="radius"
-										class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2"
+										class="mt-2 w-full accent-indigo-600"
 									/>
+								</div>
+
+								<div class="col-span-6">
+									<p
+										class="block text-sm font-medium text-gray-700 mb-2"
+									>
+										Wybierz obszar na mapie
+									</p>
+									<div
+										style="
+											height: 350px;
+											width: 100%;
+											border-radius: 0.375rem;
+											overflow: hidden;
+											border: 1px solid #d1d5db;
+											position: relative;
+											z-index: 10;
+										"
+									>
+										<l-map
+											ref="map"
+											v-model:zoom="mapZoom"
+											:center="mapCenter"
+											@click="onMapClick"
+											:useGlobalLeaflet="false"
+										>
+											<l-tile-layer
+												url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+												layer-type="base"
+												name="OpenStreetMap"
+											></l-tile-layer>
+
+											<l-marker
+												v-if="markerPosition"
+												:lat-lng="markerPosition"
+											></l-marker>
+											<l-circle
+												v-if="markerPosition"
+												:lat-lng="markerPosition"
+												:radius="searchRadius * 1000"
+												color="blue"
+												fillColor="#3b82f6"
+												:fillOpacity="0.2"
+											></l-circle>
+										</l-map>
+									</div>
+									<p
+										v-if="!markerPosition"
+										class="text-sm text-red-500 mt-1"
+									>
+										Kliknij na mapie, aby ustawić środek
+										wyszukiwania.
+									</p>
 								</div>
 							</div>
 
