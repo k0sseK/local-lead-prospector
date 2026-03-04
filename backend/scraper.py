@@ -29,7 +29,7 @@ async def scan_google_places(keyword: str, location: str, radius_km: float, db: 
         "key": GOOGLE_PLACES_API_KEY
     }
 
-    from .app.models import Lead # Local import to avoid circular dependency
+    from app.models import Lead # Local import to avoid circular dependency
     new_leads_count = 0
 
     async with httpx.AsyncClient() as client:

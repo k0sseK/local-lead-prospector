@@ -36,7 +36,7 @@ def update_lead_status(lead_id: int, lead_update: schemas.LeadUpdate, db: Sessio
 
 @app.post("/api/scan")
 async def scan_for_leads(scan_request: schemas.ScanRequest, db: Session = Depends(database.get_db)):
-    from backend.scraper import scan_google_places
+    from scraper import scan_google_places
     
     try:
         new_leads_added = await scan_google_places(
