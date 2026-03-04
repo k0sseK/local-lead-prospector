@@ -3,10 +3,14 @@ import { ref, onMounted } from "vue";
 import api from "./services/api.js";
 import "leaflet/dist/leaflet.css";
 import { LMap, LTileLayer, LMarker, LCircle } from "@vue-leaflet/vue-leaflet";
+import KanbanBoard from "./components/KanbanBoard.vue";
+import { useToast } from "vue-toastification";
 
+const toast = useToast();
 const leads = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const viewMode = ref("kanban"); // 'list' or 'kanban'
 
 const fetchLeads = async () => {
 	try {
@@ -92,11 +96,46 @@ const runScan = async () => {
 
 const changeStatus = async (lead, newStatus) => {
 	try {
+		const oldStatus = lead.status;
+		lead.status = newStatus; // Optimistic update
 		const response = await api.updateLeadStatus(lead.id, newStatus);
-		// Update local state
 		lead.status = response.data.status;
+		toast.success(`Zaktualizowano status leada na: ${newStatus}`);
 	} catch (err) {
 		console.error("Failed to update status", err);
+		lead.status = lead.status; // Revert
+		toast.error(
+			"Nie udało się zaktualizować statusu API. Sprawdź połączenie.",
+		);
+	}
+};
+
+const handleKanbanStatusUpdate = async ({
+	leadId,
+	newStatus,
+	oldStatus,
+	lead,
+}) => {
+	// Find the lead in our main state
+	const targetLead = leads.value.find((l) => l.id === leadId);
+	if (!targetLead) return;
+
+	// Optimistically update the UI status
+	targetLead.status = newStatus;
+
+	try {
+		const response = await api.updateLeadStatus(leadId, newStatus);
+		targetLead.status = response.data.status;
+		// Optional: toast.success('Status zaktualizowany')
+	} catch (err) {
+		console.error("Kanban update failed", err);
+		// Revert to old status
+		targetLead.status = oldStatus;
+		if (toast) {
+			toast.error("Błąd aktualizacji. Przywrócono stary status.");
+		} else {
+			alert("Błąd połączenia. Przywrócono stary status.");
+		}
 	}
 };
 
@@ -326,83 +365,162 @@ onMounted(() => {
 				{{ error }}
 			</div>
 
-			<div v-else class="bg-white shadow overflow-hidden sm:rounded-md">
-				<ul role="list" class="divide-y divide-gray-200">
-					<li
-						v-for="lead in leads"
-						:key="lead.id"
-						class="px-4 py-4 sm:px-6 flex items-center justify-between"
-					>
-						<div
-							class="flex-1 min-w-0 flex flex-col justify-center"
+			<div v-else>
+				<!-- Toggle view -->
+				<div
+					class="flex justify-end mb-4 bg-white p-2 rounded shadow-sm border border-gray-100"
+				>
+					<div class="flex items-center space-x-2">
+						<span class="text-sm text-gray-500 font-medium mr-2"
+							>Widok:</span
 						>
-							<p
-								class="text-sm font-medium text-indigo-600 truncate"
+						<button
+							@click="viewMode = 'kanban'"
+							:class="
+								viewMode === 'kanban'
+									? 'bg-indigo-100 text-indigo-700'
+									: 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+							"
+							class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus:outline-none"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-4 w-4 inline-block mr-1 mb-0.5"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
 							>
-								{{ lead.company_name }}
-							</p>
-							<p class="mt-1 text-sm text-gray-500 truncate">
-								Address: {{ lead.address || "N/A" }} <br />
-								Phone: {{ lead.phone || "N/A" }}
-							</p>
-							<p class="mt-1 text-xs text-gray-400">
-								Created:
-								{{ new Date(lead.created_at).toLocaleString() }}
-							</p>
-						</div>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
+								/>
+							</svg>
+							Kanban
+						</button>
+						<button
+							@click="viewMode = 'list'"
+							:class="
+								viewMode === 'list'
+									? 'bg-indigo-100 text-indigo-700'
+									: 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+							"
+							class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus:outline-none"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-4 w-4 inline-block mr-1 mb-0.5"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M4 6h16M4 10h16M4 14h16M4 18h16"
+								/>
+							</svg>
+							Lista
+						</button>
+					</div>
+				</div>
 
-						<div
-							class="flex flex-col sm:flex-row items-center gap-2 ml-4"
+				<!-- Kanban View -->
+				<div v-if="viewMode === 'kanban'">
+					<KanbanBoard
+						:leads="leads"
+						@update-status="handleKanbanStatusUpdate"
+					/>
+				</div>
+
+				<!-- List View -->
+				<div
+					v-else
+					class="bg-white shadow overflow-hidden sm:rounded-md"
+				>
+					<ul role="list" class="divide-y divide-gray-200">
+						<li
+							v-for="lead in leads"
+							:key="lead.id"
+							class="px-4 py-4 sm:px-6 flex items-center justify-between"
 						>
-							<span
-								class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
-								:class="{
-									'bg-yellow-100 text-yellow-800':
-										lead.status === 'new',
-									'bg-green-100 text-green-800':
-										lead.status === 'contacted',
-									'bg-red-100 text-red-800':
-										lead.status === 'rejected',
-								}"
-							>
-								{{ lead.status }}
-							</span>
 							<div
-								class="flex gap-2 mt-2 sm:mt-0 flex-wrap justify-end"
+								class="flex-1 min-w-0 flex flex-col justify-center"
 							>
-								<button
-									v-if="lead.status !== 'contacted'"
-									@click="changeStatus(lead, 'contacted')"
-									class="text-xs bg-green-50 text-green-700 hover:bg-green-100 px-2 py-1 rounded border border-green-200 transition-colors"
+								<p
+									class="text-sm font-medium text-indigo-600 truncate"
 								>
-									Contacted
-								</button>
-								<button
-									v-if="lead.status !== 'rejected'"
-									@click="changeStatus(lead, 'rejected')"
-									class="text-xs bg-red-50 text-red-700 hover:bg-red-100 px-2 py-1 rounded border border-red-200 transition-colors"
-								>
-									Reject
-								</button>
-								<button
-									v-if="lead.status !== 'new'"
-									@click="changeStatus(lead, 'new')"
-									class="text-xs bg-gray-50 text-gray-700 hover:bg-gray-100 px-2 py-1 rounded border border-gray-200 transition-colors"
-								>
-									Reset
-								</button>
+									{{ lead.company_name }}
+								</p>
+								<p class="mt-1 text-sm text-gray-500 truncate">
+									Address: {{ lead.address || "N/A" }} <br />
+									Phone: {{ lead.phone || "N/A" }}
+								</p>
+								<p class="mt-1 text-xs text-gray-400">
+									Created:
+									{{
+										new Date(
+											lead.created_at,
+										).toLocaleString()
+									}}
+								</p>
 							</div>
-						</div>
-					</li>
 
-					<li
-						v-if="leads.length === 0"
-						class="px-4 py-4 sm:px-6 text-center text-gray-500"
-					>
-						No leads found. Run the scraper script to generate mock
-						data!
-					</li>
-				</ul>
+							<div
+								class="flex flex-col sm:flex-row items-center gap-2 ml-4"
+							>
+								<span
+									class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
+									:class="{
+										'bg-yellow-100 text-yellow-800':
+											lead.status === 'new',
+										'bg-green-100 text-green-800':
+											lead.status === 'contacted',
+										'bg-red-100 text-red-800':
+											lead.status === 'rejected',
+									}"
+								>
+									{{ lead.status }}
+								</span>
+								<div
+									class="flex gap-2 mt-2 sm:mt-0 flex-wrap justify-end"
+								>
+									<button
+										v-if="lead.status !== 'contacted'"
+										@click="changeStatus(lead, 'contacted')"
+										class="text-xs bg-green-50 text-green-700 hover:bg-green-100 px-2 py-1 rounded border border-green-200 transition-colors"
+									>
+										Contacted
+									</button>
+									<button
+										v-if="lead.status !== 'rejected'"
+										@click="changeStatus(lead, 'rejected')"
+										class="text-xs bg-red-50 text-red-700 hover:bg-red-100 px-2 py-1 rounded border border-red-200 transition-colors"
+									>
+										Reject
+									</button>
+									<button
+										v-if="lead.status !== 'new'"
+										@click="changeStatus(lead, 'new')"
+										class="text-xs bg-gray-50 text-gray-700 hover:bg-gray-100 px-2 py-1 rounded border border-gray-200 transition-colors"
+									>
+										Reset
+									</button>
+								</div>
+							</div>
+						</li>
+
+						<li
+							v-if="leads.length === 0"
+							class="px-4 py-4 sm:px-6 text-center text-gray-500"
+						>
+							No leads found. Run the scraper script to generate
+							mock data!
+						</li>
+					</ul>
+				</div>
 			</div>
 		</div>
 	</div>

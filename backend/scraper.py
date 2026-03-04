@@ -89,6 +89,8 @@ async def scan_google_places(keyword: str, lat: float, lng: float, radius_km: fl
                             company_name=name,
                             phone=phone,
                             address=address,
+                            rating=rating,
+                            reviews_count=user_ratings_total,
                             status="new"
                         )
                         db.add(lead)

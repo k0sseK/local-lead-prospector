@@ -6,6 +6,8 @@ class LeadBase(BaseModel):
     company_name: str
     phone: Optional[str] = None
     address: Optional[str] = None
+    rating: Optional[float] = None
+    reviews_count: Optional[int] = None
     status: Optional[str] = "new"
 
 class LeadCreate(LeadBase):
