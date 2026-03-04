@@ -40,6 +40,12 @@ async def scan_google_places(keyword: str, location: str, radius_km: float, db: 
             return 0
             
         data = response.json()
+        api_status = data.get("status")
+        
+        if api_status not in ("OK", "ZERO_RESULTS"):
+            error_msg = data.get("error_message", f"Google API returned status: {api_status}")
+            raise ValueError(f"Google API Error: {error_msg}")
+            
         results = data.get("results", [])
 
         for place in results:
