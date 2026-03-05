@@ -1,0 +1,41 @@
+services:
+    # ── Backend (FastAPI + Uvicorn) ─────────────────────────────────────────
+    backend:
+        build:
+            context: ./backend
+            dockerfile: Dockerfile
+        container_name: llp-backend
+        restart: unless-stopped
+        ports:
+            - "8000:8000"
+        env_file:
+            - ./backend/.env
+        volumes:
+            # Named volume so SQLite data survives container restarts
+            - sqlite_data:/app/data
+        networks:
+            - app-network
+
+    # ── Frontend (Vue 3 + Nginx) ────────────────────────────────────────────
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
+        container_name: llp-frontend
+        restart: unless-stopped
+        ports:
+            - "80:80"
+        depends_on:
+            - backend
+        networks:
+            - app-network
+
+# ── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+    sqlite_data:
+        name: llp-sqlite-data
+
+# ── Networks ─────────────────────────────────────────────────────────────────
+networks:
+    app-network:
+        driver: bridge
