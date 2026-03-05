@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Database (persisted via Docker volume)
+leads.db
+*.db
+
+# Environment variables (passed via docker-compose env_file)
+.env
+
+# Tests & tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor
+.vscode/
+.idea/
