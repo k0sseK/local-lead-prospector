@@ -183,26 +183,60 @@ const formattedDate = computed(() => {
 						fill="none"
 						viewBox="0 0 24 24"
 					>
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						<circle
+							class="opacity-25"
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							stroke-width="4"
+						></circle>
+						<path
+							class="opacity-75"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+						></path>
 					</svg>
 					Audytowanie...
 				</span>
 				<span v-else class="flex items-center gap-1">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-						<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-3.5 w-3.5"
+						viewBox="0 0 20 20"
+						fill="currentColor"
+					>
+						<path
+							fill-rule="evenodd"
+							d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+							clip-rule="evenodd"
+						/>
 					</svg>
 					Zrób Audyt Biznesowy
 				</span>
 			</button>
 		</div>
-		<div v-else-if="lead.audited === true && lead.audit_report" class="mt-3">
+		<div
+			v-else-if="lead.audited === true && lead.audit_report"
+			class="mt-3"
+		>
 			<button
 				@click.stop="isModalOpen = true"
 				class="w-full text-xs font-semibold px-2 py-1.5 bg-purple-50 text-purple-700 rounded hover:bg-purple-100 transition-colors border border-purple-100 flex justify-center items-center gap-1"
 			>
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					class="h-3.5 w-3.5"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+					/>
 				</svg>
 				Wynik Audytu
 			</button>
@@ -219,50 +253,136 @@ const formattedDate = computed(() => {
 				{{ formattedDate }}
 			</span>
 		</div>
-		</div>
 
 		<!-- Audit Report Modal -->
-		<div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.stop="isModalOpen = false">
-			<div class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden" @click.stop>
-				<div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-					<h3 class="font-bold text-gray-900 flex items-center gap-2 text-base">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-						Raport z Audytu: {{ lead.company_name }}
-					</h3>
-					<button @click="isModalOpen = false" class="text-gray-400 hover:text-gray-600 transition-colors">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-						</svg>
-					</button>
-				</div>
-				<div class="p-6 overflow-y-auto bg-white flex-1">
-					<div v-if="lead.audit_report?.selling_points?.length > 0">
-						<p class="text-sm text-gray-600 mb-4 font-medium">Znalezione Punkty Sprzedażowe (Selling Points):</p>
-						<ul class="space-y-3">
-							<li v-for="(point, idx) in lead.audit_report.selling_points" :key="idx" class="flex gap-3 bg-red-50/50 p-3 rounded-lg border border-red-100">
-								<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-								  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-								</svg>
-								<div>
-									<span class="text-xs font-bold uppercase tracking-wider mb-1 block" :class="point.type === 'google' ? 'text-blue-600' : 'text-orange-600'">
-										{{ point.type === 'google' ? 'Google Places / Profil' : 'Strona WWW' }}
-									</span>
-									<p class="text-sm text-gray-800 leading-snug">{{ point.message }}</p>
-								</div>
-							</li>
-						</ul>
+		<Teleport to="body">
+			<div
+				v-if="isModalOpen"
+				class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50"
+				@click.stop="isModalOpen = false"
+			>
+				<div
+					class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
+					@click.stop
+				>
+					<div
+						class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50"
+					>
+						<h3
+							class="font-bold text-gray-900 flex items-center gap-2 text-base"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-5 w-5 text-purple-600"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							Raport z Audytu: {{ lead.company_name }}
+						</h3>
+						<button
+							@click="isModalOpen = false"
+							class="text-gray-400 hover:text-gray-600 transition-colors"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-5 w-5"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M6 18L18 6M6 6l12 12"
+								/>
+							</svg>
+						</button>
 					</div>
-					<div v-else class="text-center py-8">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-green-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-						<p class="text-gray-800 font-medium">Brak krytycznych błędów z naszej strony!</p>
-						<p class="text-sm text-gray-500 mt-1">Strona/wizytówka wydaje się być w dobrym stanie podstawowym.</p>
+					<div class="p-6 overflow-y-auto bg-white flex-1">
+						<div
+							v-if="lead.audit_report?.selling_points?.length > 0"
+						>
+							<p class="text-sm text-gray-600 mb-4 font-medium">
+								Znalezione Punkty Sprzedażowe (Selling Points):
+							</p>
+							<ul class="space-y-3">
+								<li
+									v-for="(point, idx) in lead.audit_report
+										.selling_points"
+									:key="idx"
+									class="flex gap-3 bg-red-50/50 p-3 rounded-lg border border-red-100"
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										class="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5"
+										viewBox="0 0 20 20"
+										fill="currentColor"
+									>
+										<path
+											fill-rule="evenodd"
+											d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+											clip-rule="evenodd"
+										/>
+									</svg>
+									<div>
+										<span
+											class="text-xs font-bold uppercase tracking-wider mb-1 block"
+											:class="
+												point.type === 'google'
+													? 'text-blue-600'
+													: 'text-orange-600'
+											"
+										>
+											{{
+												point.type === "google"
+													? "Google Places / Profil"
+													: "Strona WWW"
+											}}
+										</span>
+										<p
+											class="text-sm text-gray-800 leading-snug"
+										>
+											{{ point.message }}
+										</p>
+									</div>
+								</li>
+							</ul>
+						</div>
+						<div v-else class="text-center py-8">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-12 w-12 text-green-400 mx-auto mb-3"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							<p class="text-gray-800 font-medium">
+								Brak krytycznych błędów z naszej strony!
+							</p>
+							<p class="text-sm text-gray-500 mt-1">
+								Strona/wizytówka wydaje się być w dobrym stanie
+								podstawowym.
+							</p>
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
+		</Teleport>
 	</div>
 </template>

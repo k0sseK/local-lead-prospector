@@ -40,13 +40,11 @@ const handleAuditLead = async (leadId) => {
 				(l) => l.id === leadId,
 			);
 			if (index !== -1) {
-				localColumns.value[columnId][index] = {
-					...localColumns.value[columnId][index],
-					email: updatedLead.email,
-					has_ssl: updatedLead.has_ssl,
-					audited: updatedLead.audited,
-					audit_report: updatedLead.audit_report,
-				};
+				const localLead = localColumns.value[columnId][index];
+				localLead.email = updatedLead.email;
+				localLead.has_ssl = updatedLead.has_ssl;
+				localLead.audited = updatedLead.audited;
+				localLead.audit_report = updatedLead.audit_report;
 				break;
 			}
 		}
