@@ -31,13 +31,22 @@ async def audit_website(url: str) -> dict:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            # First, check if the website explicitly supports HTTPS even if the provided URL is HTTP.
+            if not result["has_ssl"]:
+                https_url = url.replace("http://", "https://", 1)
+                try:
+                    ssl_check_response = await client.get(https_url, headers=headers)
+                    if ssl_check_response.status_code < 400:
+                        result["has_ssl"] = True
+                        url = https_url # continue auditing with the secure URL
+                except Exception:
+                    pass # ignore HTTPS upgrade failure
+
             response = await client.get(url, headers=headers)
             
-            # Check final URL for HTTPS
+            # Additional check checking final URL just in case of redirect
             if str(response.url).startswith("https://"):
                 result["has_ssl"] = True
-            else:
-                result["has_ssl"] = False
             
             if response.status_code == 200:
                 html_content = response.text
