@@ -1,5 +1,8 @@
 <script setup>
 import { computed, ref } from "vue";
+import { useToast } from "vue-toastification";
+
+const toast = useToast();
 
 const props = defineProps({
 	lead: {
@@ -20,6 +23,25 @@ const formattedDate = computed(() => {
 	if (!props.lead.created_at) return "";
 	return new Date(props.lead.created_at).toLocaleDateString();
 });
+
+const copyEmailDraft = async () => {
+	const emailText = props.lead.audit_report?.email_draft;
+	if (!emailText) return;
+
+	try {
+		await navigator.clipboard.writeText(emailText);
+		toast.success("Mail skopiowany do schowka!");
+	} catch (err) {
+		// Fallback for older browsers
+		const textarea = document.createElement("textarea");
+		textarea.value = emailText;
+		document.body.appendChild(textarea);
+		textarea.select();
+		document.execCommand("copy");
+		document.body.removeChild(textarea);
+		toast.success("Mail skopiowany do schowka!");
+	}
+};
 </script>
 
 <template>
@@ -197,7 +219,7 @@ const formattedDate = computed(() => {
 							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
 						></path>
 					</svg>
-					Audytowanie...
+					Analizowanie AI...
 				</span>
 				<span v-else class="flex items-center gap-1">
 					<svg
@@ -212,7 +234,7 @@ const formattedDate = computed(() => {
 							clip-rule="evenodd"
 						/>
 					</svg>
-					Zrób Audyt Biznesowy
+					Audyt AI
 				</span>
 			</button>
 		</div>
@@ -238,7 +260,7 @@ const formattedDate = computed(() => {
 						d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 					/>
 				</svg>
-				Wynik Audytu
+				Raport AI
 			</button>
 		</div>
 		<div
@@ -265,8 +287,9 @@ const formattedDate = computed(() => {
 					class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
 					@click.stop
 				>
+					<!-- Header -->
 					<div
-						class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50"
+						class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-indigo-50"
 					>
 						<h3
 							class="font-bold text-gray-900 flex items-center gap-2 text-base"
@@ -285,7 +308,7 @@ const formattedDate = computed(() => {
 									d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
 								/>
 							</svg>
-							Raport z Audytu: {{ lead.company_name }}
+							Raport AI: {{ lead.company_name }}
 						</h3>
 						<button
 							@click="isModalOpen = false"
@@ -307,78 +330,126 @@ const formattedDate = computed(() => {
 							</svg>
 						</button>
 					</div>
-					<div class="p-6 overflow-y-auto bg-white flex-1">
+
+					<!-- Body -->
+					<div class="p-6 overflow-y-auto bg-white flex-1 space-y-6">
+						<!-- AI Selling Points -->
 						<div
 							v-if="lead.audit_report?.selling_points?.length > 0"
 						>
-							<p class="text-sm text-gray-600 mb-4 font-medium">
-								Znalezione Punkty Sprzedażowe (Selling Points):
+							<p
+								class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									class="h-4 w-4 text-amber-500"
+									viewBox="0 0 20 20"
+									fill="currentColor"
+								>
+									<path
+										fill-rule="evenodd"
+										d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+										clip-rule="evenodd"
+									/>
+								</svg>
+								Punkty Sprzedażowe (AI)
 							</p>
-							<ul class="space-y-3">
+							<ul class="space-y-2">
 								<li
 									v-for="(point, idx) in lead.audit_report
 										.selling_points"
 									:key="idx"
-									class="flex gap-3 bg-red-50/50 p-3 rounded-lg border border-red-100"
+									class="flex gap-3 bg-indigo-50/60 p-3 rounded-lg border border-indigo-100"
 								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										class="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5"
-										viewBox="0 0 20 20"
-										fill="currentColor"
+									<span
+										class="text-indigo-500 font-bold text-sm flex-shrink-0 mt-0.5"
+										>{{ idx + 1 }}.</span
 									>
-										<path
-											fill-rule="evenodd"
-											d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-											clip-rule="evenodd"
-										/>
-									</svg>
-									<div>
-										<span
-											class="text-xs font-bold uppercase tracking-wider mb-1 block"
-											:class="
-												point.type === 'google'
-													? 'text-blue-600'
-													: 'text-orange-600'
-											"
-										>
-											{{
-												point.type === "google"
-													? "Google Places / Profil"
-													: "Strona WWW"
-											}}
-										</span>
-										<p
-											class="text-sm text-gray-800 leading-snug"
-										>
-											{{ point.message }}
-										</p>
-									</div>
+									<p
+										class="text-sm text-gray-800 leading-relaxed"
+									>
+										{{ point }}
+									</p>
 								</li>
 							</ul>
 						</div>
-						<div v-else class="text-center py-8">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								class="h-12 w-12 text-green-400 mx-auto mb-3"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
+						<div
+							v-else-if="
+								!lead.audit_report?.selling_points?.length
+							"
+						>
+							<div class="text-center py-4">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									class="h-10 w-10 text-green-400 mx-auto mb-2"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
+								</svg>
+								<p class="text-gray-700 font-medium text-sm">
+									AI nie znalazło krytycznych problemów.
+								</p>
+							</div>
+						</div>
+
+						<!-- Email Draft -->
+						<div
+							v-if="lead.audit_report?.email_draft"
+							class="border-t border-gray-100 pt-5"
+						>
+							<div class="flex items-center justify-between mb-3">
+								<p
+									class="text-sm font-semibold text-gray-700 flex items-center gap-2"
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										class="h-4 w-4 text-purple-500"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+										/>
+									</svg>
+									Propozycja Maila
+								</p>
+								<button
+									@click="copyEmailDraft"
+									class="text-xs font-semibold px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors border border-purple-200 flex items-center gap-1.5 shadow-sm"
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										class="h-3.5 w-3.5"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+										/>
+									</svg>
+									Skopiuj Maila
+								</button>
+							</div>
+							<div
+								class="bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-mono max-h-64 overflow-y-auto"
 							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							</svg>
-							<p class="text-gray-800 font-medium">
-								Brak krytycznych błędów z naszej strony!
-							</p>
-							<p class="text-sm text-gray-500 mt-1">
-								Strona/wizytówka wydaje się być w dobrym stanie
-								podstawowym.
-							</p>
+								{{ lead.audit_report.email_draft }}
+							</div>
 						</div>
 					</div>
 				</div>

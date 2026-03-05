@@ -17,4 +17,7 @@ export default {
 	triggerScan(payload) {
 		return api.post("/scan", payload);
 	},
+	auditLead(id) {
+		return api.post(`/leads/${id}/audit`);
+	},
 };

@@ -3,6 +3,7 @@ import { ref, watch } from "vue";
 import draggable from "vuedraggable";
 import KanbanCard from "./KanbanCard.vue";
 import { useToast } from "vue-toastification";
+import api from "../services/api.js";
 
 const props = defineProps({
 	leads: {
@@ -21,18 +22,8 @@ const handleAuditLead = async (leadId) => {
 
 	auditingIds.value.add(leadId);
 	try {
-		const response = await fetch(
-			`http://localhost:8000/api/leads/${leadId}/audit`,
-			{
-				method: "POST",
-			},
-		);
-
-		if (!response.ok) {
-			throw new Error("Błąd podczas audytu");
-		}
-
-		const updatedLead = await response.json();
+		const response = await api.auditLead(leadId);
+		const updatedLead = response.data;
 
 		// Update the lead in our localColumns
 		for (const columnId in localColumns.value) {
@@ -48,10 +39,10 @@ const handleAuditLead = async (leadId) => {
 				break;
 			}
 		}
-		toast.success("Audyt zakończony pomyślnie");
+		toast.success("Audyt AI zakończony pomyślnie!");
 	} catch (error) {
 		console.error(error);
-		toast.error("Nie udało się przeprowadzić audytu");
+		toast.error("Nie udało się przeprowadzić audytu AI.");
 	} finally {
 		auditingIds.value.delete(leadId);
 	}
