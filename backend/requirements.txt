@@ -5,3 +5,4 @@ pydantic
 httpx
 python-dotenv
 beautifulsoup4
+google-generativeai

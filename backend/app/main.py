@@ -60,21 +60,31 @@ async def audit_lead_endpoint(lead_id: int, db: Session = Depends(database.get_d
         raise HTTPException(status_code=404, detail="Lead not found")
     
     from .business_auditor import audit_lead
+    from .ai_analyzer import generate_ai_analysis
     
-    # Convert SQLAlchemy model to dict for auditor
+    # 1. Collect raw data
     lead_data = {
         "rating": db_lead.rating,
         "reviews_count": db_lead.reviews_count,
         "website_uri": db_lead.website_uri,
     }
     
-    audit_result = await audit_lead(lead_data)
+    raw_data = await audit_lead(lead_data)
     
-    db_lead.audit_report = audit_result
+    # 2. Generate AI analysis
+    ai_result = await generate_ai_analysis(raw_data, db_lead.company_name)
     
-    db_lead.has_ssl = audit_result.get("has_ssl", False)
-    if audit_result.get("email"):
-        db_lead.email = audit_result.get("email")
+    # 3. Build unified audit report
+    audit_report = {
+        "raw_data": raw_data,
+        "selling_points": ai_result.get("selling_points", []),
+        "email_draft": ai_result.get("email_draft", ""),
+    }
+    
+    db_lead.audit_report = audit_report
+    db_lead.has_ssl = raw_data.get("has_ssl", False)
+    if raw_data.get("email"):
+        db_lead.email = raw_data.get("email")
     db_lead.audited = True
     
     db.commit()
