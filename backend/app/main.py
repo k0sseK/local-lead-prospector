@@ -1,9 +1,12 @@
+import logging
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 
 from . import models, schemas, database
+
+logger = logging.getLogger(__name__)
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -37,7 +40,7 @@ def update_lead_status(lead_id: int, lead_update: schemas.LeadUpdate, db: Sessio
 @app.post("/api/scan")
 async def scan_for_leads(scan_request: schemas.ScanRequest, db: Session = Depends(database.get_db)):
     from scraper import scan_google_places
-    
+
     try:
         new_leads_added = await scan_google_places(
             keyword=scan_request.keyword,
@@ -45,11 +48,15 @@ async def scan_for_leads(scan_request: schemas.ScanRequest, db: Session = Depend
             lng=scan_request.lng,
             radius_km=scan_request.radius_km,
             limit=scan_request.limit,
-            db=db
+            db=db,
         )
         return {"message": f"Scan completed. Added {new_leads_added} new leads."}
     except ValueError as e:
+        # Nieprawidłowy klucz API lub błąd odpowiedzi Google
         raise HTTPException(status_code=400, detail=str(e))
+    except ConnectionError as e:
+        # Timeout, DNS failure — serwis Google niedostępny
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
@@ -58,36 +65,11 @@ async def audit_lead_endpoint(lead_id: int, db: Session = Depends(database.get_d
     db_lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
     if db_lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
-    from .business_auditor import audit_lead
-    from .ai_analyzer import generate_ai_analysis
-    
-    # 1. Collect raw data
-    lead_data = {
-        "rating": db_lead.rating,
-        "reviews_count": db_lead.reviews_count,
-        "website_uri": db_lead.website_uri,
-    }
-    
-    raw_data = await audit_lead(lead_data)
-    
-    # 2. Generate AI analysis
-    ai_result = await generate_ai_analysis(raw_data, db_lead.company_name)
-    
-    # 3. Build unified audit report
-    audit_report = {
-        "raw_data": raw_data,
-        "selling_points": ai_result.get("selling_points", []),
-        "email_draft": ai_result.get("email_draft", ""),
-    }
-    
-    db_lead.audit_report = audit_report
-    db_lead.has_ssl = raw_data.get("has_ssl", False)
-    if raw_data.get("email"):
-        db_lead.email = raw_data.get("email")
-    db_lead.audited = True
-    
-    db.commit()
-    db.refresh(db_lead)
-    return db_lead
+
+    try:
+        from .audit_service import run_full_audit
+        return await run_full_audit(db_lead, db)
+    except Exception as exc:
+        logger.error("Audit endpoint failed for lead %d: %s", lead_id, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Audit failed. Sprawdź logi serwera.")
 

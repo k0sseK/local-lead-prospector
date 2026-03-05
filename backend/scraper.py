@@ -1,103 +1,185 @@
 import os
-import asyncio
+import logging
 import httpx
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
-# Load environment variables
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
 
-async def scan_google_places(keyword: str, lat: float, lng: float, radius_km: float, limit: int, db: Session):
-    """
-    Scans Google Places API (New) via Text Search.
-    Filters places based on criteria and adds them to DB without duplicates.
-    """
-    if not GOOGLE_PLACES_API_KEY or GOOGLE_PLACES_API_KEY == "your_google_api_key_here":
-        raise ValueError("Missing GOOGLE_PLACES_API_KEY in environment.")
+_FIELD_MASK = (
+    "places.id,"
+    "places.displayName.text,"
+    "places.formattedAddress,"
+    "places.rating,"
+    "places.userRatingCount,"
+    "places.websiteUri,"
+    "places.nationalPhoneNumber"
+)
+_PLACES_URL = "https://places.googleapis.com/v1/places:searchText"
 
-    # Places API (New) Text Search Endpoint
-    url = "https://places.googleapis.com/v1/places:searchText"
-    
+
+# ---------------------------------------------------------------------------
+# Odpowiedzialność 1: Walidacja konfiguracji
+# ---------------------------------------------------------------------------
+
+def _validate_api_key() -> None:
+    """Rzuca ValueError jeśli klucz API nie jest skonfigurowany."""
+    if not GOOGLE_PLACES_API_KEY or GOOGLE_PLACES_API_KEY == "your_google_api_key_here":
+        raise ValueError("Missing or invalid GOOGLE_PLACES_API_KEY in environment.")
+
+
+# ---------------------------------------------------------------------------
+# Odpowiedzialność 2: Komunikacja z Google Places API
+# ---------------------------------------------------------------------------
+
+async def _fetch_places(
+    keyword: str, lat: float, lng: float, radius_km: float, limit: int
+) -> list[dict]:
+    """
+    Wysyła zapytanie do Google Places API (New) Text Search.
+    Rzuca ConnectionError przy problemach sieciowych,
+    ValueError przy błędach API.
+    """
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
-        "X-Goog-FieldMask": "places.id,places.displayName.text,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri,places.nationalPhoneNumber"
+        "X-Goog-FieldMask": _FIELD_MASK,
     }
-    
     payload = {
         "textQuery": keyword,
         "locationBias": {
             "circle": {
-                "center": {
-                    "latitude": lat,
-                    "longitude": lng
-                },
-                "radius": radius_km * 1000.0
+                "center": {"latitude": lat, "longitude": lng},
+                "radius": radius_km * 1000.0,
             }
         },
-        "maxResultCount": limit
+        "maxResultCount": limit,
     }
 
-    from app.models import Lead # Local import to avoid circular dependency
-    new_leads_count = 0
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            response = await client.post(_PLACES_URL, headers=headers, json=payload)
+        except httpx.TimeoutException:
+            raise ConnectionError(
+                "Google Places API nie odpowiedział w czasie. Spróbuj ponownie."
+            )
+        except httpx.RequestError as exc:
+            raise ConnectionError(
+                f"Błąd połączenia z Google Places API: {exc}"
+            )
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=payload)
-        
         if response.status_code != 200:
-            error_data = response.json().get("error", {})
-            error_msg = error_data.get("message", "Unknown error with Google API")
-            raise ValueError(f"Google Places API (New) Error: {error_msg}")
-            
-        data = response.json()
-        results = data.get("places", [])
+            # Bezpieczne parsowanie — Google może zwrócić HTML przy błędach 5xx
+            try:
+                error_msg = (
+                    response.json().get("error", {}).get("message", "Unknown error")
+                )
+            except Exception:
+                error_msg = f"HTTP {response.status_code}: {response.text[:300]}"
+            raise ValueError(f"Google Places API Error: {error_msg}")
 
-        for place in results:
-            place_id = place.get("id")
-            
-            # Navigate nested displayName
-            display_name_dict = place.get("displayName", {})
-            name = display_name_dict.get("text", "Unknown Name")
-            
-            address = place.get("formattedAddress", "")
-            rating = place.get("rating", 0.0)
-            user_ratings_total = place.get("userRatingCount", 0)
-            website = place.get("websiteUri", "")
-            phone = place.get("nationalPhoneNumber", "")
-            
-            # Filtering Strategy
-            # Primary: No website. Secondary: Rating < 4.0 or Few ratings.
-            is_good_lead = False
-            
-            if rating < 4.0 or user_ratings_total < 10:
-                is_good_lead = True
-                
-            if not website:
-                is_good_lead = True
+        return response.json().get("places", [])
 
-            if is_good_lead:
-                # Check for duplicates using place_id
-                existing_lead = db.query(Lead).filter(Lead.place_id == place_id).first()
-                if not existing_lead:
-                    # Fallback check by name
-                    existing_by_name = db.query(Lead).filter(Lead.company_name == name).first()
-                    if not existing_by_name:
-                        lead = Lead(
-                            place_id=place_id,
-                            company_name=name,
-                            phone=phone,
-                            address=address,
-                            rating=rating,
-                            reviews_count=user_ratings_total,
-                            website_uri=website,
-                            status="new"
-                        )
-                        db.add(lead)
-                        new_leads_count += 1
-        
-        if new_leads_count > 0:
-            db.commit()
 
-    return new_leads_count
+# ---------------------------------------------------------------------------
+# Odpowiedzialność 3: Logika decyzji — czy miejsce jest dobrym leadem
+# ---------------------------------------------------------------------------
+
+def _is_good_lead(place: dict) -> bool:
+    """
+    Strategia kwalifikacji leada.
+    Wydzielona jako osobna funkcja — łatwa do testowania i A/B testowania.
+
+    Kwalifikuje firmę jeśli spełni KTÓRYKOLWIEK z warunków:
+    - brak strony www
+    - ocena poniżej 4.0
+    - mało recenzji (< 10)
+    """
+    rating: float = place.get("rating", 0.0)
+    reviews: int = place.get("userRatingCount", 0)
+    website: str = place.get("websiteUri", "")
+    return not website or rating < 4.0 or reviews < 10
+
+
+# ---------------------------------------------------------------------------
+# Odpowiedzialność 4: Zapis do bazy danych (deduplication)
+# ---------------------------------------------------------------------------
+
+def _save_lead_if_new(place: dict, db: Session) -> bool:
+    """
+    Zapisuje lead do DB jeśli jeszcze nie istnieje.
+    Zwraca True jeśli rekord został dodany, False jeśli pominięty (duplikat).
+    """
+    from app.models import Lead  # opóźniony import — Lead jest w osobnym pakiecie
+
+    place_id: str = place.get("id", "")
+    name: str = place.get("displayName", {}).get("text", "Unknown Name")
+
+    # Deduplication — sprawdzamy po place_id, fallback po nazwie
+    if db.query(Lead).filter(Lead.place_id == place_id).first():
+        logger.debug("Skipping duplicate (place_id): %s", place_id)
+        return False
+    if db.query(Lead).filter(Lead.company_name == name).first():
+        logger.debug("Skipping duplicate (name): %s", name)
+        return False
+
+    db.add(
+        Lead(
+            place_id=place_id,
+            company_name=name,
+            phone=place.get("nationalPhoneNumber", ""),
+            address=place.get("formattedAddress", ""),
+            rating=place.get("rating", 0.0),
+            reviews_count=place.get("userRatingCount", 0),
+            website_uri=place.get("websiteUri", ""),
+            status="new",
+        )
+    )
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Publiczne API modułu — fasada orkiestrująca pozostałe funkcje
+# ---------------------------------------------------------------------------
+
+async def scan_google_places(
+    keyword: str,
+    lat: float,
+    lng: float,
+    radius_km: float,
+    limit: int,
+    db: Session,
+) -> int:
+    """
+    Skanuje Google Places API, filtruje wyniki i zapisuje nowe leady do DB.
+
+    Returns:
+        Liczba nowo dodanych leadów.
+
+    Raises:
+        ValueError: Brak/nieprawidłowy klucz API lub błąd odpowiedzi Google.
+        ConnectionError: Problem sieciowy (timeout, DNS, itp.).
+    """
+    _validate_api_key()
+
+    logger.info(
+        "Scanning Google Places: keyword='%s', lat=%.4f, lng=%.4f, radius=%.1fkm, limit=%d",
+        keyword, lat, lng, radius_km, limit,
+    )
+
+    places = await _fetch_places(keyword, lat, lng, radius_km, limit)
+    logger.info("Received %d places from Google API", len(places))
+
+    qualified = [p for p in places if _is_good_lead(p)]
+    logger.info("%d places qualified as leads after filtering", len(qualified))
+
+    new_count = sum(_save_lead_if_new(p, db) for p in qualified)
+
+    if new_count > 0:
+        db.commit()
+        logger.info("Committed %d new leads to DB", new_count)
+
+    return new_count
