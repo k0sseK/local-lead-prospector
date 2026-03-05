@@ -5,12 +5,15 @@ import "leaflet/dist/leaflet.css";
 import { LMap, LTileLayer, LMarker, LCircle } from "@vue-leaflet/vue-leaflet";
 import KanbanBoard from "./components/KanbanBoard.vue";
 import { useToast } from "vue-toastification";
+import { useLeadStatus } from "./composables/useLeadStatus.js";
 
 const toast = useToast();
 const leads = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const viewMode = ref("kanban"); // 'list' or 'kanban'
+
+const { updateLeadStatus } = useLeadStatus(leads);
 
 const fetchLeads = async () => {
 	try {
@@ -125,50 +128,11 @@ const runScan = async () => {
 	}
 };
 
-const changeStatus = async (lead, newStatus) => {
-	try {
-		const oldStatus = lead.status;
-		lead.status = newStatus; // Optimistic update
-		const response = await api.updateLeadStatus(lead.id, newStatus);
-		lead.status = response.data.status;
-		toast.success(`Zaktualizowano status leada na: ${newStatus}`);
-	} catch (err) {
-		console.error("Failed to update status", err);
-		lead.status = lead.status; // Revert
-		toast.error(
-			"Nie udało się zaktualizować statusu API. Sprawdź połączenie.",
-		);
-	}
-};
+// Delegujemy do composable — obsługuje optimistic update, revert i toast
+const changeStatus = (lead, newStatus) => updateLeadStatus(lead.id, newStatus);
 
-const handleKanbanStatusUpdate = async ({
-	leadId,
-	newStatus,
-	oldStatus,
-	lead,
-}) => {
-	// Find the lead in our main state
-	const targetLead = leads.value.find((l) => l.id === leadId);
-	if (!targetLead) return;
-
-	// Optimistically update the UI status
-	targetLead.status = newStatus;
-
-	try {
-		const response = await api.updateLeadStatus(leadId, newStatus);
-		targetLead.status = response.data.status;
-		// Optional: toast.success('Status zaktualizowany')
-	} catch (err) {
-		console.error("Kanban update failed", err);
-		// Revert to old status
-		targetLead.status = oldStatus;
-		if (toast) {
-			toast.error("Błąd aktualizacji. Przywrócono stary status.");
-		} else {
-			alert("Błąd połączenia. Przywrócono stary status.");
-		}
-	}
-};
+const handleKanbanStatusUpdate = ({ leadId, newStatus }) =>
+	updateLeadStatus(leadId, newStatus);
 
 onMounted(() => {
 	fetchLeads();
