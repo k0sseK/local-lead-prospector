@@ -13,6 +13,7 @@ class LeadBase(BaseModel):
     email: Optional[str] = None
     has_ssl: Optional[bool] = None
     audited: Optional[bool] = False
+    audit_report: Optional[dict] = None
     status: Optional[str] = "new"
 
 class LeadCreate(LeadBase):

@@ -59,12 +59,18 @@ async def audit_lead_endpoint(lead_id: int, db: Session = Depends(database.get_d
     if db_lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
     
-    if not db_lead.website_uri:
-        raise HTTPException(status_code=400, detail="Lead has no website to audit")
-
-    from .website_auditor import audit_website
+    from .business_auditor import audit_lead
     
-    audit_result = await audit_website(db_lead.website_uri)
+    # Convert SQLAlchemy model to dict for auditor
+    lead_data = {
+        "rating": db_lead.rating,
+        "reviews_count": db_lead.reviews_count,
+        "website_uri": db_lead.website_uri,
+    }
+    
+    audit_result = await audit_lead(lead_data)
+    
+    db_lead.audit_report = audit_result
     
     db_lead.has_ssl = audit_result.get("has_ssl", False)
     if audit_result.get("email"):
