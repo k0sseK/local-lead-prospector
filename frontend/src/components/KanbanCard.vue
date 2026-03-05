@@ -26,9 +26,39 @@ const formattedDate = computed(() => {
 	>
 		<div class="flex justify-between items-start mb-2">
 			<h4
-				class="text-sm font-semibold text-gray-900 leading-tight group-hover:text-indigo-600 transition-colors flex flex-col gap-1.5"
+				class="text-sm font-semibold text-gray-900 leading-tight transition-colors flex flex-col gap-1.5"
 			>
-				<span>{{ lead.company_name }}</span>
+				<a
+					v-if="lead.place_id"
+					:href="`https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${lead.place_id}`"
+					target="_blank"
+					@click.stop
+					class="hover:text-indigo-600 hover:underline flex items-start gap-1 group/title"
+					title="Otwórz w Mapach Google"
+				>
+					<span class="line-clamp-2 leading-tight">{{
+						lead.company_name
+					}}</span>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-3.5 w-3.5 flex-shrink-0 text-indigo-400 opacity-0 group-hover/title:opacity-100 transition-opacity mt-0.5"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+						/>
+					</svg>
+				</a>
+				<span
+					v-else
+					class="group-hover:text-indigo-600 transition-colors"
+					>{{ lead.company_name }}</span
+				>
 				<span
 					v-if="lead.website_uri && lead.has_ssl === false"
 					class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 whitespace-nowrap w-max"
@@ -60,7 +90,7 @@ const formattedDate = computed(() => {
 		</div>
 
 		<div class="text-xs text-gray-500 space-y-1">
-			<p class="flex items-start gap-1 relative group/address">
+			<p class="flex items-start gap-1">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					class="h-3.5 w-3.5 text-gray-400 mt-0.5 flex-shrink-0"
@@ -87,29 +117,6 @@ const formattedDate = computed(() => {
 				>
 					{{ lead.address || "Brak adresu" }}
 				</span>
-				<a
-					v-if="lead.place_id"
-					:href="`https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${lead.place_id}`"
-					target="_blank"
-					@click.stop
-					class="ml-auto flex-shrink-0 text-indigo-400 hover:text-indigo-600 opacity-0 group-hover/address:opacity-100 transition-opacity"
-					title="Otwórz w Mapach Google"
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-3.5 w-3.5"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-						/>
-					</svg>
-				</a>
 			</p>
 
 			<p v-if="lead.phone" class="flex items-center gap-1">
