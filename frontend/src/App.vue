@@ -59,6 +59,37 @@ const locateUser = () => {
 	}
 };
 
+const manualAddress = ref("");
+const isSearchingAddress = ref(false);
+
+const searchAddress = async () => {
+	if (!manualAddress.value) return;
+
+	try {
+		isSearchingAddress.value = true;
+		const response = await fetch(
+			`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(manualAddress.value)}`,
+		);
+		const data = await response.json();
+
+		if (data && data.length > 0) {
+			const lat = parseFloat(data[0].lat);
+			const lng = parseFloat(data[0].lon);
+			mapCenter.value = [lat, lng];
+			markerPosition.value = [lat, lng];
+			mapZoom.value = 13;
+			toast.success("Znaleziono lokalizację na podstawie adresu!");
+		} else {
+			toast.error("Nie udało się odnaleźć podanego adresu.");
+		}
+	} catch (err) {
+		console.error("Geocoding error:", err);
+		toast.error("Wystąpił błąd podczas wyszukiwania adresu.");
+	} finally {
+		isSearchingAddress.value = false;
+	}
+};
+
 const runScan = async () => {
 	if (!searchKeyword.value || !markerPosition.value) {
 		error.value =
@@ -222,17 +253,49 @@ onMounted(() => {
 
 								<div class="col-span-6">
 									<div
-										class="flex justify-between items-end mb-2"
+										class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-3"
 									>
-										<p
-											class="block text-sm font-medium text-gray-700"
-										>
-											Wybierz obszar na mapie
-										</p>
+										<div class="flex-1 w-full">
+											<label
+												for="address"
+												class="block text-sm font-medium text-gray-700 mb-1"
+											>
+												Wybierz obszar na mapie lub
+												wpisz adres
+											</label>
+											<div class="flex gap-2">
+												<input
+													v-model="manualAddress"
+													@keyup.enter.prevent="
+														searchAddress
+													"
+													type="text"
+													id="address"
+													placeholder="np. Warszawa, Marszałkowska"
+													class="focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md border p-2"
+												/>
+												<button
+													type="button"
+													@click="searchAddress"
+													:disabled="
+														isSearchingAddress
+													"
+													class="text-sm bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md border border-gray-300 transition-colors whitespace-nowrap shadow-sm disabled:opacity-50"
+												>
+													<span
+														v-if="
+															isSearchingAddress
+														"
+														>Szukam...</span
+													>
+													<span v-else>Szukaj</span>
+												</button>
+											</div>
+										</div>
 										<button
 											type="button"
 											@click="locateUser"
-											class="text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded border border-indigo-200 transition-colors flex items-center gap-1"
+											class="text-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-2 rounded-md border border-indigo-200 transition-colors flex items-center justify-center gap-1 shadow-sm whitespace-nowrap h-[38px]"
 										>
 											<svg
 												xmlns="http://www.w3.org/2000/svg"
