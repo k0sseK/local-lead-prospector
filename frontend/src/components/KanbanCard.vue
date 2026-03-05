@@ -60,7 +60,7 @@ const formattedDate = computed(() => {
 		</div>
 
 		<div class="text-xs text-gray-500 space-y-1">
-			<p class="flex items-start gap-1">
+			<p class="flex items-start gap-1 relative group/address">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					class="h-3.5 w-3.5 text-gray-400 mt-0.5 flex-shrink-0"
@@ -87,6 +87,29 @@ const formattedDate = computed(() => {
 				>
 					{{ lead.address || "Brak adresu" }}
 				</span>
+				<a
+					v-if="lead.place_id"
+					:href="`https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${lead.place_id}`"
+					target="_blank"
+					@click.stop
+					class="ml-auto flex-shrink-0 text-indigo-400 hover:text-indigo-600 opacity-0 group-hover/address:opacity-100 transition-opacity"
+					title="Otwórz w Mapach Google"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-3.5 w-3.5"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+						/>
+					</svg>
+				</a>
 			</p>
 
 			<p v-if="lead.phone" class="flex items-center gap-1">
