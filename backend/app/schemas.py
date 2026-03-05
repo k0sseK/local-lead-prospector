@@ -4,6 +4,7 @@ from typing import Optional
 
 class LeadBase(BaseModel):
     company_name: str
+    place_id: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
     rating: Optional[float] = None
