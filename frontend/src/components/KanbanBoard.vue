@@ -45,6 +45,7 @@ const handleAuditLead = async (leadId) => {
 					email: updatedLead.email,
 					has_ssl: updatedLead.has_ssl,
 					audited: updatedLead.audited,
+					audit_report: updatedLead.audit_report,
 				};
 				break;
 			}
