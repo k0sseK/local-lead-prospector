@@ -53,6 +53,7 @@ dist-ssr/
 *.sqlite
 *.sqlite3
 db.sqlite3
+*.db
 
 # IDEs / OS
 .vscode/

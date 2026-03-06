@@ -1,6 +1,7 @@
 services:
     # ── Backend (FastAPI + Uvicorn) ─────────────────────────────────────────
     backend:
+        image: llp-backend-img:latest
         build:
             context: ./backend
             dockerfile: Dockerfile
@@ -18,6 +19,7 @@ services:
 
     # ── Frontend (Vue 3 + Nginx) ────────────────────────────────────────────
     frontend:
+        image: llp-frontend-img:latest
         build:
             context: ./frontend
             dockerfile: Dockerfile
