@@ -1,4 +1,6 @@
 import logging
+import os
+import resend
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -72,4 +74,33 @@ async def audit_lead_endpoint(lead_id: int, db: Session = Depends(database.get_d
     except Exception as exc:
         logger.error("Audit endpoint failed for lead %d: %s", lead_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Audit failed. Sprawdź logi serwera.")
+
+@app.post("/api/leads/{lead_id}/send-email")
+async def send_email_endpoint(lead_id: int, request: schemas.EmailSendRequest, db: Session = Depends(database.get_db)):
+    db_lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+    if db_lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    if not db_lead.email:
+        raise HTTPException(status_code=400, detail="Lead has no email address")
+
+    resend.api_key = os.getenv("RESEND_API_KEY")
+    if not resend.api_key:
+        raise HTTPException(status_code=500, detail="RESEND_API_KEY is not configured")
+
+    try:
+        params = {
+            "from": "onboarding@resend.dev",
+            "to": [db_lead.email],
+            "subject": request.subject,
+            "html": request.body.replace('\n', '<br>')
+        }
+        resend.Emails.send(params)
+    except Exception as e:
+        logger.error(f"Failed to send email to {db_lead.email}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
+    db_lead.status = "contacted"
+    db.commit()
+    db.refresh(db_lead)
+    return {"message": "Email sent successfully", "lead": db_lead}
 

@@ -26,6 +26,9 @@ async def audit_lead(lead_data: dict) -> dict:
         "missing_seo_tags": [],
         "email": None,
         "website_reachable": None,
+        "cms": None,
+        "social_media": [],
+        "has_meta_description": False,
     }
 
     website_uri = lead_data.get("website_uri")
@@ -80,21 +83,44 @@ async def audit_lead(lead_data: dict) -> dict:
                 # Check SEO tags
                 title = soup.find("title")
                 h1 = soup.find("h1")
+                meta_desc = soup.find("meta", attrs={"name": "description"})
+                
                 raw_data["has_title"] = bool(title)
                 raw_data["has_h1"] = bool(h1)
+                raw_data["has_meta_description"] = bool(meta_desc)
+                
                 if not title:
                     raw_data["missing_seo_tags"].append("title")
                 if not h1:
                     raw_data["missing_seo_tags"].append("h1")
+                if not meta_desc:
+                    raw_data["missing_seo_tags"].append("meta_description")
+                    
+                # Detect CMS
+                if "wp-content" in html_content:
+                    raw_data["cms"] = "WordPress"
+                elif "_next" in html_content:
+                    raw_data["cms"] = "Next.js"
+                elif "cdn.shopify" in html_content:
+                    raw_data["cms"] = "Shopify"
 
-                # Extract Email
+                # Extract Email and Social Media
                 for a_tag in soup.find_all('a', href=True):
                     href = a_tag['href']
-                    if href.startswith('mailto:'):
+                    
+                    # Social media checks
+                    href_lower = href.lower()
+                    if "facebook.com" in href_lower and "facebook" not in raw_data["social_media"]:
+                        raw_data["social_media"].append("facebook")
+                    elif "instagram.com" in href_lower and "instagram" not in raw_data["social_media"]:
+                        raw_data["social_media"].append("instagram")
+                    elif "linkedin.com" in href_lower and "linkedin" not in raw_data["social_media"]:
+                        raw_data["social_media"].append("linkedin")
+                        
+                    if href.startswith('mailto:') and not raw_data["email"]:
                         email = href.replace('mailto:', '').split('?')[0].strip()
                         if email and EMAIL_REGEX.match(email):
                             raw_data["email"] = email
-                            break
 
                 if not raw_data["email"]:
                     text_content = soup.get_text(separator=" ")

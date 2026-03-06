@@ -52,6 +52,9 @@ async def run_full_audit(db_lead: models.Lead, db: Session) -> models.Lead:
             "has_h1": None,
             "missing_seo_tags": [],
             "email": None,
+            "cms": None,
+            "social_media": [],
+            "has_meta_description": False,
         }
 
     # --- Krok 2: Analiza AI (Gemini) ---

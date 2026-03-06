@@ -35,3 +35,7 @@ class ScanRequest(BaseModel):
     lng: float
     radius_km: float = 5.0
     limit: int = 10
+
+class EmailSendRequest(BaseModel):
+    subject: str
+    body: str
