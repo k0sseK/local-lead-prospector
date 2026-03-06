@@ -20,4 +20,7 @@ export default {
 	auditLead(id) {
 		return api.post(`/leads/${id}/audit`);
 	},
+	sendEmail(id, data) {
+		return api.post(`/leads/${id}/send-email`, data);
+	},
 };

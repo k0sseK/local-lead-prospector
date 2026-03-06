@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import { useToast } from "vue-toastification";
+import api from "../services/api.js";
 
 const toast = useToast();
 
@@ -18,6 +19,8 @@ const props = defineProps({
 const emit = defineEmits(["audit-lead"]);
 
 const isModalOpen = ref(false);
+const isSendingEmail = ref(false);
+const emailSubject = ref("");
 
 const formattedDate = computed(() => {
 	if (!props.lead.created_at) return "";
@@ -40,6 +43,30 @@ const copyEmailDraft = async () => {
 		document.execCommand("copy");
 		document.body.removeChild(textarea);
 		toast.success("Mail skopiowany do schowka!");
+	}
+};
+
+const sendEmail = async () => {
+	if (!emailSubject.value) {
+		toast.error("Wprowadź temat maila.");
+		return;
+	}
+	try {
+		isSendingEmail.value = true;
+		const response = await api.sendEmail(props.lead.id, {
+			subject: emailSubject.value,
+			body: props.lead.audit_report.email_draft,
+		});
+		toast.success("E-mail został pomyślnie wysłany!");
+		Object.assign(props.lead, response.data.lead); // Reactively update the lead to trigger board column update
+		isModalOpen.value = false;
+	} catch (error) {
+		console.error(error);
+		toast.error(
+			error.response?.data?.detail || "Nie udało się wysłać e-maila.",
+		);
+	} finally {
+		isSendingEmail.value = false;
 	}
 };
 </script>
@@ -90,6 +117,27 @@ const copyEmailDraft = async () => {
 					Brak SSL!
 				</span>
 			</h4>
+			<div
+				v-if="lead.audit_report?.raw_data"
+				class="flex flex-wrap gap-1 mt-1"
+			>
+				<span
+					v-if="lead.audit_report.raw_data.cms"
+					class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200"
+				>
+					💻 {{ lead.audit_report.raw_data.cms }}
+				</span>
+				<span
+					v-if="
+						lead.audit_report.raw_data.social_media &&
+						lead.audit_report.raw_data.social_media.length === 0
+					"
+					class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200"
+				>
+					⚠️ Brak Social Media
+				</span>
+			</div>
+
 			<div
 				v-if="lead.rating"
 				class="flex items-center bg-yellow-50 px-1.5 py-0.5 rounded text-xs text-yellow-700 font-medium border border-yellow-100 flex-shrink-0 ml-2"
@@ -446,9 +494,77 @@ const copyEmailDraft = async () => {
 								</button>
 							</div>
 							<div
-								class="bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-mono max-h-64 overflow-y-auto"
+								class="bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-mono max-h-64 overflow-y-auto mb-4"
 							>
 								{{ lead.audit_report.email_draft }}
+							</div>
+
+							<!-- Sekcja wysyłki e-mail -->
+							<div
+								class="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100"
+							>
+								<label
+									class="block text-sm font-semibold text-gray-700 mb-2"
+									>Temat maila</label
+								>
+								<input
+									v-model="emailSubject"
+									type="text"
+									placeholder="Wpisz temat wiadomości..."
+									class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"
+								/>
+								<button
+									@click="sendEmail"
+									:disabled="isSendingEmail"
+									class="w-full flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50 shadow-sm"
+								>
+									<span
+										v-if="isSendingEmail"
+										class="flex items-center gap-2"
+									>
+										<svg
+											class="animate-spin h-4 w-4 text-white"
+											xmlns="http://www.w3.org/2000/svg"
+											fill="none"
+											viewBox="0 0 24 24"
+										>
+											<circle
+												class="opacity-25"
+												cx="12"
+												cy="12"
+												r="10"
+												stroke="currentColor"
+												stroke-width="4"
+											></circle>
+											<path
+												class="opacity-75"
+												fill="currentColor"
+												d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+											></path>
+										</svg>
+										Wysyłanie...
+									</span>
+									<span
+										v-else
+										class="flex items-center gap-2"
+									>
+										Wyślij e-mail teraz
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											class="h-4 w-4"
+											fill="none"
+											viewBox="0 0 24 24"
+											stroke="currentColor"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+											/>
+										</svg>
+									</span>
+								</button>
 							</div>
 						</div>
 					</div>
