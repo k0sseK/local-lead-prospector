@@ -7,7 +7,39 @@ const api = axios.create({
 	},
 });
 
+// Request interceptor — attach JWT from cookie on every request
+api.interceptors.request.use((config) => {
+	const token = getCookieValue("auth_token");
+	if (token) {
+		config.headers.Authorization = `Bearer ${token}`;
+	}
+	return config;
+});
+
+// Response interceptor — redirect to /login on 401
+api.interceptors.response.use(
+	(response) => response,
+	(error) => {
+		if (error.response?.status === 401) {
+			document.cookie = "auth_token=; Max-Age=0; path=/";
+			window.location.href = "/login";
+		}
+		return Promise.reject(error);
+	}
+);
+
+function getCookieValue(name) {
+	const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+	return match ? decodeURIComponent(match[2]) : null;
+}
+
 export default {
+	login(credentials) {
+		return api.post("/auth/login", credentials);
+	},
+	register(credentials) {
+		return api.post("/auth/register", credentials);
+	},
 	getLeads() {
 		return api.get("/leads");
 	},

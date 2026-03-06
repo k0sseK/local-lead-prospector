@@ -20,18 +20,18 @@
 					>
 				</NuxtLink>
 				<nav class="flex items-center gap-4">
-					<NuxtLink to="/app">
+					<NuxtLink to="/login">
 						<Button
 							variant="ghost"
 							class="hidden sm:flex hover:bg-slate-100"
 							>Log in</Button
 						>
 					</NuxtLink>
-					<NuxtLink to="/app">
+					<NuxtLink to="/register">
 						<Button
 							class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm transition-all hover:shadow-md"
 						>
-							Przejdź do aplikacji
+							Get started
 						</Button>
 					</NuxtLink>
 				</nav>

@@ -1,4 +1,13 @@
-<script setup></script>
+<script setup>
+import { useAuth } from "@/composables/useAuth"
+
+const { user, logout } = useAuth()
+
+const initials = computed(() => {
+  if (!user.value?.email) return "?"
+  return user.value.email.substring(0, 2).toUpperCase()
+})
+</script>
 
 <template>
 	<div class="min-h-screen bg-slate-50 flex font-sans text-slate-900">
@@ -69,16 +78,35 @@
 			<div class="p-4 border-t border-slate-200">
 				<div class="flex items-center gap-3 px-3 py-2">
 					<div
-						class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-xs"
+						class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-xs flex-shrink-0"
 					>
-						JD
+						{{ initials }}
 					</div>
-					<div class="flex flex-col">
-						<span class="text-sm font-medium">Jan Kowalski</span>
-						<span class="text-xs text-slate-500 truncate w-32"
-							>jan@example.com</span
+					<div class="flex flex-col flex-1 min-w-0">
+						<span class="text-sm font-medium truncate">{{ user?.email ?? "..." }}</span>
+						<span class="text-xs text-slate-500">{{ user?.role ?? "" }}</span>
+					</div>
+					<button
+						@click="logout"
+						title="Log out"
+						class="text-slate-400 hover:text-slate-700 transition-colors flex-shrink-0"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="16"
+							height="16"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
 						>
-					</div>
+							<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+							<polyline points="16 17 21 12 16 7" />
+							<line x1="21" x2="9" y1="12" y2="12" />
+						</svg>
+					</button>
 				</div>
 			</div>
 		</aside>
