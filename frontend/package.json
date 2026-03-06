@@ -11,15 +11,17 @@
 	},
 	"dependencies": {
 		"@vue-leaflet/vue-leaflet": "^0.10.1",
+		"@vueuse/core": "^14.2.1",
 		"axios": "^1.6.8",
-		"leaflet": "^1.9.4",
-		"vue-toastification": "^2.0.0-rc.5",
-		"vuedraggable": "^4.1.0",
 		"class-variance-authority": "^0.7.0",
 		"clsx": "^2.1.0",
-		"tailwind-merge": "^2.2.0",
+		"leaflet": "^1.9.4",
 		"lucide-vue-next": "^0.344.0",
-		"radix-vue": "^1.9.0"
+		"radix-vue": "^1.9.0",
+		"reka-ui": "^2.9.0",
+		"tailwind-merge": "^2.2.0",
+		"vue-toastification": "^2.0.0-rc.5",
+		"vuedraggable": "^4.1.0"
 	},
 	"devDependencies": {
 		"@nuxtjs/tailwindcss": "^6.12.0",
