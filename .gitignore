@@ -44,9 +44,12 @@ yarn-error.log*
 pnpm-debug.log*
 .pnpm-store/
 
-# Vue / Vite / Frontend
+# Vue / Vite / Nuxt / Frontend
 dist/
 dist-ssr/
+.nuxt/
+.output/
+.output_public/
 *.local
 
 # SQLite
