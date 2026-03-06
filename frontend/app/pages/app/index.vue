@@ -1,22 +1,11 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import api from "@/app/services/api.js";
+import api from "@/services/api.js";
 import "leaflet/dist/leaflet.css";
 import { LMap, LTileLayer, LMarker, LCircle } from "@vue-leaflet/vue-leaflet";
-import KanbanBoard from "@/app/components/KanbanBoard.vue";
+import KanbanBoard from "@/components/KanbanBoard.vue";
 import { useToast } from "vue-toastification";
-import { useLeadStatus } from "@/app/composables/useLeadStatus.js";
-
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-	CardDescription,
-} from "@/app/components/ui/card";
-import { Slider } from "@/app/components/ui/slider";
+import { useLeadStatus } from "@/composables/useLeadStatus.js";
 
 definePageMeta({
 	layout: "dashboard",

@@ -1,13 +1,4 @@
 <script setup>
-import { Button } from "@/app/components/ui/button";
-import {
-	Card,
-	CardHeader,
-	CardTitle,
-	CardDescription,
-	CardContent,
-} from "@/app/components/ui/card";
-
 definePageMeta({
 	layout: "default",
 });

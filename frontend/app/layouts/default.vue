@@ -1,6 +1,4 @@
-<script setup>
-import { Button } from "@/app/components/ui/button";
-</script>
+<script setup></script>
 
 <template>
 	<div class="min-h-screen bg-white flex flex-col font-sans text-slate-900">

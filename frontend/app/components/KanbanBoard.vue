@@ -1,9 +1,9 @@
 <script setup>
 import { ref, watch } from "vue";
 import draggable from "vuedraggable";
-import KanbanCard from "@/app/components/KanbanCard.vue";
+import KanbanCard from "@/components/KanbanCard.vue";
 import { useToast } from "vue-toastification";
-import api from "@/app/services/api.js";
+import api from "@/services/api.js";
 
 const props = defineProps({
 	leads: {

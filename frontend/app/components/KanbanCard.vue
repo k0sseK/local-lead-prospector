@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import { useToast } from "vue-toastification";
-import api from "@/app/services/api.js";
+import api from "@/services/api.js";
 
 const toast = useToast();
 
