@@ -7,3 +7,6 @@ python-dotenv
 beautifulsoup4
 google-generativeai
 resend
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
