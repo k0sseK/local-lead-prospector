@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from . import models, schemas, database
+from .dependencies import get_current_user
+from .routers import auth as auth_router
 
 logger = logging.getLogger(__name__)
 
@@ -23,24 +25,53 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router.router)
+
+
 @app.get("/api/leads", response_model=List[schemas.Lead])
-def read_leads(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
-    leads = db.query(models.Lead).offset(skip).limit(limit).all()
+def read_leads(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    leads = (
+        db.query(models.Lead)
+        .filter(models.Lead.user_id == current_user.id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     return leads
 
+
 @app.patch("/api/leads/{lead_id}", response_model=schemas.Lead)
-def update_lead_status(lead_id: int, lead_update: schemas.LeadUpdate, db: Session = Depends(database.get_db)):
-    db_lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+def update_lead_status(
+    lead_id: int,
+    lead_update: schemas.LeadUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
     if db_lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+
     db_lead.status = lead_update.status
     db.commit()
     db.refresh(db_lead)
     return db_lead
 
+
 @app.post("/api/scan")
-async def scan_for_leads(scan_request: schemas.ScanRequest, db: Session = Depends(database.get_db)):
+async def scan_for_leads(
+    scan_request: schemas.ScanRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     from scraper import scan_google_places
 
     try:
@@ -51,6 +82,7 @@ async def scan_for_leads(scan_request: schemas.ScanRequest, db: Session = Depend
             radius_km=scan_request.radius_km,
             limit=scan_request.limit,
             db=db,
+            user_id=current_user.id,
         )
         return {"message": f"Scan completed. Added {new_leads_added} new leads."}
     except ValueError as e:
@@ -62,9 +94,18 @@ async def scan_for_leads(scan_request: schemas.ScanRequest, db: Session = Depend
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+
 @app.post("/api/leads/{lead_id}/audit", response_model=schemas.Lead)
-async def audit_lead_endpoint(lead_id: int, db: Session = Depends(database.get_db)):
-    db_lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+async def audit_lead_endpoint(
+    lead_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
     if db_lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
 
@@ -75,9 +116,19 @@ async def audit_lead_endpoint(lead_id: int, db: Session = Depends(database.get_d
         logger.error("Audit endpoint failed for lead %d: %s", lead_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Audit failed. Sprawdź logi serwera.")
 
+
 @app.post("/api/leads/{lead_id}/send-email")
-async def send_email_endpoint(lead_id: int, request: schemas.EmailSendRequest, db: Session = Depends(database.get_db)):
-    db_lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+async def send_email_endpoint(
+    lead_id: int,
+    request: schemas.EmailSendRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
     if db_lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
     if not db_lead.email:
@@ -103,4 +154,3 @@ async def send_email_endpoint(lead_id: int, request: schemas.EmailSendRequest, d
     db.commit()
     db.refresh(db_lead)
     return {"message": "Email sent successfully", "lead": db_lead}
-

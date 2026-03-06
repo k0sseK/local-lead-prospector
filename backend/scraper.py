@@ -108,7 +108,7 @@ def _is_good_lead(place: dict) -> bool:
 # Odpowiedzialność 4: Zapis do bazy danych (deduplication)
 # ---------------------------------------------------------------------------
 
-def _save_lead_if_new(place: dict, db: Session) -> bool:
+def _save_lead_if_new(place: dict, db: Session, user_id: int) -> bool:
     """
     Zapisuje lead do DB jeśli jeszcze nie istnieje.
     Zwraca True jeśli rekord został dodany, False jeśli pominięty (duplikat).
@@ -118,11 +118,11 @@ def _save_lead_if_new(place: dict, db: Session) -> bool:
     place_id: str = place.get("id", "")
     name: str = place.get("displayName", {}).get("text", "Unknown Name")
 
-    # Deduplication — sprawdzamy po place_id, fallback po nazwie
-    if db.query(Lead).filter(Lead.place_id == place_id).first():
+    # Deduplication — sprawdzamy po place_id, fallback po nazwie (dla danego użytkownika)
+    if db.query(Lead).filter(Lead.place_id == place_id, Lead.user_id == user_id).first():
         logger.debug("Skipping duplicate (place_id): %s", place_id)
         return False
-    if db.query(Lead).filter(Lead.company_name == name).first():
+    if db.query(Lead).filter(Lead.company_name == name, Lead.user_id == user_id).first():
         logger.debug("Skipping duplicate (name): %s", name)
         return False
 
@@ -135,6 +135,7 @@ def _save_lead_if_new(place: dict, db: Session) -> bool:
             rating=place.get("rating", 0.0),
             reviews_count=place.get("userRatingCount", 0),
             website_uri=place.get("websiteUri", ""),
+            user_id=user_id,
             status="new",
         )
     )
@@ -152,6 +153,7 @@ async def scan_google_places(
     radius_km: float,
     limit: int,
     db: Session,
+    user_id: int,
 ) -> int:
     """
     Skanuje Google Places API, filtruje wyniki i zapisuje nowe leady do DB.
@@ -176,7 +178,7 @@ async def scan_google_places(
     qualified = [p for p in places if _is_good_lead(p)]
     logger.info("%d places qualified as leads after filtering", len(qualified))
 
-    new_count = sum(_save_lead_if_new(p, db) for p in qualified)
+    new_count = sum(_save_lead_if_new(p, db, user_id) for p in qualified)
 
     if new_count > 0:
         db.commit()
