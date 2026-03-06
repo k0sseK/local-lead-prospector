@@ -9,6 +9,7 @@ import { useLeadStatus } from "@/composables/useLeadStatus.js";
 
 definePageMeta({
 	layout: "dashboard",
+	middleware: ["auth"],
 });
 
 const toast = useToast();
