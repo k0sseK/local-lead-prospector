@@ -135,6 +135,41 @@ const handleKanbanStatusUpdate = ({ leadId, newStatus }) =>
 	updateLeadStatus(leadId, newStatus);
 const changeStatus = (lead, newStatus) => updateLeadStatus(lead.id, newStatus);
 
+const handleLeadDeleted = (leadId) => {
+	leads.value = leads.value.filter((l) => l.id !== leadId);
+};
+
+const isAuditingAll = ref(false);
+const auditAllProgress = ref({ done: 0, total: 0 });
+
+const auditAll = async () => {
+	const unaudited = leads.value.filter((l) => !l.audited);
+	if (unaudited.length === 0) {
+		toast.info("Wszystkie leady są już zbadane.");
+		return;
+	}
+
+	isAuditingAll.value = true;
+	auditAllProgress.value = { done: 0, total: unaudited.length };
+
+	for (const lead of unaudited) {
+		try {
+			const response = await api.auditLead(lead.id);
+			const updated = response.data;
+			const idx = leads.value.findIndex((l) => l.id === lead.id);
+			if (idx !== -1) {
+				leads.value[idx] = { ...leads.value[idx], ...updated };
+			}
+		} catch {
+			toast.error(`Audyt nieudany: ${lead.company_name}`);
+		}
+		auditAllProgress.value.done++;
+	}
+
+	isAuditingAll.value = false;
+	toast.success("Audyt wszystkich leadów zakończony!");
+};
+
 onMounted(() => {
 	fetchLeads();
 });
@@ -383,6 +418,29 @@ onMounted(() => {
 				<h2 class="text-xl font-semibold text-slate-900">
 					Tablica leadów
 				</h2>
+				<div class="flex items-center gap-3">
+				<Button
+					v-if="leads.some((l) => !l.audited)"
+					@click="auditAll"
+					:disabled="isAuditingAll"
+					variant="outline"
+					size="sm"
+					class="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+				>
+					<svg v-if="isAuditingAll" class="animate-spin h-3.5 w-3.5 mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+					</svg>
+					<svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+					<span v-if="isAuditingAll">
+						Audyt... {{ auditAllProgress.done }}/{{ auditAllProgress.total }}
+					</span>
+					<span v-else>
+						Audytuj wszystkie ({{ leads.filter((l) => !l.audited).length }})
+					</span>
+				</Button>
 				<div
 					class="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm"
 				>
@@ -410,12 +468,14 @@ onMounted(() => {
 						Lista
 					</Button>
 				</div>
+				</div>
 			</div>
 
 			<div v-if="viewMode === 'kanban'">
 				<KanbanBoard
 					:leads="leads"
 					@update-status="handleKanbanStatusUpdate"
+					@lead-deleted="handleLeadDeleted"
 				/>
 			</div>
 
