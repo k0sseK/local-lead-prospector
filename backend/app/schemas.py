@@ -69,3 +69,18 @@ class ScanRequest(BaseModel):
 class EmailSendRequest(BaseModel):
     subject: str
     body: str
+
+
+class UserSettingsBase(BaseModel):
+    sender_name: Optional[str] = None
+    company_name: Optional[str] = None
+    offer_description: Optional[str] = None
+    tone_of_voice: str = "formalny"
+
+
+class UserSettingsOut(UserSettingsBase):
+    id: int
+    user_id: int
+
+    class Config:
+        from_attributes = True

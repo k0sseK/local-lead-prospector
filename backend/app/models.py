@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, JSON, ForeignKey
 from datetime import datetime, timezone
 from .database import Base
 
@@ -11,6 +11,17 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="user")  # 'user' | 'admin'
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    sender_name = Column(String, nullable=True)
+    company_name = Column(String, nullable=True)
+    offer_description = Column(Text, nullable=True)
+    tone_of_voice = Column(String, default="formalny")
 
 
 class Lead(Base):
