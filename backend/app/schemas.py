@@ -76,7 +76,14 @@ class UserSettingsBase(BaseModel):
     company_name: Optional[str] = None
     offer_description: Optional[str] = None
     tone_of_voice: str = "formalny"
-
+    
+    email_provider: str = "resend"
+    resend_api_key: Optional[str] = None
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_from_email: Optional[str] = None
 
 class UserSettingsOut(UserSettingsBase):
     id: int

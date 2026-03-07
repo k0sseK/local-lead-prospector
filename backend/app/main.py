@@ -203,27 +203,64 @@ async def send_email_endpoint(
     if db_lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
     if not db_lead.email:
-        raise HTTPException(status_code=400, detail="Lead has no email address")
+        raise HTTPException(status_code=400, detail="Lead ma zły/brak adresu e-mail")
 
-    resend.api_key = os.getenv("RESEND_API_KEY")
-    if not resend.api_key:
-        raise HTTPException(status_code=500, detail="RESEND_API_KEY is not configured")
+    user_settings = db.query(models.UserSettings).filter(models.UserSettings.user_id == current_user.id).first()
+    provider = user_settings.email_provider if user_settings and user_settings.email_provider else "none"
 
-    from_email = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+    if provider == "none":
+        raise HTTPException(status_code=400, detail="Najpierw skonfiguruj dostawcę e-mail w zakładce Ustawienia.")
 
     try:
-        params = {
-            "from": from_email,
-            "to": [db_lead.email],
-            "subject": request.subject,
-            "html": request.body.replace('\n', '<br>')
-        }
-        resend.Emails.send(params)
+        html_body = request.body.replace('\n', '<br>')
+        
+        if provider == "resend":
+            import resend
+            
+            api_key = user_settings.resend_api_key if user_settings else None
+            from_email = user_settings.smtp_from_email if user_settings else None
+            
+            # W ostateczności fallback na globalne pliki, ale priorytet to ustawienia użytkownika
+            resend.api_key = api_key or os.getenv("RESEND_API_KEY")
+            real_from = from_email or os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+
+            if not resend.api_key:
+                raise ValueError("Brak klucza API dla Resend.")
+            
+            params = {
+                "from": real_from,
+                "to": [db_lead.email],
+                "subject": request.subject,
+                "html": html_body
+            }
+            resend.Emails.send(params)
+
+        elif provider == "smtp":
+            import smtplib
+            from email.message import EmailMessage
+
+            if not user_settings or not all([user_settings.smtp_host, user_settings.smtp_port, user_settings.smtp_user, user_settings.smtp_password, user_settings.smtp_from_email]):
+                raise ValueError("Brak pełnych danych konfiguracji SMTP w Ustawieniach.")
+
+            msg = EmailMessage()
+            msg['Subject'] = request.subject
+            msg['From'] = user_settings.smtp_from_email
+            msg['To'] = db_lead.email
+            msg.set_content("Masz wyłączone wsparcie HTML. Wiadomość była nadana z włączonymi znacznikami.")
+            msg.add_alternative(html_body, subtype='html')
+
+            with smtplib.SMTP_SSL(user_settings.smtp_host, user_settings.smtp_port) as server:
+                server.login(user_settings.smtp_user, user_settings.smtp_password)
+                server.send_message(msg)
+                
+        else:
+            raise ValueError(f"Nieobsługiwany dostawca: {provider}")
+
     except Exception as e:
-        logger.error(f"Failed to send email to {db_lead.email}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+        logger.error(f"Porażka przy wysyłce email na {db_lead.email}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Błąd wysyłki: {str(e)}")
 
     db_lead.status = "contacted"
     db.commit()
     db.refresh(db_lead)
-    return {"message": "Email sent successfully", "lead": db_lead}
+    return {"message": "Email wysłany pomyślnie!", "lead": db_lead}

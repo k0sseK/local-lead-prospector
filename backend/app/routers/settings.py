@@ -43,6 +43,14 @@ def upsert_settings(
     settings.offer_description = data.offer_description
     settings.tone_of_voice = data.tone_of_voice
 
+    settings.email_provider = data.email_provider
+    settings.resend_api_key = data.resend_api_key
+    settings.smtp_host = data.smtp_host
+    settings.smtp_port = data.smtp_port
+    settings.smtp_user = data.smtp_user
+    settings.smtp_password = data.smtp_password
+    settings.smtp_from_email = data.smtp_from_email
+
     db.commit()
     db.refresh(settings)
     return settings

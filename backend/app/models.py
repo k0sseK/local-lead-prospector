@@ -23,6 +23,14 @@ class UserSettings(Base):
     offer_description = Column(Text, nullable=True)
     tone_of_voice = Column(String, default="formalny")
 
+    # Email provider settings
+    email_provider = Column(String, default="resend") # "resend" | "smtp" | "none"
+    resend_api_key = Column(String, nullable=True)
+    smtp_host = Column(String, nullable=True)
+    smtp_port = Column(Integer, nullable=True)
+    smtp_user = Column(String, nullable=True)
+    smtp_password = Column(String, nullable=True)
+    smtp_from_email = Column(String, nullable=True)
 
 class Lead(Base):
     __tablename__ = "leads"
