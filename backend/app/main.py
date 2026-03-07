@@ -20,9 +20,12 @@ models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI(title="B2B Lead Generator API")
 
 # Configure CORS
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost,http://localhost:3000")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For development, we allow all origins. In production, restrict this.
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -204,9 +207,11 @@ async def send_email_endpoint(
     if not resend.api_key:
         raise HTTPException(status_code=500, detail="RESEND_API_KEY is not configured")
 
+    from_email = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+
     try:
         params = {
-            "from": "onboarding@resend.dev",
+            "from": from_email,
             "to": [db_lead.email],
             "subject": request.subject,
             "html": request.body.replace('\n', '<br>')
