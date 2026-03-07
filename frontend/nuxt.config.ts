@@ -46,7 +46,11 @@ export default defineNuxtConfig({
 	vite: {
 		define: {
 			"import.meta.env.NUXT_PUBLIC_API_BASE": JSON.stringify(
-				process.env.NUXT_PUBLIC_API_BASE ?? "http://localhost:8000/api",
+				(process.env.NUXT_PUBLIC_API_BASE || "").startsWith("http")
+					? process.env.NUXT_PUBLIC_API_BASE
+					: process.env.NUXT_PUBLIC_API_BASE
+						? `https://${process.env.NUXT_PUBLIC_API_BASE}`
+						: "http://localhost:8000/api",
 			),
 		},
 	},
