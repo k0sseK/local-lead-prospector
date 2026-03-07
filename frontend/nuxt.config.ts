@@ -43,6 +43,14 @@ export default defineNuxtConfig({
 		},
 	},
 
+	vite: {
+		define: {
+			"import.meta.env.NUXT_PUBLIC_API_BASE": JSON.stringify(
+				process.env.NUXT_PUBLIC_API_BASE ?? "http://localhost:8000/api",
+			),
+		},
+	},
+
 	app: {
 		head: {
 			title: "Local Lead Prospector",
