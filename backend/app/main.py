@@ -60,10 +60,30 @@ def update_lead_status(
     if db_lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
 
-    db_lead.status = lead_update.status
+    if lead_update.status is not None:
+        db_lead.status = lead_update.status
+    if lead_update.notes is not None:
+        db_lead.notes = lead_update.notes
     db.commit()
     db.refresh(db_lead)
     return db_lead
+
+
+@app.delete("/api/leads/{lead_id}", status_code=204)
+def delete_lead(
+    lead_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
+    if db_lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    db.delete(db_lead)
+    db.commit()
 
 
 @app.post("/api/scan")

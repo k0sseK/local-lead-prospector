@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, JSON
 from datetime import datetime, timezone
 from .database import Base
 
@@ -29,5 +29,6 @@ class Lead(Base):
     audited = Column(Boolean, default=False)
     audit_report = Column(JSON, nullable=True)
     status = Column(String, default="new") # options: 'new', 'to_contact', 'contacted', 'rejected', 'closed'
+    notes = Column(Text, nullable=True)
     user_id = Column(Integer, nullable=True, index=True)  # plain Integer, no FK object (SQLite-safe)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

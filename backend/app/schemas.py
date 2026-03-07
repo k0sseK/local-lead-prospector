@@ -42,12 +42,14 @@ class LeadBase(BaseModel):
     audited: Optional[bool] = False
     audit_report: Optional[dict] = None
     status: Optional[str] = "new"
+    notes: Optional[str] = None
 
 class LeadCreate(LeadBase):
     pass
 
 class LeadUpdate(BaseModel):
-    status: str
+    status: Optional[str] = None
+    notes: Optional[str] = None
 
 class Lead(LeadBase):
     id: int
