@@ -58,4 +58,10 @@ export default {
 	sendEmail(id, data) {
 		return api.post(`/leads/${id}/send-email`, data);
 	},
+	deleteLead(id) {
+		return api.delete(`/leads/${id}`);
+	},
+	updateLeadNotes(id, notes) {
+		return api.patch(`/leads/${id}`, { notes });
+	},
 };

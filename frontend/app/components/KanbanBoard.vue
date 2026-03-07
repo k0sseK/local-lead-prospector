@@ -12,7 +12,7 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(["update-status"]);
+const emit = defineEmits(["update-status", "lead-deleted", "audit-all-done"]);
 const toast = useToast();
 
 const auditingIds = ref(new Set());
@@ -109,6 +109,44 @@ watch(
 	{ immediate: true, deep: true },
 );
 
+const isAuditingAll = ref(false);
+const auditAllProgress = ref({ done: 0, total: 0 });
+
+const auditAll = async () => {
+	const unaudited = [];
+	for (const columnId in localColumns.value) {
+		localColumns.value[columnId].forEach((l) => {
+			if (!l.audited) unaudited.push(l);
+		});
+	}
+	if (unaudited.length === 0) {
+		toast.info("Wszystkie leady są już zbadane.");
+		return;
+	}
+
+	isAuditingAll.value = true;
+	auditAllProgress.value = { done: 0, total: unaudited.length };
+
+	for (const lead of unaudited) {
+		await handleAuditLead(lead.id);
+		auditAllProgress.value.done++;
+	}
+
+	isAuditingAll.value = false;
+	emit("audit-all-done");
+};
+
+const handleLeadDeleted = (leadId) => {
+	for (const columnId in localColumns.value) {
+		const idx = localColumns.value[columnId].findIndex((l) => l.id === leadId);
+		if (idx !== -1) {
+			localColumns.value[columnId].splice(idx, 1);
+			break;
+		}
+	}
+	emit("lead-deleted", leadId);
+};
+
 const onChange = (event, newStatus) => {
 	if (event.added) {
 		const lead = event.added.element;
@@ -167,6 +205,7 @@ const onChange = (event, newStatus) => {
 							:lead="element"
 							:is-auditing="auditingIds.has(element.id)"
 							@audit-lead="handleAuditLead"
+						@lead-deleted="handleLeadDeleted"
 						/>
 					</template>
 				</draggable>

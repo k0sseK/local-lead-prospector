@@ -16,26 +16,36 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(["audit-lead"]);
+const emit = defineEmits(["audit-lead", "lead-deleted"]);
 
 const isModalOpen = ref(false);
 const isSendingEmail = ref(false);
+const isDeleting = ref(false);
 const emailSubject = ref("");
+const editableEmailDraft = ref("");
+const notesValue = ref("");
+const isSavingNotes = ref(false);
+const notesTimeout = ref(null);
 
 const formattedDate = computed(() => {
 	if (!props.lead.created_at) return "";
 	return new Date(props.lead.created_at).toLocaleDateString();
 });
 
+const openModal = () => {
+	editableEmailDraft.value = props.lead.audit_report?.email_draft || "";
+	notesValue.value = props.lead.notes || "";
+	isModalOpen.value = true;
+};
+
 const copyEmailDraft = async () => {
-	const emailText = props.lead.audit_report?.email_draft;
+	const emailText = editableEmailDraft.value;
 	if (!emailText) return;
 
 	try {
 		await navigator.clipboard.writeText(emailText);
 		toast.success("Mail skopiowany do schowka!");
 	} catch (err) {
-		// Fallback for older browsers
 		const textarea = document.createElement("textarea");
 		textarea.value = emailText;
 		document.body.appendChild(textarea);
@@ -43,6 +53,34 @@ const copyEmailDraft = async () => {
 		document.execCommand("copy");
 		document.body.removeChild(textarea);
 		toast.success("Mail skopiowany do schowka!");
+	}
+};
+
+const onNotesInput = () => {
+	clearTimeout(notesTimeout.value);
+	notesTimeout.value = setTimeout(async () => {
+		isSavingNotes.value = true;
+		try {
+			await api.updateLeadNotes(props.lead.id, notesValue.value);
+			props.lead.notes = notesValue.value;
+		} catch {
+			toast.error("Nie udało się zapisać notatki.");
+		} finally {
+			isSavingNotes.value = false;
+		}
+	}, 800);
+};
+
+const deleteLead = async () => {
+	if (!confirm(`Usunąć lead "${props.lead.company_name}"?`)) return;
+	try {
+		isDeleting.value = true;
+		await api.deleteLead(props.lead.id);
+		emit("lead-deleted", props.lead.id);
+	} catch {
+		toast.error("Nie udało się usunąć leada.");
+	} finally {
+		isDeleting.value = false;
 	}
 };
 
@@ -55,7 +93,7 @@ const sendEmail = async () => {
 		isSendingEmail.value = true;
 		const response = await api.sendEmail(props.lead.id, {
 			subject: emailSubject.value,
-			body: props.lead.audit_report.email_draft,
+			body: editableEmailDraft.value,
 		});
 		toast.success("E-mail został pomyślnie wysłany!");
 		Object.assign(props.lead, response.data.lead); // Reactively update the lead to trigger board column update
@@ -75,6 +113,16 @@ const sendEmail = async () => {
 	<div
 		class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group relative"
 	>
+		<button
+			@click.stop="deleteLead"
+			:disabled="isDeleting"
+			class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500 p-0.5 rounded"
+			title="Usuń lead"
+		>
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+			</svg>
+		</button>
 		<div class="flex justify-between items-start mb-2">
 			<h4
 				class="text-sm font-semibold text-gray-900 leading-tight transition-colors flex flex-col gap-1.5"
@@ -291,7 +339,7 @@ const sendEmail = async () => {
 			class="mt-3"
 		>
 			<button
-				@click.stop="isModalOpen = true"
+				@click.stop="openModal"
 				class="w-full text-xs font-semibold px-2 py-1.5 bg-purple-50 text-purple-700 rounded hover:bg-purple-100 transition-colors border border-purple-100 flex justify-center items-center gap-1"
 			>
 				<svg
@@ -493,13 +541,31 @@ const sendEmail = async () => {
 									Skopiuj Maila
 								</button>
 							</div>
-							<div
-								class="bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-mono max-h-64 overflow-y-auto mb-4"
-							>
-								{{ lead.audit_report.email_draft }}
+							<textarea
+								v-model="editableEmailDraft"
+								class="w-full bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700 leading-relaxed font-mono max-h-64 overflow-y-auto mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+								rows="10"
+							></textarea>
+
+							<!-- Notatki -->
+							<div class="mb-4">
+								<label class="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+									</svg>
+									Notatki
+									<span v-if="isSavingNotes" class="text-xs text-gray-400 font-normal">zapisywanie...</span>
+								</label>
+								<textarea
+									v-model="notesValue"
+									@input="onNotesInput"
+									placeholder="Dodaj notatki o tym leadzie..."
+									class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none bg-gray-50"
+									rows="3"
+								></textarea>
 							</div>
 
-							<!-- Sekcja wysyłki e-mail -->
+						<!-- Sekcja wysyłki e-mail -->
 							<div
 								class="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100"
 							>
