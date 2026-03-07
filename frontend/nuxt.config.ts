@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
 	compatibilityDate: "2025-01-01",
@@ -17,10 +19,19 @@ export default defineNuxtConfig({
 	components: {
 		dirs: [
 			{
-				path: "./app/components",
+				path: "components",
 				ignore: ["**/*.ts"],
 			},
 		],
+	},
+
+	alias: {
+		"@/lib/utils": fileURLToPath(
+			new URL("./app/lib/utils.ts", import.meta.url),
+		),
+		"~/lib/utils": fileURLToPath(
+			new URL("./app/lib/utils.ts", import.meta.url),
+		),
 	},
 
 	runtimeConfig: {
