@@ -67,4 +67,10 @@ export default {
 	exportLeadsCsv() {
 		return api.get("/leads/export/csv", { responseType: "blob" });
 	},
+	getSettings() {
+		return api.get("/settings");
+	},
+	updateSettings(data) {
+		return api.put("/settings", data);
+	},
 };
