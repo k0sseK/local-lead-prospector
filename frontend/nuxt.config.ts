@@ -16,17 +16,21 @@ export default defineNuxtConfig({
 		componentDir: "./app/components/ui",
 	},
 
-	components: [
-		{
-			path: "~/components/ui",
-			extensions: [".vue"],
-			pathPrefix: false,
-		},
-		"~/components",
-	],
+	components: {
+		dirs: [
+			{
+				path: "~/components/ui",
+				ignore: ["**/*.ts"],
+				pathPrefix: false,
+			},
+			"~/components",
+		],
+	},
 
 	alias: {
-		"@/lib": fileURLToPath(new URL("./app/lib", import.meta.url)),
+		"@/lib/utils": fileURLToPath(
+			new URL("./app/lib/utils.ts", import.meta.url),
+		),
 	},
 
 	runtimeConfig: {
