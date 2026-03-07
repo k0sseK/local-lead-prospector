@@ -9,14 +9,6 @@ export default defineNuxtConfig({
 
 	modules: ["@nuxtjs/tailwindcss", "shadcn-nuxt"],
 
-	vite: {
-		resolve: {
-			alias: {
-				"@/lib/utils": new URL("./app/lib/utils.ts", import.meta.url).pathname,
-			},
-		},
-	},
-
 	shadcn: {
 		prefix: "",
 		componentDir: "./app/components/ui",
