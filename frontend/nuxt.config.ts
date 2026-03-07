@@ -15,7 +15,7 @@ export default defineNuxtConfig({
 	},
 
 	alias: {
-		"@/lib/utils": "./app/lib/utils.ts",
+		"@/lib/utils": "app/lib/utils.ts",
 	},
 
 	components: {
