@@ -16,7 +16,10 @@ export default defineNuxtConfig({
 
 	runtimeConfig: {
 		public: {
-			apiBase: "http://localhost:8000/api",
+			// Dev: http://localhost:8000/api
+			// Prod: "" (nginx proxies /api/ to backend container)
+			// Override with NUXT_PUBLIC_API_BASE env variable
+			apiBase: process.env.NUXT_PUBLIC_API_BASE ?? "http://localhost:8000/api",
 		},
 	},
 
