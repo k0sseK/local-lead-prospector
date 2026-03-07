@@ -6,6 +6,10 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
+# Enable Railway to inject environment variables during Docker build
+ARG NUXT_PUBLIC_API_BASE
+ENV NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE
+
 # Install dependencies
 COPY pnpm-lock.yaml package.json ./
 RUN pnpm install --frozen-lockfile
