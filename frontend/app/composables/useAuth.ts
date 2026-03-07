@@ -39,11 +39,22 @@ export function useAuth() {
     await navigateTo("/app")
   }
 
+  async function init(): Promise<void> {
+    if (token.value && !user.value) {
+      try {
+        const response = await api.me()
+        user.value = response.data as User
+      } catch {
+        token.value = null
+      }
+    }
+  }
+
   function logout(): void {
     token.value = null
     user.value = null
     navigateTo("/login")
   }
 
-  return { token, user, isAuthenticated, login, register, logout }
+  return { token, user, isAuthenticated, login, register, logout, init }
 }

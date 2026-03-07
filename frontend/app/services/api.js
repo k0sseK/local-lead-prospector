@@ -40,6 +40,9 @@ export default {
 	register(credentials) {
 		return api.post("/auth/register", credentials);
 	},
+	me() {
+		return api.get("/auth/me");
+	},
 	getLeads() {
 		return api.get("/leads");
 	},
