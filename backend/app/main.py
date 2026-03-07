@@ -1,8 +1,11 @@
+import csv
+import io
 import logging
 import os
 import resend
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -84,6 +87,49 @@ def delete_lead(
         raise HTTPException(status_code=404, detail="Lead not found")
     db.delete(db_lead)
     db.commit()
+
+
+@app.get("/api/leads/export/csv")
+def export_leads_csv(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    leads = (
+        db.query(models.Lead)
+        .filter(models.Lead.user_id == current_user.id)
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "ID", "Firma", "Adres", "Telefon", "Email", "Strona WWW",
+        "Ocena Google", "Liczba opinii", "SSL", "CMS", "Status", "Notatki", "Data dodania"
+    ])
+    for lead in leads:
+        cms = lead.audit_report.get("raw_data", {}).get("cms", "") if lead.audit_report else ""
+        writer.writerow([
+            lead.id,
+            lead.company_name,
+            lead.address or "",
+            lead.phone or "",
+            lead.email or "",
+            lead.website_uri or "",
+            lead.rating or "",
+            lead.reviews_count or "",
+            "Tak" if lead.has_ssl else ("Nie" if lead.has_ssl is False else ""),
+            cms,
+            lead.status,
+            lead.notes or "",
+            lead.created_at.strftime("%Y-%m-%d %H:%M") if lead.created_at else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=leads.csv"},
+    )
 
 
 @app.post("/api/scan")

@@ -64,4 +64,7 @@ export default {
 	updateLeadNotes(id, notes) {
 		return api.patch(`/leads/${id}`, { notes });
 	},
+	exportLeadsCsv() {
+		return api.get("/leads/export/csv", { responseType: "blob" });
+	},
 };

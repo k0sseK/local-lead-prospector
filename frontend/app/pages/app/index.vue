@@ -139,6 +139,20 @@ const handleLeadDeleted = (leadId) => {
 	leads.value = leads.value.filter((l) => l.id !== leadId);
 };
 
+const exportCsv = async () => {
+	try {
+		const response = await api.exportLeadsCsv();
+		const url = URL.createObjectURL(new Blob([response.data], { type: "text/csv" }));
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = "leads.csv";
+		a.click();
+		URL.revokeObjectURL(url);
+	} catch {
+		toast.error("Nie udało się wyeksportować leadów.");
+	}
+};
+
 const isAuditingAll = ref(false);
 const auditAllProgress = ref({ done: 0, total: 0 });
 
@@ -419,6 +433,18 @@ onMounted(() => {
 					Tablica leadów
 				</h2>
 				<div class="flex items-center gap-3">
+				<Button
+					v-if="leads.length > 0"
+					@click="exportCsv"
+					variant="outline"
+					size="sm"
+					class="border-slate-200 text-slate-600 hover:bg-slate-50"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+					</svg>
+					Eksport CSV
+				</Button>
 				<Button
 					v-if="leads.some((l) => !l.audited)"
 					@click="auditAll"
