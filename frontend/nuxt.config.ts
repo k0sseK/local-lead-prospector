@@ -14,12 +14,26 @@ export default defineNuxtConfig({
 		componentDir: "./app/components/ui",
 	},
 
+	alias: {
+		"@/lib/utils": "./app/lib/utils.ts",
+	},
+
+	components: {
+		dirs: [
+			{
+				path: "./app/components",
+				ignore: ["**/*.ts"],
+			},
+		],
+	},
+
 	runtimeConfig: {
 		public: {
 			// Dev: http://localhost:8000/api
 			// Prod: "" (nginx proxies /api/ to backend container)
 			// Override with NUXT_PUBLIC_API_BASE env variable
-			apiBase: process.env.NUXT_PUBLIC_API_BASE ?? "http://localhost:8000/api",
+			apiBase:
+				process.env.NUXT_PUBLIC_API_BASE ?? "http://localhost:8000/api",
 		},
 	},
 
