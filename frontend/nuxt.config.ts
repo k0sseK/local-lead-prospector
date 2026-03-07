@@ -14,10 +14,6 @@ export default defineNuxtConfig({
 		componentDir: "./app/components/ui",
 	},
 
-	alias: {
-		"@/lib/utils": "app/lib/utils.ts",
-	},
-
 	components: {
 		dirs: [
 			{
