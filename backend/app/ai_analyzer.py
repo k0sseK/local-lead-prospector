@@ -10,7 +10,7 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 
-async def generate_ai_analysis(raw_data: dict, company_name: str) -> dict:
+async def generate_ai_analysis(raw_data: dict, company_name: str, user_settings=None) -> dict:
     """
     Sends raw audit data to Gemini AI and returns structured selling points + email draft.
     Returns: {"selling_points": [...], "email_draft": "..."}
@@ -29,6 +29,21 @@ async def generate_ai_analysis(raw_data: dict, company_name: str) -> dict:
 
         model = genai.GenerativeModel("gemini-2.5-flash")
 
+        if user_settings:
+            sender_block = (
+                f"Napisz e-mail w imieniu {user_settings.sender_name} "
+                f"z firmy {user_settings.company_name}. "
+                f"Oferujesz: {user_settings.offer_description}. "
+                f"Bezwzględnie zachowaj następujący ton wypowiedzi: {user_settings.tone_of_voice}. "
+                f"Użyj zebranych błędów z audytu, aby zaproponować swoje usługi."
+            )
+        else:
+            sender_block = (
+                "Napisz profesjonalnego, nienachalnego e-maila sprzedażowego w tonie formalnym. "
+                "Proponuj współpracę w tonie partnerskim, nie agresywnym. "
+                "W podpisie użyj placeholderów [Twoje Imię] i [Nazwa Twojej Firmy]."
+            )
+
         prompt = f"""Jesteś ekspertem SEO i marketingu cyfrowego. Analizujesz dane zebrane z audytu firmy "{company_name}".
 
 Oto surowe dane z audytu:
@@ -43,11 +58,11 @@ Na podstawie tych danych:
    - Jeśli wolne ładowanie (load_time > 2s) — wspomnij o współczynniku odrzuceń.
    - Jeśli brakuje tagów SEO — wspomnij o widoczności w wyszukiwarce.
 
-2. Napisz profesjonalnego, nienachalnego e-maila sprzedażowego w języku polskim, proponującego rozwiązanie znalezionych problemów. E-mail powinien:
+2. {sender_block}
+   E-mail powinien:
    - Być skierowany do właściciela firmy "{company_name}"
    - Zawierać konkretne odniesienia do znalezionych problemów
-   - Proponować współpracę w tonie partnerskim, nie agresywnym
-   - Mieć profesjonalny podpis (użyj placeholder [Twoje Imię] i [Nazwa Twojej Firmy])
+   - Być napisany w języku polskim
 
 Odpowiedz WYŁĄCZNIE w formacie JSON z następującą strukturą:
 {{

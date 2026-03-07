@@ -58,8 +58,14 @@ async def run_full_audit(db_lead: models.Lead, db: Session) -> models.Lead:
         }
 
     # --- Krok 2: Analiza AI (Gemini) ---
+    user_settings = (
+        db.query(models.UserSettings)
+        .filter(models.UserSettings.user_id == db_lead.user_id)
+        .first()
+    )
+
     try:
-        ai_result = await generate_ai_analysis(raw_data, db_lead.company_name)
+        ai_result = await generate_ai_analysis(raw_data, db_lead.company_name, user_settings=user_settings)
         logger.info("AI analysis completed for lead %d", db_lead.id)
     except Exception as exc:
         logger.error(
