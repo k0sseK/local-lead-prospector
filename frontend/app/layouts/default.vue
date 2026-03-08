@@ -1,4 +1,8 @@
-<script setup></script>
+<script setup lang="ts">
+import { useAuth } from "@/composables/useAuth";
+
+const { isAuthenticated } = useAuth();
+</script>
 
 <template>
 	<div class="min-h-screen flex flex-col bg-brand-dark text-slate-300">
@@ -20,18 +24,28 @@
 					>
 				</NuxtLink>
 				<nav class="flex items-center gap-8">
-					<NuxtLink
-						to="/login"
-						class="hidden sm:inline-block text-sm font-semibold text-slate-400 hover:text-brand-green transition-colors"
-					>
-						Log in
-					</NuxtLink>
-					<NuxtLink
-						to="/register"
-						class="px-6 py-2.5 rounded-full text-sm font-bold text-black bg-gradient-to-r from-brand-green to-brand-teal hover:brightness-110 transition-all shadow-[0_0_20px_rgba(56,239,125,0.2)]"
-					>
-						Get started
-					</NuxtLink>
+					<template v-if="isAuthenticated">
+						<NuxtLink
+							to="/app"
+							class="px-6 py-2.5 rounded-full text-sm font-bold text-black bg-gradient-to-r from-brand-green to-brand-teal hover:brightness-110 transition-all shadow-[0_0_20px_rgba(56,239,125,0.2)]"
+						>
+							Przejdź do panelu
+						</NuxtLink>
+					</template>
+					<template v-else>
+						<NuxtLink
+							to="/login"
+							class="hidden sm:inline-block text-sm font-semibold text-slate-400 hover:text-brand-green transition-colors"
+						>
+							Zaloguj się
+						</NuxtLink>
+						<NuxtLink
+							to="/register"
+							class="px-6 py-2.5 rounded-full text-sm font-bold text-black bg-gradient-to-r from-brand-green to-brand-teal hover:brightness-110 transition-all shadow-[0_0_20px_rgba(56,239,125,0.2)]"
+						>
+							Zacznij
+						</NuxtLink>
+					</template>
 				</nav>
 			</div>
 		</header>

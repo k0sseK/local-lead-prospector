@@ -4,7 +4,11 @@ import { ArrowRight } from "lucide-vue-next";
 
 definePageMeta({ layout: "default" });
 
-const { login } = useAuth();
+const { login, isAuthenticated } = useAuth();
+
+if (isAuthenticated.value) {
+	navigateTo("/app");
+}
 
 const email = ref("");
 const password = ref("");
