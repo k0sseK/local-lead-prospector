@@ -10,6 +10,7 @@ export default defineNuxtConfig({
 	devtools: { enabled: true },
 
 	modules: ["@nuxtjs/tailwindcss", "shadcn-nuxt"],
+	css: ["~/assets/css/tailwind.css"],
 
 	shadcn: {
 		prefix: "",
