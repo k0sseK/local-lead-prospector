@@ -3,7 +3,7 @@ import { ref, onMounted } from "vue";
 import api from "@/services/api.js";
 import {
 	GoogleMap,
-	Marker as GoogleMarker,
+	CustomMarker,
 	Circle as GoogleCircle,
 } from "vue3-google-map";
 import { useRuntimeConfig } from "#app";
@@ -400,10 +400,29 @@ onMounted(() => {
 							@click="onMapClick"
 							:disableDefaultUI="false"
 						>
-							<GoogleMarker
+							<CustomMarker
 								v-if="markerPosition"
 								:options="{ position: markerPosition }"
-							/>
+							>
+								<div style="text-align: center">
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="36"
+										height="36"
+										viewBox="0 0 24 24"
+										fill="#4f46e5"
+										stroke="white"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									>
+										<path
+											d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"
+										></path>
+										<circle cx="12" cy="10" r="3"></circle>
+									</svg>
+								</div>
+							</CustomMarker>
 							<GoogleCircle
 								v-if="markerPosition"
 								:options="{
