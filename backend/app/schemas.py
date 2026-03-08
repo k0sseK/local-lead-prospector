@@ -13,6 +13,15 @@ class UserLogin(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 class UserOut(BaseModel):
     id: int
     email: str

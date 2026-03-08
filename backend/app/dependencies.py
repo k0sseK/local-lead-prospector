@@ -30,7 +30,19 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_password_reset_token(user: models.User) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    hash_slice = user.hashed_password[-10:] if user.hashed_password else ""
+    to_encode = {
+        "sub": str(user.id),
+        "exp": expire,
+        "type": "password_reset",
+        "hash": hash_slice
+    }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -46,7 +58,8 @@ def get_current_user(
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: Optional[str] = payload.get("sub")
-        if user_id is None:
+        token_type: Optional[str] = payload.get("type", "access")
+        if user_id is None or token_type != "access":
             raise credentials_exception
     except JWTError:
         raise credentials_exception
