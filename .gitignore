@@ -62,6 +62,10 @@ db.sqlite3
 .vscode/
 .idea/
 .claude/
+.agents/
+.agent/
+.superdesign/
+skills-lock.json
 *.suo
 *.ntvs*
 *.njsproj
