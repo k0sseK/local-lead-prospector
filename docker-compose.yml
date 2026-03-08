@@ -8,6 +8,8 @@ services:
             POSTGRES_USER: llp_user
             POSTGRES_PASSWORD: llp_password
             POSTGRES_DB: llp_db
+        ports:
+            - "5432:5432"
         volumes:
             - postgres_data:/var/lib/postgresql/data
         networks:
