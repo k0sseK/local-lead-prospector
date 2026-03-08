@@ -41,7 +41,7 @@ export default defineNuxtConfig({
 			// Override with NUXT_PUBLIC_API_BASE env variable
 			apiBase:
 				process.env.NUXT_PUBLIC_API_BASE ?? "http://localhost:8000/api",
-			googleMapsApiKey: process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+			googleMapsApiKey: process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
 		},
 	},
 
