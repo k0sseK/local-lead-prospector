@@ -1,8 +1,12 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import api from "@/services/api.js";
-import "leaflet/dist/leaflet.css";
-import { LMap, LTileLayer, LMarker, LCircle } from "@vue-leaflet/vue-leaflet";
+import {
+	GoogleMap,
+	Marker as GoogleMarker,
+	Circle as GoogleCircle,
+} from "vue3-google-map";
+import { useRuntimeConfig } from "#app";
 import KanbanBoard from "@/components/KanbanBoard.vue";
 import { useToast } from "vue-toastification";
 import { useLeadStatus } from "@/composables/useLeadStatus.js";
@@ -37,14 +41,23 @@ const fetchLeads = async () => {
 const searchKeyword = ref("");
 const searchRadius = ref([5]);
 const searchLimit = ref(10);
-const mapCenter = ref([52.069, 19.48]);
+
+const config = useRuntimeConfig();
+const googleMapsApiKey = config.public.googleMapsApiKey;
+
+const mapCenter = ref({ lat: 52.069, lng: 19.48 });
 const mapZoom = ref(6);
 const markerPosition = ref(null);
 const isScanning = ref(false);
 const scanMessage = ref(null);
 
 const onMapClick = (e) => {
-	markerPosition.value = [e.latlng.lat, e.latlng.lng];
+	if (e.latLng) {
+		markerPosition.value = {
+			lat: e.latLng.lat(),
+			lng: e.latLng.lng(),
+		};
+	}
 };
 
 const locateUser = () => {
@@ -53,8 +66,8 @@ const locateUser = () => {
 			(position) => {
 				const lat = position.coords.latitude;
 				const lng = position.coords.longitude;
-				mapCenter.value = [lat, lng];
-				markerPosition.value = [lat, lng];
+				mapCenter.value = { lat, lng };
+				markerPosition.value = { lat, lng };
 				mapZoom.value = 13;
 			},
 			(error) => {
@@ -85,8 +98,8 @@ const searchAddress = async () => {
 		if (data && data.length > 0) {
 			const lat = parseFloat(data[0].lat);
 			const lng = parseFloat(data[0].lon);
-			mapCenter.value = [lat, lng];
-			markerPosition.value = [lat, lng];
+			mapCenter.value = { lat, lng };
+			markerPosition.value = { lat, lng };
 			mapZoom.value = 13;
 			toast.success("Znaleziono lokalizację na podstawie adresu!");
 		} else {
@@ -113,8 +126,8 @@ const runScan = async () => {
 
 		const payload = {
 			keyword: searchKeyword.value,
-			lat: markerPosition.value[0],
-			lng: markerPosition.value[1],
+			lat: markerPosition.value.lat,
+			lng: markerPosition.value.lng,
 			radius_km: parseFloat(searchRadius.value[0]),
 			limit: parseInt(searchLimit.value, 10),
 		};
@@ -379,31 +392,31 @@ onMounted(() => {
 					<div
 						class="md:col-span-8 rounded-lg overflow-hidden border border-slate-200 min-h-[400px] bg-slate-100 z-10 relative"
 					>
-						<l-map
-							ref="map"
-							v-model:zoom="mapZoom"
+						<GoogleMap
+							:api-key="googleMapsApiKey"
+							style="width: 100%; height: 100%; min-height: 400px"
 							:center="mapCenter"
+							:zoom="mapZoom"
 							@click="onMapClick"
-							:useGlobalLeaflet="false"
+							:disableDefaultUI="false"
 						>
-							<l-tile-layer
-								url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-								layer-type="base"
-								name="OpenStreetMap"
-							></l-tile-layer>
-							<l-marker
+							<GoogleMarker
 								v-if="markerPosition"
-								:lat-lng="markerPosition"
-							></l-marker>
-							<l-circle
+								:options="{ position: markerPosition }"
+							/>
+							<GoogleCircle
 								v-if="markerPosition"
-								:lat-lng="markerPosition"
-								:radius="searchRadius[0] * 1000"
-								color="#4f46e5"
-								fillColor="#4f46e5"
-								:fillOpacity="0.1"
-							></l-circle>
-						</l-map>
+								:options="{
+									center: markerPosition,
+									radius: searchRadius[0] * 1000,
+									strokeColor: '#4f46e5',
+									strokeOpacity: 0.8,
+									strokeWeight: 2,
+									fillColor: '#4f46e5',
+									fillOpacity: 0.1,
+								}"
+							/>
+						</GoogleMap>
 					</div>
 				</div>
 			</CardContent>
