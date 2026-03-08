@@ -18,6 +18,31 @@ logger = logging.getLogger(__name__)
 
 models.Base.metadata.create_all(bind=database.engine)
 
+# Prosta migracja: dodanie brakujących kolumn do user_settings w istniejących bazach
+def apply_migrations():
+    from sqlalchemy import text
+    columns_to_add = [
+        "email_provider VARCHAR DEFAULT 'resend'",
+        "resend_api_key VARCHAR",
+        "smtp_host VARCHAR",
+        "smtp_port INTEGER",
+        "smtp_user VARCHAR",
+        "smtp_password VARCHAR",
+        "smtp_from_email VARCHAR"
+    ]
+    with database.engine.begin() as conn:
+        for col_def in columns_to_add:
+            try:
+                # Kolumna 'email_provider' to nazwa do dodania, z typami zdefiniowanymi dla PostgreSQL / SQLite
+                col_name = col_def.split()[0]
+                conn.execute(text(f"ALTER TABLE user_settings ADD COLUMN {col_def}"))
+                logger.info(f"Pomyślnie uaktualniono tabelę user_settings o kolumnę: {col_name}")
+            except Exception as e:
+                # Kolumna już istnieje lub błąd
+                pass
+
+apply_migrations()
+
 app = FastAPI(title="B2B Lead Generator API")
 
 # Configure CORS
