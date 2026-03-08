@@ -1,199 +1,293 @@
 <script setup>
+import { ArrowRight, PlayCircle } from "lucide-vue-next";
+
 definePageMeta({
 	layout: "default",
 });
 </script>
 
 <template>
-	<div class="flex-1 flex flex-col relative overflow-hidden bg-slate-50">
+	<div class="bg-brand-dark">
 		<!-- Hero Section -->
-		<section
-			class="relative pt-24 pb-32 flex flex-col items-center justify-center min-h-[80vh] px-4 sm:px-6 lg:px-8 text-center bg-white border-b border-slate-200"
-		>
-			<!-- Decorative background glow -->
+		<section class="relative pt-24 pb-32 overflow-hidden">
 			<div
-				class="absolute inset-0 z-0 overflow-hidden pointer-events-none"
-			>
-				<div
-					class="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[120px]"
-				></div>
-				<div
-					class="absolute top-[40%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[100px]"
-				></div>
-			</div>
+				class="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none bg-brand-green/5"
+			></div>
 
-			<div class="relative z-10 max-w-4xl mx-auto space-y-8">
-				<div
-					class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100/50 text-indigo-600 text-sm font-medium mb-4 shadow-sm"
-				>
-					<span class="relative flex h-2 w-2">
-						<span
-							class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"
-						></span>
-						<span
-							class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"
-						></span>
-					</span>
-					Nuxt 4 + shadcn-vue MVP
-				</div>
-
-				<h1
-					class="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-slate-900 leading-[1.1]"
-				>
-					Zdobądź klientów B2B <br class="hidden sm:block" />
-					<span
-						class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-500"
-						>w 3 minuty</span
-					>
-				</h1>
-
-				<p
-					class="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed"
-				>
-					Zautomatyzuj pozyskiwanie leadów. Skanuj Google Maps,
-					audytuj strony za pomocą AI i wysyłaj spersonalizowane maile
-					bezpośrednio z wbudowanego CRM.
-				</p>
-
-				<div
-					class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
-				>
-					<NuxtLink to="/app">
-						<Button
-							size="lg"
-							class="w-full sm:w-auto text-base h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5"
+			<div class="container mx-auto px-6 lg:px-12 max-w-7xl">
+				<div class="flex flex-col lg:flex-row items-center gap-16">
+					<!-- Left: Headline & CTA -->
+					<div class="flex-1 text-left space-y-8 z-10">
+						<div
+							v-motion
+							:initial="{ opacity: 0, y: -16 }"
+							:enter="{ opacity: 1, y: 0, transition: { duration: 500 } }"
+							class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-brand-teal/10 border border-brand-teal/30 text-brand-green"
 						>
-							Rozpocznij za darmo
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="20"
-								height="20"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								class="lucide lucide-arrow-right ml-2"
+							Przyszłość prospectingu B2B
+						</div>
+
+						<h1
+							v-motion
+							:initial="{ opacity: 0, y: 32 }"
+							:enter="{ opacity: 1, y: 0, transition: { duration: 650, delay: 120 } }"
+							class="text-6xl md:text-7xl lg:text-8xl font-extrabold text-white leading-[1.05]"
+						>
+							Zdobądź klientów B2B<br />
+							<span class="text-brand-green">w 3 minuty.</span>
+						</h1>
+
+						<p
+							v-motion
+							:initial="{ opacity: 0, y: 24 }"
+							:enter="{ opacity: 1, y: 0, transition: { duration: 600, delay: 260 } }"
+							class="text-xl max-w-xl leading-relaxed text-slate-400"
+						>
+							Zautomatyzuj cały proces sprzedaży. Od skanowania
+							Google Maps po inteligentny audyt stron i wysyłkę
+							spersonalizowanych maili z CRM.
+						</p>
+
+						<div
+							v-motion
+							:initial="{ opacity: 0, y: 20 }"
+							:enter="{ opacity: 1, y: 0, transition: { duration: 600, delay: 400 } }"
+							class="flex flex-col sm:flex-row items-center gap-4 pt-4"
+						>
+							<NuxtLink
+								to="/register"
+								class="w-full sm:w-auto h-14 px-10 flex items-center justify-center rounded-full text-lg font-bold text-black bg-gradient-to-r from-brand-green to-brand-teal transition-all hover:-translate-y-1 shadow-[0_10px_40px_rgba(56,239,125,0.25)]"
 							>
-								<path d="M5 12h14" />
-								<path d="m12 5 7 7-7 7" />
-							</svg>
-						</Button>
-					</NuxtLink>
+								Rozpocznij za darmo
+								<ArrowRight class="ml-3 w-6 h-6" />
+							</NuxtLink>
+							<NuxtLink
+								to="/app"
+								class="flex items-center gap-2 font-medium text-emerald-100/60 hover:text-white transition-colors"
+							>
+								<PlayCircle class="w-6 h-6" />
+								Zobacz demo (2 min)
+							</NuxtLink>
+						</div>
+					</div>
+
+					<!-- Right: CRM mockup -->
+					<div
+						v-motion
+						:initial="{ opacity: 0, x: 60 }"
+						:enter="{ opacity: 1, x: 0, transition: { duration: 700, delay: 200 } }"
+						class="flex-1 w-full lg:w-auto relative"
+					>
+						<div
+							class="rounded-2xl overflow-hidden lg:rotate-2 hover:rotate-0 transition-transform duration-500 border border-brand-green/10 shadow-[0_0_0_1px_rgba(56,239,125,0.1),0_20px_50px_rgba(0,0,0,0.6)]"
+						>
+							<!-- Fake browser chrome -->
+							<div
+								class="p-3 flex gap-1.5 border-b bg-brand-card border-brand-green/10"
+							>
+								<div
+									class="w-2.5 h-2.5 rounded-full bg-brand-green/30"
+								></div>
+								<div
+									class="w-2.5 h-2.5 rounded-full bg-brand-green/20"
+								></div>
+								<div
+									class="w-2.5 h-2.5 rounded-full bg-brand-green/10"
+								></div>
+							</div>
+							<!-- Kanban preview -->
+							<div class="p-6 space-y-4 bg-[#0f1a18]">
+								<div
+									class="flex justify-between items-center mb-2"
+								>
+									<div
+										class="h-3 w-20 rounded bg-brand-green/20"
+									></div>
+									<div
+										class="h-6 w-6 rounded bg-brand-green/15"
+									></div>
+								</div>
+								<div class="grid grid-cols-3 gap-3">
+									<div class="space-y-2">
+										<div
+											class="h-2 w-12 rounded bg-brand-green/30"
+										></div>
+										<div
+											class="rounded-lg p-3 space-y-2 bg-brand-card border border-brand-green/10"
+										>
+											<div
+												class="h-2 w-full rounded bg-white/10"
+											></div>
+											<div
+												class="h-2 w-3/4 rounded bg-white/[0.07]"
+											></div>
+											<div
+												class="h-4 w-12 rounded-full mt-2 bg-brand-green/20"
+											></div>
+										</div>
+										<div
+											class="rounded-lg p-3 space-y-2 bg-brand-card border border-brand-green/10"
+										>
+											<div
+												class="h-2 w-full rounded bg-white/10"
+											></div>
+											<div
+												class="h-2 w-2/3 rounded bg-white/[0.07]"
+											></div>
+										</div>
+									</div>
+									<div class="space-y-2">
+										<div
+											class="h-2 w-16 rounded bg-brand-teal/40"
+										></div>
+										<div
+											class="rounded-lg p-3 space-y-2 bg-brand-card border border-brand-teal/20"
+										>
+											<div
+												class="h-2 w-full rounded bg-white/10"
+											></div>
+											<div
+												class="h-2 w-4/5 rounded bg-white/[0.07]"
+											></div>
+											<div
+												class="h-4 w-16 rounded-full mt-2 bg-brand-teal/25"
+											></div>
+										</div>
+									</div>
+									<div class="space-y-2">
+										<div
+											class="h-2 w-14 rounded bg-brand-green/20"
+										></div>
+										<div
+											class="rounded-lg p-3 space-y-2 bg-brand-card border border-brand-green/10"
+										>
+											<div
+												class="h-2 w-full rounded bg-white/10"
+											></div>
+											<div
+												class="h-2 w-1/2 rounded bg-white/[0.07]"
+											></div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 			</div>
 		</section>
 
-		<!-- Features Section -->
-		<section class="py-24 bg-slate-50 relative z-10">
-			<div class="container mx-auto px-4 max-w-7xl">
-				<h2 class="text-3xl font-bold text-center text-slate-900 mb-16">
-					Jak to działa?
-				</h2>
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-					<Card
-						class="border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+		<!-- How It Works -->
+		<section class="py-32 bg-[#0f1a18] border-b border-brand-teal/15">
+			<div class="container mx-auto px-6 lg:px-12 max-w-7xl">
+				<div
+					v-motion
+					:initial="{ opacity: 0, y: 40 }"
+					:visible-once="{ opacity: 1, y: 0, transition: { duration: 600 } }"
+					class="text-center mb-20 space-y-4"
+				>
+					<h2 class="text-4xl md:text-5xl font-extrabold text-white">
+						Jak to działa?
+					</h2>
+					<p
+						class="text-lg text-slate-400 max-w-xl mx-auto leading-relaxed"
 					>
-						<CardHeader>
-							<div
-								class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 mb-4"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="24"
-									height="24"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="lucide lucide-map-pin"
-								>
-									<path
-										d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
-									/>
-									<circle cx="12" cy="10" r="3" />
-								</svg>
-							</div>
-							<CardTitle>1. Znajdź firmy</CardTitle>
-							<CardDescription
-								>Wpisz słowo kluczowe i wybierz obszar na mapie,
+						Trzy proste kroki dzielą Cię od pełnego lejka sprzedaży.
+						Od surowych danych po gotowe deale.
+					</p>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-16 lg:gap-24">
+					<div
+						v-motion
+						:initial="{ opacity: 0, y: 50 }"
+						:visible-once="{ opacity: 1, y: 0, transition: { duration: 600, delay: 0 } }"
+						class="relative pt-10"
+					>
+						<span
+							class="absolute -top-4 -left-4 text-8xl font-extrabold select-none z-0 leading-none text-brand-green opacity-[0.08]"
+							>1</span
+						>
+						<div class="relative z-10 space-y-4">
+							<h3 class="text-2xl font-bold text-white">
+								Znajdź firmy
+							</h3>
+							<p class="leading-relaxed text-slate-400">
+								Wpisz słowo kluczowe i wybierz obszar na mapie,
 								by błyskawicznie pobrać setki leadów z Google
-								Places.</CardDescription
-							>
-						</CardHeader>
-					</Card>
+								Places wraz z ich danymi kontaktowymi.
+							</p>
+						</div>
+					</div>
 
-					<Card
-						class="border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+					<div
+						v-motion
+						:initial="{ opacity: 0, y: 50 }"
+						:visible-once="{ opacity: 1, y: 0, transition: { duration: 600, delay: 160 } }"
+						class="relative pt-10"
 					>
-						<CardHeader>
-							<div
-								class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 mb-4"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="24"
-									height="24"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="lucide lucide-sparkles"
-								>
-									<path
-										d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"
-									/>
-									<path d="M5 3v4" />
-									<path d="M19 17v4" />
-									<path d="M3 5h4" />
-									<path d="M17 19h4" />
-								</svg>
-							</div>
-							<CardTitle>2. Audyt AI</CardTitle>
-							<CardDescription
-								>Aplikacja sprawdzi stronę klienta (SSL, CMS,
+						<span
+							class="absolute -top-4 -left-4 text-8xl font-extrabold select-none z-0 leading-none text-brand-green opacity-[0.08]"
+							>2</span
+						>
+						<div class="relative z-10 space-y-4">
+							<h3 class="text-2xl font-bold text-white">
+								Audyt AI
+							</h3>
+							<p class="leading-relaxed text-slate-400">
+								Aplikacja sprawdzi stronę klienta (SSL, CMS,
 								Social Media) i wygeneruje
-								hiper-spersonalizowanego maila.</CardDescription
-							>
-						</CardHeader>
-					</Card>
+								hiper-spersonalizowany scenariusz rozmowy lub
+								maila.
+							</p>
+						</div>
+					</div>
 
-					<Card
-						class="border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+					<div
+						v-motion
+						:initial="{ opacity: 0, y: 50 }"
+						:visible-once="{ opacity: 1, y: 0, transition: { duration: 600, delay: 320 } }"
+						class="relative pt-10"
 					>
-						<CardHeader>
-							<div
-								class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600 mb-4"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="24"
-									height="24"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="lucide lucide-send"
-								>
-									<path d="m22 2-7 20-4-9-9-4Z" />
-									<path d="M22 2 11 13" />
-								</svg>
-							</div>
-							<CardTitle>3. Zamykaj sprzedaż</CardTitle>
-							<CardDescription
-								>Wyślij propozycję bezpośrednio z wbudowanego
-								CRM i zarządzaj statusem leada na tablicy
-								Kanban.</CardDescription
-							>
-						</CardHeader>
-					</Card>
+						<span
+							class="absolute -top-4 -left-4 text-8xl font-extrabold select-none z-0 leading-none text-brand-green opacity-[0.08]"
+							>3</span
+						>
+						<div class="relative z-10 space-y-4">
+							<h3 class="text-2xl font-bold text-white">
+								Zamykaj sprzedaż
+							</h3>
+							<p class="leading-relaxed text-slate-400">
+								Wyślij propozycję bezpośrednio z wbudowanego CRM
+								i zarządzaj statusem leada na przejrzystej
+								tablicy Kanban.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!--CTA Section -->
+		<section class="py-24 bg-brand-dark">
+			<div class="container mx-auto px-6 lg:px-12 max-w-7xl">
+				<div
+					v-motion
+					:initial="{ opacity: 0, scale: 0.96, y: 30 }"
+					:visible-once="{ opacity: 1, scale: 1, y: 0, transition: { duration: 650 } }"
+					class="relative rounded-3xl overflow-hidden bg-gradient-to-br from-brand-green via-emerald-400 to-brand-teal px-12 py-20 text-center"
+				>
+					<h2
+						class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#0a1a0f] mb-10 leading-tight"
+					>
+						Gotowy na przyspieszenie<br />sprzedaży o 300%?
+					</h2>
+					<NuxtLink
+						to="/register"
+						class="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-base text-brand-green bg-[#0a1a0f] hover:bg-[#0f2414] transition-all hover:-translate-y-0.5 shadow-xl"
+					>
+						Zacznij bezpłatny okres próbny
+					</NuxtLink>
 				</div>
 			</div>
 		</section>

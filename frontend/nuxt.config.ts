@@ -9,7 +9,7 @@ export default defineNuxtConfig({
 	},
 	devtools: { enabled: true },
 
-	modules: ["@nuxtjs/tailwindcss", "shadcn-nuxt"],
+	modules: ["@nuxtjs/tailwindcss", "shadcn-nuxt", "@vueuse/motion/nuxt"],
 	css: ["~/assets/css/tailwind.css"],
 
 	shadcn: {
@@ -67,9 +67,10 @@ export default defineNuxtConfig({
 				},
 			],
 			link: [
+				{ rel: "preconnect", href: "https://api.fontshare.com" },
 				{
 					rel: "stylesheet",
-					href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap",
+					href: "https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800&f[]=satoshi@400,500,700&display=swap",
 				},
 			],
 		},

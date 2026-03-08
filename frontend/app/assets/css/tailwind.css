@@ -74,5 +74,10 @@
 	}
 	body {
 		@apply bg-background text-foreground;
+		font-family: 'Satoshi', sans-serif;
+	}
+	h1, h2, h3 {
+		font-family: 'Cabinet Grotesk', sans-serif;
+		letter-spacing: -0.02em;
 	}
 }
