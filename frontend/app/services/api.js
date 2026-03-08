@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-	baseURL: import.meta.env.NUXT_PUBLIC_API_BASE ?? "http://localhost:8000/api",
+	baseURL:
+		import.meta.env.NUXT_PUBLIC_API_BASE ?? "http://localhost:8000/api",
 	headers: {
 		"Content-Type": "application/json",
 	},
@@ -25,11 +26,13 @@ api.interceptors.response.use(
 			window.location.href = "/login";
 		}
 		return Promise.reject(error);
-	}
+	},
 );
 
 function getCookieValue(name) {
-	const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+	const match = document.cookie.match(
+		new RegExp("(^| )" + name + "=([^;]+)"),
+	);
 	return match ? decodeURIComponent(match[2]) : null;
 }
 
@@ -42,6 +45,12 @@ export default {
 	},
 	me() {
 		return api.get("/auth/me");
+	},
+	forgotPassword(email) {
+		return api.post("/auth/forgot-password", { email });
+	},
+	resetPassword(token, new_password) {
+		return api.post("/auth/reset-password", { token, new_password });
 	},
 	getLeads() {
 		return api.get("/leads");
