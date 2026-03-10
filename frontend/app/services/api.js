@@ -88,4 +88,7 @@ export default {
 	updateSettings(data) {
 		return api.put("/settings", data);
 	},
+	getUsage() {
+		return api.get("/usage");
+	},
 };

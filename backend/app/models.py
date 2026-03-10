@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, JSON, ForeignKey, Numeric, UniqueConstraint
 from datetime import datetime, timezone
 from .database import Base
 
@@ -10,6 +10,8 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="user")  # 'user' | 'admin'
+    plan = Column(String, default="free")  # 'free' | 'pro' | 'admin'
+    plan_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
@@ -31,6 +33,34 @@ class UserSettings(Base):
     smtp_user = Column(String, nullable=True)
     smtp_password = Column(String, nullable=True)
     smtp_from_email = Column(String, nullable=True)
+
+class MonthlyUsage(Base):
+    __tablename__ = "monthly_usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    month = Column(String(7), nullable=False)  # format: '2025-03'
+    ai_audits = Column(Integer, default=0)
+    scans = Column(Integer, default=0)
+    emails_sent = Column(Integer, default=0)
+    tokens_in = Column(Integer, default=0)
+    tokens_out = Column(Integer, default=0)
+    cost_usd = Column(Numeric(10, 5), default=0)
+    __table_args__ = (UniqueConstraint("user_id", "month", name="uq_monthly_usage_user_month"),)
+
+
+class UsageEvent(Base):
+    __tablename__ = "usage_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    event_type = Column(String(50), nullable=False)  # 'ai_audit' | 'scan' | 'email_send'
+    lead_id = Column(Integer, nullable=True)  # plain Integer, no FK (SQLite-safe)
+    tokens_in = Column(Integer, nullable=True)
+    tokens_out = Column(Integer, nullable=True)
+    cost_usd = Column(Numeric(10, 5), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
 
 class Lead(Base):
     __tablename__ = "leads"

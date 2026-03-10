@@ -15,6 +15,7 @@ from . import models, schemas, database
 from .dependencies import get_current_user
 from .routers import auth as auth_router
 from .routers import settings as settings_router
+from .quota_service import check_quota, increment_usage, get_quota_info
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ models.Base.metadata.create_all(bind=database.engine)
 
 def apply_migrations():
     from sqlalchemy import text
-    columns_to_add = [
+    user_settings_cols = [
         ("email_provider", "VARCHAR DEFAULT 'resend'"),
         ("resend_api_key", "VARCHAR"),
         ("smtp_host", "VARCHAR"),
@@ -31,10 +32,17 @@ def apply_migrations():
         ("smtp_password", "VARCHAR"),
         ("smtp_from_email", "VARCHAR"),
     ]
+    users_cols = [
+        ("plan", "VARCHAR DEFAULT 'free'"),
+        ("plan_expires_at", "TIMESTAMP"),
+    ]
     with database.engine.begin() as conn:
-        for col_name, col_type in columns_to_add:
+        for col_name, col_type in user_settings_cols:
             conn.execute(text(f"ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
             logger.info(f"Ensured column exists: user_settings.{col_name}")
+        for col_name, col_type in users_cols:
+            conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+            logger.info(f"Ensured column exists: users.{col_name}")
 
 apply_migrations()
 
@@ -215,6 +223,12 @@ async def scan_for_leads(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    if not check_quota(db, current_user, "scans"):
+        raise HTTPException(
+            status_code=429,
+            detail="Wyczerpałeś miesięczny limit skanów. Przejdź na plan Pro, aby kontynuować.",
+        )
+
     from scraper import scan_google_places
 
     try:
@@ -227,6 +241,7 @@ async def scan_for_leads(
             db=db,
             user_id=current_user.id,
         )
+        increment_usage(db, current_user, "scans")
         return {"message": f"Scan completed. Added {new_leads_added} new leads."}
     except ValueError as e:
         # Nieprawidłowy klucz API lub błąd odpowiedzi Google
@@ -244,6 +259,12 @@ async def audit_lead_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    if not check_quota(db, current_user, "ai_audits"):
+        raise HTTPException(
+            status_code=429,
+            detail="Wyczerpałeś miesięczny limit audytów AI. Przejdź na plan Pro, aby kontynuować.",
+        )
+
     db_lead = (
         db.query(models.Lead)
         .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
@@ -254,7 +275,9 @@ async def audit_lead_endpoint(
 
     try:
         from .audit_service import run_full_audit
-        return await run_full_audit(db_lead, db)
+        result = await run_full_audit(db_lead, db)
+        increment_usage(db, current_user, "ai_audits", tokens_in=900, tokens_out=500, lead_id=lead_id)
+        return result
     except Exception as exc:
         logger.error("Audit endpoint failed for lead %d: %s", lead_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Audit failed. Sprawdź logi serwera.")
@@ -276,6 +299,12 @@ async def send_email_endpoint(
         raise HTTPException(status_code=404, detail="Lead not found")
     if not db_lead.email:
         raise HTTPException(status_code=400, detail="Lead ma zły/brak adresu e-mail")
+
+    if not check_quota(db, current_user, "emails_sent"):
+        raise HTTPException(
+            status_code=429,
+            detail="Wyczerpałeś miesięczny limit wysyłki e-mail. Przejdź na plan Pro, aby kontynuować.",
+        )
 
     user_settings = db.query(models.UserSettings).filter(models.UserSettings.user_id == current_user.id).first()
     provider = user_settings.email_provider if user_settings and user_settings.email_provider else "none"
@@ -335,4 +364,38 @@ async def send_email_endpoint(
     db_lead.status = "contacted"
     db.commit()
     db.refresh(db_lead)
+    increment_usage(db, current_user, "emails_sent", lead_id=lead_id)
     return {"message": "Email wysłany pomyślnie!", "lead": db_lead}
+
+
+@app.get("/api/usage")
+def get_usage(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Zwraca bieżące zużycie i limity zalogowanego użytkownika."""
+    return get_quota_info(db, current_user)
+
+
+@app.post("/api/admin/set-plan")
+def admin_set_plan(
+    request: schemas.SetPlanRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Zmienia plan użytkownika (tylko dla roli admin)."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Brak uprawnień.")
+
+    target_user = db.query(models.User).filter(models.User.id == request.user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Użytkownik nie znaleziony.")
+
+    valid_plans = {"free", "pro", "admin"}
+    if request.plan not in valid_plans:
+        raise HTTPException(status_code=422, detail=f"Nieprawidłowy plan. Dozwolone: {', '.join(valid_plans)}")
+
+    target_user.plan = request.plan
+    db.commit()
+    logger.info("Admin %d set plan='%s' for user %d", current_user.id, request.plan, request.user_id)
+    return {"message": f"Plan użytkownika {target_user.email} zmieniony na '{request.plan}'."}

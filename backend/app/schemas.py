@@ -94,6 +94,11 @@ class EmailSendRequest(BaseModel):
     body: str
 
 
+class SetPlanRequest(BaseModel):
+    user_id: int
+    plan: str  # 'free' | 'pro' | 'admin'
+
+
 class UserSettingsBase(BaseModel):
     sender_name: Optional[str] = None
     company_name: Optional[str] = None

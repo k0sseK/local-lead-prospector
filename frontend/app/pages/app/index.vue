@@ -164,8 +164,14 @@ const runScan = async () => {
 		scanMessage.value = response.data.message;
 
 		await fetchLeads();
+		await fetchUsage();
 	} catch (err) {
-		toast.error(err.response?.data?.detail || "Failed to trigger scan.");
+		const detail = err.response?.data?.detail;
+		if (err.response?.status === 429) {
+			toast.error(detail || "Limit skanów wyczerpany. Przejdź na plan Pro.");
+		} else {
+			toast.error(detail || "Failed to trigger scan.");
+		}
 		console.error(err);
 	} finally {
 		isScanning.value = false;
@@ -292,6 +298,19 @@ const exportCsv = async () => {
 	}
 };
 
+// ─── Quota / Usage ───────────────────────────────────────────────
+const usage = ref(null);
+
+const fetchUsage = async () => {
+	try {
+		const res = await api.getUsage();
+		usage.value = res.data;
+	} catch {
+		// nie blokuj UI jeśli endpoint zawiedzie
+	}
+};
+// ─────────────────────────────────────────────────────────────────
+
 const isAuditingAll = ref(false);
 const auditAllProgress = ref({ done: 0, total: 0 });
 
@@ -313,30 +332,62 @@ const auditAll = async () => {
 			if (idx !== -1) {
 				leads.value[idx] = { ...leads.value[idx], ...updated };
 			}
-		} catch {
+		} catch (err) {
+			if (err.response?.status === 429) {
+				toast.error(err.response.data?.detail || "Limit audytów wyczerpany. Przejdź na plan Pro.");
+				break;
+			}
 			toast.error(`Audyt nieudany: ${lead.company_name}`);
 		}
 		auditAllProgress.value.done++;
 	}
 
+	await fetchUsage();
 	isAuditingAll.value = false;
 	toast.success("Audyt wszystkich leadów zakończony!");
 };
 
 onMounted(() => {
 	fetchLeads();
+	fetchUsage();
 });
 </script>
 
 <template>
 	<div class="px-4 py-6 md:px-8 space-y-8 bg-slate-50 min-h-screen">
-		<div>
-			<h1 class="text-3xl font-bold tracking-tight text-slate-900">
-				Leady
-			</h1>
-			<p class="text-slate-500 mt-2">
-				Wyszukuj nowe firmy na mapie i zarządzaj lejkiem sprzedażowym.
-			</p>
+		<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+			<div>
+				<h1 class="text-3xl font-bold tracking-tight text-slate-900">
+					Leady
+				</h1>
+				<p class="text-slate-500 mt-2">
+					Wyszukuj nowe firmy na mapie i zarządzaj lejkiem sprzedażowym.
+				</p>
+			</div>
+
+			<!-- Licznik zużycia -->
+			<div v-if="usage" class="flex flex-wrap gap-2 shrink-0">
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+					:class="usage.usage.ai_audits >= usage.limits.ai_audits ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-600'"
+				>
+					<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+					Audyty AI: {{ usage.usage.ai_audits }}/{{ usage.limits.ai_audits }}
+				</span>
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+					:class="usage.usage.scans >= usage.limits.scans ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-600'"
+				>
+					<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+					Skany: {{ usage.usage.scans }}/{{ usage.limits.scans }}
+				</span>
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium capitalize"
+					:class="usage.plan === 'pro' ? 'border-violet-300 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-slate-500'"
+				>
+					{{ usage.plan === 'pro' ? '⭐ Pro' : 'Free' }}
+				</span>
+			</div>
 		</div>
 
 		<Card class="border-slate-200">
