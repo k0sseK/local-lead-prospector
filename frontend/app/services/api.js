@@ -97,4 +97,7 @@ export default {
 	adminSetPlan(userId, plan) {
 		return api.post("/admin/set-plan", { user_id: userId, plan });
 	},
+	getKeywordSuggestions(description) {
+		return api.post("/ai/keyword-suggestions", { description });
+	},
 };

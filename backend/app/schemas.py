@@ -119,3 +119,12 @@ class UserSettingsOut(UserSettingsBase):
 
     class Config:
         from_attributes = True
+
+
+class KeywordSuggestionRequest(BaseModel):
+    description: str
+
+
+class KeywordSuggestionResponse(BaseModel):
+    suggestions: List[str]
+    detected_location: Optional[str] = None

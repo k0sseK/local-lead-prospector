@@ -52,6 +52,64 @@ const isScanning = ref(false);
 const isLocating = ref(false);
 const scanMessage = ref(null);
 
+// ─── Keyword Suggestions ─────────────────────────────────────────
+const showKeywordPanel = ref(false);
+const keywordDescription = ref("");
+const isGeneratingKeywords = ref(false);
+const keywordSuggestions = ref([]);
+const keywordDetectedLocation = ref(null);
+
+const generateKeywords = async () => {
+	if (!keywordDescription.value.trim()) {
+		toast.error("Opisz czego szukasz, aby wygenerować sugestie.");
+		return;
+	}
+	isGeneratingKeywords.value = true;
+	keywordSuggestions.value = [];
+	keywordDetectedLocation.value = null;
+	try {
+		const res = await api.getKeywordSuggestions(keywordDescription.value);
+		keywordSuggestions.value = res.data.suggestions;
+		keywordDetectedLocation.value = res.data.detected_location ?? null;
+	} catch (err) {
+		toast.error(
+			err.response?.data?.detail || "Nie udało się wygenerować sugestii.",
+		);
+	} finally {
+		isGeneratingKeywords.value = false;
+	}
+};
+
+const applyKeyword = async (kw) => {
+	searchKeyword.value = kw;
+	showKeywordPanel.value = false;
+	keywordSuggestions.value = [];
+	keywordDescription.value = "";
+
+	const loc = keywordDetectedLocation.value;
+	keywordDetectedLocation.value = null;
+
+	if (loc) {
+		try {
+			const response = await fetch(
+				`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc)}`,
+			);
+			const data = await response.json();
+			if (data && data.length > 0) {
+				const lat = parseFloat(data[0].lat);
+				const lng = parseFloat(data[0].lon);
+				mapCenter.value = { lat, lng };
+				markerPosition.value = { lat, lng };
+				mapZoom.value = 13;
+				toast.success(`Lokalizacja ustawiona na: ${loc}`);
+			}
+		} catch {
+			// lokalizacja nieznaleziona — cicho ignorujemy
+		}
+	}
+};
+// ─────────────────────────────────────────────────────────────────
+
 const onMapClick = (e) => {
 	if (e.latLng) {
 		markerPosition.value = {
@@ -144,6 +202,14 @@ const searchAddress = async () => {
 const runScan = async () => {
 	if (!searchKeyword.value || !markerPosition.value) {
 		toast.error("Wprowadź branżę i zaznacz punkt na mapie.");
+		return;
+	}
+
+	if (scanLimitReached.value) {
+		toast.error(
+			"Wyczerpałeś miesięczny limit skanów. Przejdź na plan Pro, aby kontynuować.",
+			{ timeout: 5000 },
+		);
 		return;
 	}
 
@@ -309,6 +375,18 @@ const fetchUsage = async () => {
 		// nie blokuj UI jeśli endpoint zawiedzie
 	}
 };
+
+const scanLimitReached = computed(
+	() =>
+		usage.value &&
+		usage.value.usage.scans >= usage.value.limits.scans,
+);
+
+const auditLimitReached = computed(
+	() =>
+		usage.value &&
+		usage.value.usage.ai_audits >= usage.value.limits.ai_audits,
+);
 // ─────────────────────────────────────────────────────────────────
 
 const isAuditingAll = ref(false);
@@ -404,14 +482,87 @@ onMounted(() => {
 					<div class="md:col-span-4 space-y-6">
 						<div class="space-y-4">
 							<div class="space-y-2">
-								<label
-									class="text-sm font-medium text-slate-700"
-									>Branża / Słowo kluczowe</label
-								>
+								<div class="flex items-center justify-between">
+									<label class="text-sm font-medium text-slate-700"
+										>Branża / Słowo kluczowe</label
+									>
+									<button
+										type="button"
+										@click="showKeywordPanel = !showKeywordPanel"
+										class="inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-800 transition-colors"
+									>
+										✨ Magiczne słowa kluczowe
+									</button>
+								</div>
 								<Input
 									v-model="searchKeyword"
 									placeholder="np. biuro rachunkowe, dentysta"
 								/>
+								<!-- Inline keyword suggestion panel -->
+								<div
+									v-show="showKeywordPanel"
+									class="mt-2 rounded-lg border border-violet-200 bg-violet-50 p-4 space-y-3"
+								>
+									<p class="text-xs font-semibold text-violet-700 uppercase tracking-wide">
+										Generator słów kluczowych AI
+									</p>
+									<textarea
+										v-model="keywordDescription"
+										rows="2"
+										placeholder="Opisz kogo szukasz, np. chcę znaleźć hydraulików w Warszawie"
+										class="w-full rounded-md border border-violet-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
+									/>
+									<Button
+										@click="generateKeywords"
+										:disabled="isGeneratingKeywords"
+										class="w-full bg-violet-600 hover:bg-violet-700 text-white text-sm"
+										size="sm"
+									>
+										<svg
+											v-if="isGeneratingKeywords"
+											class="animate-spin h-4 w-4 mr-2"
+											xmlns="http://www.w3.org/2000/svg"
+											fill="none"
+											viewBox="0 0 24 24"
+										>
+											<circle
+												class="opacity-25"
+												cx="12"
+												cy="12"
+												r="10"
+												stroke="currentColor"
+												stroke-width="4"
+											/>
+											<path
+												class="opacity-75"
+												fill="currentColor"
+												d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+											/>
+										</svg>
+										{{ isGeneratingKeywords ? "Generuję..." : "Generuj" }}
+									</Button>
+									<div
+										v-if="keywordSuggestions.length > 0"
+										class="space-y-2 pt-1"
+									>
+										<p
+											v-if="keywordDetectedLocation"
+											class="text-xs text-violet-600"
+										>
+											📍 Wykryto lokalizację: <strong>{{ keywordDetectedLocation }}</strong> — zostanie ustawiona na mapie po kliknięciu.
+										</p>
+										<div class="flex flex-wrap gap-2">
+											<Badge
+												v-for="kw in keywordSuggestions"
+												:key="kw"
+												@click="applyKeyword(kw)"
+												class="cursor-pointer bg-white border border-violet-300 text-violet-700 hover:bg-violet-100 transition-colors text-xs px-2 py-1"
+											>
+												{{ kw }}
+											</Badge>
+										</div>
+									</div>
+								</div>
 							</div>
 							<div class="space-y-2">
 								<label
@@ -515,11 +666,37 @@ onMounted(() => {
 							</Button>
 						</div>
 
-						<div class="pt-4">
+						<div class="pt-4 space-y-3">
+							<!-- Limit wyczerpany — upgrade CTA -->
+							<div
+								v-if="scanLimitReached"
+								class="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3"
+							>
+								<div class="flex items-start gap-3">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+									</svg>
+									<div>
+										<p class="text-sm font-semibold text-amber-800">Miesięczny limit skanów wyczerpany</p>
+										<p class="text-xs text-amber-700 mt-0.5">Uaktualnij do planu Pro, aby uzyskać nieograniczone skanowania i więcej funkcji.</p>
+									</div>
+								</div>
+								<NuxtLink
+									to="/pricing"
+									class="flex items-center justify-center gap-2 w-full rounded-md bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 px-4 py-2.5 text-sm font-bold text-white transition-all shadow-sm"
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+									</svg>
+									Przejdź na plan Pro
+								</NuxtLink>
+							</div>
+
 							<Button
 								@click="runScan"
-								:disabled="isScanning"
-								class="w-full bg-indigo-600 hover:bg-indigo-700 h-12"
+								:disabled="isScanning || scanLimitReached"
+								class="w-full h-12"
+								:class="scanLimitReached ? 'bg-slate-300 cursor-not-allowed text-slate-500 hover:bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700'"
 							>
 								<span
 									v-if="isScanning"
@@ -546,6 +723,12 @@ onMounted(() => {
 										></path>
 									</svg>
 									Skanowanie...
+								</span>
+								<span v-else-if="scanLimitReached" class="flex items-center gap-2">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+									</svg>
+									Limit wyczerpany
 								</span>
 								<span v-else class="flex items-center gap-2">
 									<svg

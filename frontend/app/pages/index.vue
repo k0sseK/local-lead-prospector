@@ -21,7 +21,11 @@ definePageMeta({
 						<div
 							v-motion
 							:initial="{ opacity: 0, y: -16 }"
-							:enter="{ opacity: 1, y: 0, transition: { duration: 500 } }"
+							:enter="{
+								opacity: 1,
+								y: 0,
+								transition: { duration: 500 },
+							}"
 							class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-brand-teal/10 border border-brand-teal/30 text-brand-green"
 						>
 							Przyszłość prospectingu B2B
@@ -30,7 +34,11 @@ definePageMeta({
 						<h1
 							v-motion
 							:initial="{ opacity: 0, y: 32 }"
-							:enter="{ opacity: 1, y: 0, transition: { duration: 650, delay: 120 } }"
+							:enter="{
+								opacity: 1,
+								y: 0,
+								transition: { duration: 650, delay: 120 },
+							}"
 							class="text-6xl md:text-7xl lg:text-8xl font-extrabold text-white leading-[1.05]"
 						>
 							Zdobądź klientów B2B<br />
@@ -40,7 +48,11 @@ definePageMeta({
 						<p
 							v-motion
 							:initial="{ opacity: 0, y: 24 }"
-							:enter="{ opacity: 1, y: 0, transition: { duration: 600, delay: 260 } }"
+							:enter="{
+								opacity: 1,
+								y: 0,
+								transition: { duration: 600, delay: 260 },
+							}"
 							class="text-xl max-w-xl leading-relaxed text-slate-400"
 						>
 							Zautomatyzuj cały proces sprzedaży. Od skanowania
@@ -51,7 +63,11 @@ definePageMeta({
 						<div
 							v-motion
 							:initial="{ opacity: 0, y: 20 }"
-							:enter="{ opacity: 1, y: 0, transition: { duration: 600, delay: 400 } }"
+							:enter="{
+								opacity: 1,
+								y: 0,
+								transition: { duration: 600, delay: 400 },
+							}"
 							class="flex flex-col sm:flex-row items-center gap-4 pt-4"
 						>
 							<NuxtLink
@@ -75,7 +91,11 @@ definePageMeta({
 					<div
 						v-motion
 						:initial="{ opacity: 0, x: 60 }"
-						:enter="{ opacity: 1, x: 0, transition: { duration: 700, delay: 200 } }"
+						:enter="{
+							opacity: 1,
+							x: 0,
+							transition: { duration: 700, delay: 200 },
+						}"
 						class="flex-1 w-full lg:w-auto relative"
 					>
 						<div
@@ -183,7 +203,11 @@ definePageMeta({
 				<div
 					v-motion
 					:initial="{ opacity: 0, y: 40 }"
-					:visible-once="{ opacity: 1, y: 0, transition: { duration: 600 } }"
+					:visible-once="{
+						opacity: 1,
+						y: 0,
+						transition: { duration: 600 },
+					}"
 					class="text-center mb-20 space-y-4"
 				>
 					<h2 class="text-4xl md:text-5xl font-extrabold text-white">
@@ -201,7 +225,11 @@ definePageMeta({
 					<div
 						v-motion
 						:initial="{ opacity: 0, y: 50 }"
-						:visible-once="{ opacity: 1, y: 0, transition: { duration: 600, delay: 0 } }"
+						:visible-once="{
+							opacity: 1,
+							y: 0,
+							transition: { duration: 600, delay: 0 },
+						}"
 						class="relative pt-10"
 					>
 						<span
@@ -223,7 +251,11 @@ definePageMeta({
 					<div
 						v-motion
 						:initial="{ opacity: 0, y: 50 }"
-						:visible-once="{ opacity: 1, y: 0, transition: { duration: 600, delay: 160 } }"
+						:visible-once="{
+							opacity: 1,
+							y: 0,
+							transition: { duration: 600, delay: 160 },
+						}"
 						class="relative pt-10"
 					>
 						<span
@@ -246,7 +278,11 @@ definePageMeta({
 					<div
 						v-motion
 						:initial="{ opacity: 0, y: 50 }"
-						:visible-once="{ opacity: 1, y: 0, transition: { duration: 600, delay: 320 } }"
+						:visible-once="{
+							opacity: 1,
+							y: 0,
+							transition: { duration: 600, delay: 320 },
+						}"
 						class="relative pt-10"
 					>
 						<span
@@ -274,7 +310,12 @@ definePageMeta({
 				<div
 					v-motion
 					:initial="{ opacity: 0, scale: 0.96, y: 30 }"
-					:visible-once="{ opacity: 1, scale: 1, y: 0, transition: { duration: 650 } }"
+					:visible-once="{
+						opacity: 1,
+						scale: 1,
+						y: 0,
+						transition: { duration: 650 },
+					}"
 					class="relative rounded-3xl overflow-hidden bg-gradient-to-br from-brand-green via-emerald-400 to-brand-teal px-12 py-20 text-center"
 				>
 					<h2
