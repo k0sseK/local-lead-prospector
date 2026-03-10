@@ -2,6 +2,8 @@ import csv
 import io
 import logging
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import resend
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
