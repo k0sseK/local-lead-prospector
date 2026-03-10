@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 
 class UserCreate(BaseModel):
@@ -59,6 +59,20 @@ class LeadCreate(LeadBase):
 class LeadUpdate(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = None
+
+
+class BulkStatusUpdateRequest(BaseModel):
+    ids: List[int]
+    status: str
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: List[int]
+
+
+class BulkOperationResult(BaseModel):
+    updated: int
+    not_found: List[int] = []
 
 class Lead(LeadBase):
     id: int

@@ -70,6 +70,12 @@ export default {
 	deleteLead(id) {
 		return api.delete(`/leads/${id}`);
 	},
+	bulkUpdateStatus(ids, status) {
+		return api.patch("/leads/bulk-update-status", { ids, status });
+	},
+	bulkDeleteLeads(ids) {
+		return api.delete("/leads/bulk-delete", { data: { ids } });
+	},
 	updateLeadNotes(id, notes) {
 		return api.patch(`/leads/${id}`, { notes });
 	},

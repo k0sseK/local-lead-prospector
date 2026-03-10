@@ -71,6 +71,58 @@ def read_leads(
     return leads
 
 
+@app.patch("/api/leads/bulk-update-status", response_model=schemas.BulkOperationResult)
+def bulk_update_lead_status(
+    request: schemas.BulkStatusUpdateRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Masowa zmiana statusu leadów. Pojedyncza transakcja DB."""
+    VALID_STATUSES = {"new", "to_contact", "contacted", "rejected", "closed"}
+    if request.status not in VALID_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Nieprawidłowy status. Dozwolone: {', '.join(VALID_STATUSES)}",
+        )
+
+    leads = (
+        db.query(models.Lead)
+        .filter(
+            models.Lead.id.in_(request.ids),
+            models.Lead.user_id == current_user.id,
+        )
+        .all()
+    )
+
+    found_ids = {lead.id for lead in leads}
+    not_found = [i for i in request.ids if i not in found_ids]
+
+    for lead in leads:
+        lead.status = request.status
+
+    db.commit()
+    return {"updated": len(leads), "not_found": not_found}
+
+
+@app.delete("/api/leads/bulk-delete", status_code=200)
+def bulk_delete_leads(
+    request: schemas.BulkDeleteRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Masowe usuwanie leadów. Pojedyncza transakcja DB."""
+    deleted = (
+        db.query(models.Lead)
+        .filter(
+            models.Lead.id.in_(request.ids),
+            models.Lead.user_id == current_user.id,
+        )
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"deleted": deleted}
+
+
 @app.patch("/api/leads/{lead_id}", response_model=schemas.Lead)
 def update_lead_status(
     lead_id: int,

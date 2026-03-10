@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import api from "@/services/api.js";
 import {
 	GoogleMap,
@@ -62,7 +62,7 @@ const onMapClick = (e) => {
 };
 
 const locateUser = () => {
-	if (!"geolocation" in navigator || !navigator.geolocation) {
+	if ((!"geolocation") in navigator || !navigator.geolocation) {
 		toast.error(
 			"Geolokalizacja nie jest obsługiwana przez Twoją przeglądarkę.",
 		);
@@ -174,11 +174,107 @@ const runScan = async () => {
 
 const handleKanbanStatusUpdate = ({ leadId, newStatus }) =>
 	updateLeadStatus(leadId, newStatus);
-const changeStatus = (lead, newStatus) => updateLeadStatus(lead.id, newStatus);
+
+const listSelectionMode = ref(false);
+const listSelectedIds = ref(new Set());
+const isListBulkProcessing = ref(false);
 
 const handleLeadDeleted = (leadId) => {
 	leads.value = leads.value.filter((l) => l.id !== leadId);
+	// also deselect from list bulk selection
+	const s = new Set(listSelectedIds.value);
+	s.delete(leadId);
+	listSelectedIds.value = s;
 };
+
+const listAllSelected = computed(
+	() =>
+		leads.value.length > 0 &&
+		listSelectedIds.value.size === leads.value.length,
+);
+
+const toggleListSelectionMode = () => {
+	listSelectionMode.value = !listSelectionMode.value;
+	if (!listSelectionMode.value) listSelectedIds.value = new Set();
+};
+
+const toggleListSelectLead = (id) => {
+	const s = new Set(listSelectedIds.value);
+	if (s.has(id)) s.delete(id);
+	else s.add(id);
+	listSelectedIds.value = s;
+};
+
+const toggleListSelectAll = () => {
+	if (listAllSelected.value) {
+		listSelectedIds.value = new Set();
+	} else {
+		listSelectedIds.value = new Set(leads.value.map((l) => l.id));
+	}
+};
+
+const LIST_STATUSES = [
+	{ id: "new", label: "Nowe", color: "bg-gray-100 text-gray-700" },
+	{
+		id: "to_contact",
+		label: "Do kontaktu",
+		color: "bg-blue-100 text-blue-700",
+	},
+	{
+		id: "contacted",
+		label: "Wysłano ofertę",
+		color: "bg-yellow-100 text-yellow-700",
+	},
+	{ id: "rejected", label: "Odrzucone", color: "bg-red-100 text-red-700" },
+	{ id: "closed", label: "Sukces", color: "bg-green-100 text-green-700" },
+];
+
+const listBulkMoveToStatus = async (targetStatus) => {
+	if (listSelectedIds.value.size === 0) return;
+	isListBulkProcessing.value = true;
+	try {
+		const ids = [...listSelectedIds.value];
+		await api.bulkUpdateStatus(ids, targetStatus);
+		ids.forEach((id) => updateLeadStatus(id, targetStatus));
+		const label = LIST_STATUSES.find((s) => s.id === targetStatus)?.label;
+		toast.success(
+			`Przeniesiono ${ids.length} lead${ids.length === 1 ? "a" : "ów"} do "${label}"`,
+		);
+		listSelectedIds.value = new Set();
+		listSelectionMode.value = false;
+	} catch (err) {
+		console.error(err);
+		toast.error("Błąd podczas masowej zmiany statusu.");
+	} finally {
+		isListBulkProcessing.value = false;
+	}
+};
+
+const listBulkDelete = async () => {
+	if (listSelectedIds.value.size === 0) return;
+	const count = listSelectedIds.value.size;
+	if (
+		!confirm(
+			`Czy na pewno chcesz usunąć ${count} lead${count === 1 ? "a" : "ów"}? Tej akcji nie można cofnąć.`,
+		)
+	)
+		return;
+	isListBulkProcessing.value = true;
+	try {
+		const ids = [...listSelectedIds.value];
+		await api.bulkDeleteLeads(ids);
+		ids.forEach((id) => handleLeadDeleted(id));
+		toast.success(`Usunięto ${count} lead${count === 1 ? "a" : "ów"}.`);
+		listSelectedIds.value = new Set();
+		listSelectionMode.value = false;
+	} catch (err) {
+		console.error(err);
+		toast.error("Błąd podczas masowego usuwania.");
+	} finally {
+		isListBulkProcessing.value = false;
+	}
+};
+// ─────────────────────────────────────────────────────────────────
 
 const exportCsv = async () => {
 	try {
@@ -360,7 +456,11 @@ onMounted(() => {
 										points="3 11 22 2 13 21 11 13 3 11"
 									/>
 								</svg>
-								{{ isLocating ? 'Szukam lokalizacji...' : 'Moja lokalizacja' }}
+								{{
+									isLocating
+										? "Szukam lokalizacji..."
+										: "Moja lokalizacja"
+								}}
 							</Button>
 						</div>
 
@@ -625,42 +725,263 @@ onMounted(() => {
 				/>
 			</div>
 
-			<div
-				v-else
-				class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden"
-			>
-				<ul role="list" class="divide-y divide-slate-100">
-					<li
-						v-for="lead in leads"
-						:key="lead.id"
-						class="p-4 hover:bg-slate-50 flex items-center justify-between transition-colors"
-					>
-						<div class="flex-1 min-w-0">
-							<p
-								class="text-sm font-semibold text-indigo-600 truncate"
+			<div v-else class="space-y-2">
+				<!-- List bulk action toolbar -->
+				<div
+					class="flex flex-wrap items-center gap-2 px-1 py-2"
+					:class="
+						listSelectionMode ? 'justify-between' : 'justify-end'
+					"
+				>
+					<template v-if="listSelectionMode">
+						<div class="flex flex-wrap items-center gap-3">
+							<label
+								class="flex items-center gap-2 cursor-pointer select-none"
 							>
-								{{ lead.company_name }}
-							</p>
-							<p class="mt-1 text-sm text-slate-500 truncate">
-								{{ lead.address || "Brak adresu" }} •
-								{{ lead.phone || "Brak telefonu" }}
-							</p>
+								<input
+									type="checkbox"
+									:checked="listAllSelected"
+									:indeterminate="
+										listSelectedIds.size > 0 &&
+										!listAllSelected
+									"
+									@change="toggleListSelectAll"
+									class="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+								/>
+								<span
+									class="text-sm text-slate-600 font-medium"
+								>
+									{{
+										listSelectedIds.size > 0
+											? `Zaznaczono ${listSelectedIds.size}`
+											: "Zaznacz wszystkie"
+									}}
+								</span>
+							</label>
+
+							<template v-if="listSelectedIds.size > 0">
+								<div class="h-4 w-px bg-slate-200"></div>
+								<span
+									class="text-xs text-slate-500 font-medium uppercase tracking-wide"
+									>Przenieś do:</span
+								>
+								<div class="flex flex-wrap gap-1">
+									<button
+										v-for="status in LIST_STATUSES"
+										:key="status.id"
+										@click="listBulkMoveToStatus(status.id)"
+										:disabled="isListBulkProcessing"
+										class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all hover:opacity-80 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+										:class="status.color"
+									>
+										{{ status.label }}
+									</button>
+								</div>
+								<div class="h-4 w-px bg-slate-200"></div>
+								<button
+									@click="listBulkDelete"
+									:disabled="isListBulkProcessing"
+									class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									<svg
+										v-if="isListBulkProcessing"
+										class="animate-spin h-3 w-3"
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+									>
+										<circle
+											class="opacity-25"
+											cx="12"
+											cy="12"
+											r="10"
+											stroke="currentColor"
+											stroke-width="4"
+										></circle>
+										<path
+											class="opacity-75"
+											fill="currentColor"
+											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+										></path>
+									</svg>
+									<svg
+										v-else
+										xmlns="http://www.w3.org/2000/svg"
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									>
+										<polyline
+											points="3 6 5 6 21 6"
+										></polyline>
+										<path
+											d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
+										></path>
+										<path d="M10 11v6"></path>
+										<path d="M14 11v6"></path>
+										<path
+											d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"
+										></path>
+									</svg>
+									Usuń zaznaczone
+								</button>
+							</template>
 						</div>
-						<div class="flex items-center gap-3">
-							<span
-								class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold capitalize bg-slate-100 text-slate-700"
-							>
-								{{ lead.status }}
-							</span>
-						</div>
-					</li>
-					<li
-						v-if="leads.length === 0"
-						class="p-8 text-center text-slate-500"
+					</template>
+
+					<button
+						@click="toggleListSelectionMode"
+						class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+						:class="
+							listSelectionMode
+								? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+								: 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 shadow-sm'
+						"
 					>
-						Brak leadów. Uruchom skanowanie wyszukiwarką powyżej!
-					</li>
-				</ul>
+						<svg
+							v-if="listSelectionMode"
+							xmlns="http://www.w3.org/2000/svg"
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<line x1="18" y1="6" x2="6" y2="18"></line>
+							<line x1="6" y1="6" x2="18" y2="18"></line>
+						</svg>
+						<svg
+							v-else
+							xmlns="http://www.w3.org/2000/svg"
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<rect
+								x="3"
+								y="3"
+								width="18"
+								height="18"
+								rx="2"
+								ry="2"
+							></rect>
+							<polyline points="9 11 12 14 22 4"></polyline>
+						</svg>
+						{{
+							listSelectionMode
+								? "Anuluj zaznaczanie"
+								: "Zaznacz leady"
+						}}
+					</button>
+				</div>
+
+				<!-- List table -->
+				<div
+					class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden"
+				>
+					<ul role="list" class="divide-y divide-slate-100">
+						<li
+							v-for="lead in leads"
+							:key="lead.id"
+							class="p-4 flex items-center justify-between transition-colors"
+							:class="[
+								listSelectionMode
+									? 'cursor-pointer select-none'
+									: '',
+								listSelectionMode &&
+								listSelectedIds.has(lead.id)
+									? 'bg-indigo-50 hover:bg-indigo-50'
+									: 'hover:bg-slate-50',
+							]"
+							@click="
+								listSelectionMode
+									? toggleListSelectLead(lead.id)
+									: undefined
+							"
+						>
+							<!-- Checkbox -->
+							<div
+								v-if="listSelectionMode"
+								class="mr-3 flex-shrink-0"
+							>
+								<div
+									class="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+									:class="
+										listSelectedIds.has(lead.id)
+											? 'bg-indigo-600 border-indigo-600'
+											: 'bg-white border-slate-300'
+									"
+								>
+									<svg
+										v-if="listSelectedIds.has(lead.id)"
+										xmlns="http://www.w3.org/2000/svg"
+										width="10"
+										height="10"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="white"
+										stroke-width="3.5"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									>
+										<polyline
+											points="20 6 9 17 4 12"
+										></polyline>
+									</svg>
+								</div>
+							</div>
+
+							<div class="flex-1 min-w-0">
+								<p
+									class="text-sm font-semibold text-indigo-600 truncate"
+								>
+									{{ lead.company_name }}
+								</p>
+								<p class="mt-1 text-sm text-slate-500 truncate">
+									{{ lead.address || "Brak adresu" }} •
+									{{ lead.phone || "Brak telefonu" }}
+								</p>
+							</div>
+							<div class="flex items-center gap-3 ml-3">
+								<span
+									class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold capitalize"
+									:class="
+										LIST_STATUSES.find(
+											(s) => s.id === lead.status,
+										)?.color ||
+										'bg-slate-100 text-slate-700'
+									"
+								>
+									{{
+										LIST_STATUSES.find(
+											(s) => s.id === lead.status,
+										)?.label || lead.status
+									}}
+								</span>
+							</div>
+						</li>
+						<li
+							v-if="leads.length === 0"
+							class="p-8 text-center text-slate-500"
+						>
+							Brak leadów. Uruchom skanowanie wyszukiwarką
+							powyżej!
+						</li>
+					</ul>
+				</div>
 			</div>
 		</div>
 	</div>
