@@ -2,12 +2,15 @@ import csv
 import io
 import logging
 import os
+import time
+from collections import defaultdict
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 load_dotenv()
 import resend
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -62,6 +65,37 @@ app.add_middleware(
 
 app.include_router(auth_router.router)
 app.include_router(settings_router.router)
+
+# ─── Rate limiting (in-memory, per IP, 30 req/min) ───────────────────────────
+_ip_log: dict[str, list] = defaultdict(list)
+_last_cleanup = time.time()
+_RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "30"))
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    global _last_cleanup
+    ip = (request.client.host if request.client else "unknown")
+    now = time.time()
+
+    # Periodic cleanup every 5 minutes to avoid memory growth
+    if now - _last_cleanup > 300:
+        cutoff = now - 60
+        for k in list(_ip_log.keys()):
+            _ip_log[k] = [t for t in _ip_log[k] if t > cutoff]
+            if not _ip_log[k]:
+                del _ip_log[k]
+        _last_cleanup = now
+
+    _ip_log[ip] = [t for t in _ip_log[ip] if now - t < 60]
+    if len(_ip_log[ip]) >= _RATE_LIMIT:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Zbyt wiele żądań. Poczekaj chwilę i spróbuj ponownie."},
+            headers={"Retry-After": "60"},
+        )
+    _ip_log[ip].append(now)
+    return await call_next(request)
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 @app.get("/api/leads", response_model=List[schemas.Lead])
@@ -399,3 +433,40 @@ def admin_set_plan(
     db.commit()
     logger.info("Admin %d set plan='%s' for user %d", current_user.id, request.plan, request.user_id)
     return {"message": f"Plan użytkownika {target_user.email} zmieniony na '{request.plan}'."}
+
+
+@app.get("/api/admin/users")
+def admin_get_users(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Lista wszystkich użytkowników z bieżącym zużyciem (tylko admin)."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Brak uprawnień.")
+
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    users = db.query(models.User).order_by(models.User.created_at.desc()).all()
+
+    result = []
+    for u in users:
+        usage = (
+            db.query(models.MonthlyUsage)
+            .filter_by(user_id=u.id, month=month)
+            .first()
+        )
+        leads_count = db.query(models.Lead).filter_by(user_id=u.id).count()
+        result.append({
+            "id": u.id,
+            "email": u.email,
+            "plan": u.plan or "free",
+            "role": u.role,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "leads_count": leads_count,
+            "usage": {
+                "ai_audits": getattr(usage, "ai_audits", 0) or 0,
+                "scans": getattr(usage, "scans", 0) or 0,
+                "emails_sent": getattr(usage, "emails_sent", 0) or 0,
+                "cost_usd": round(float(usage.cost_usd or 0), 4) if usage else 0.0,
+            },
+        })
+    return result

@@ -1,6 +1,6 @@
 <script setup>
 import { useAuth } from "@/composables/useAuth";
-import { LayoutDashboard, Settings, Home, LogOut, Zap } from "lucide-vue-next";
+import { LayoutDashboard, Settings, Home, LogOut, Zap, ShieldCheck } from "lucide-vue-next";
 import { useRoute } from "vue-router";
 import api from "@/services/api.js";
 
@@ -15,6 +15,7 @@ const initials = computed(() => {
 const navItems = [
 	{ to: "/app", icon: LayoutDashboard, label: "Prospector CRM" },
 	{ to: "/app/settings", icon: Settings, label: "Ustawienia" },
+	{ to: "/app/admin", icon: ShieldCheck, label: "Panel Admina", adminOnly: true },
 	{ to: "/", icon: Home, label: "Powrót na stronę" },
 ];
 
@@ -57,6 +58,7 @@ onMounted(async () => {
 			<nav class="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
 				<NuxtLink
 					v-for="item in navItems"
+				v-show="!item.adminOnly || user?.role === 'admin'"
 					:key="item.to"
 					:to="item.to"
 					class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all"

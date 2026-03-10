@@ -7,8 +7,10 @@ w tabeli monthly_usage. Limity są resetowane automatycznie każdego
 miesiąca (nowy rekord per miesiąc).
 """
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import datetime, date, timezone
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from . import models
 
 logger = logging.getLogger(__name__)
@@ -131,3 +133,62 @@ def increment_usage(
     db.add(event)
     db.commit()
     logger.info("Usage incremented: user=%d action=%s month=%s", user.id, action, _current_month())
+
+    # Trigger cost alert check after AI audits (only action with non-zero cost)
+    if action == "ai_audits":
+        _check_daily_cost_alert(db)
+
+
+# ─── Daily cost alert ─────────────────────────────────────────────────────────
+_cost_alert_sent_date: str | None = None  # in-process deduplication flag
+
+
+def _check_daily_cost_alert(db: Session) -> None:
+    """Sends one alert email per day if total AI cost exceeds threshold."""
+    global _cost_alert_sent_date
+
+    admin_email = os.getenv("ADMIN_EMAIL")
+    if not admin_email:
+        return  # no alert destination configured
+
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if _cost_alert_sent_date == today_str:
+        return  # already alerted today
+
+    threshold = float(os.getenv("ADMIN_COST_ALERT_USD", "2.0"))
+
+    # Sum all AI audit costs for today
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    total = db.query(func.sum(models.UsageEvent.cost_usd)).filter(
+        models.UsageEvent.event_type == "ai_audits",
+        models.UsageEvent.created_at >= today_start,
+    ).scalar() or 0.0
+
+    if float(total) < threshold:
+        return
+
+    logger.warning(
+        "COST ALERT: daily AI cost $%.4f exceeded threshold $%.2f — sending alert to %s",
+        float(total), threshold, admin_email,
+    )
+    _cost_alert_sent_date = today_str  # mark before sending to avoid duplicates on error
+
+    try:
+        import resend as resend_lib
+        resend_lib.api_key = os.getenv("RESEND_API_KEY", "")
+        from_email = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+        if not resend_lib.api_key:
+            return
+        resend_lib.Emails.send({
+            "from": from_email,
+            "to": [admin_email],
+            "subject": f"[znajdzfirmy.pl] Alert kosztowy: ${float(total):.2f} dzisiaj",
+            "html": (
+                f"<p>Dzienny koszt AI przekroczył próg <strong>${threshold:.2f}</strong>.</p>"
+                f"<p>Łączny koszt dzisiaj: <strong>${float(total):.4f}</strong></p>"
+                f"<p>Rozważ tymczasowe podwyższenie limitu lub sprawdzenie zużycia w panelu admina.</p>"
+            ),
+        })
+        logger.info("Cost alert email sent to %s", admin_email)
+    except Exception as exc:
+        logger.error("Failed to send cost alert email: %s", exc)

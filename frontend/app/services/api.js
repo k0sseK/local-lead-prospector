@@ -91,4 +91,10 @@ export default {
 	getUsage() {
 		return api.get("/usage");
 	},
+	adminGetUsers() {
+		return api.get("/admin/users");
+	},
+	adminSetPlan(userId, plan) {
+		return api.post("/admin/set-plan", { user_id: userId, plan });
+	},
 };
