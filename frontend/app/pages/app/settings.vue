@@ -38,6 +38,7 @@ onMounted(async () => {
 			toast.error("Nie udało się załadować ustawień.");
 		}
 	}
+	await loadTemplates();
 });
 
 async function saveSettings() {
@@ -49,6 +50,106 @@ async function saveSettings() {
 		toast.error("Nie udało się zapisać ustawień.");
 	} finally {
 		saving.value = false;
+	}
+}
+
+// ─── Audit Templates ──────────────────────────────────────────────────────────
+
+const templates = ref([]);
+const templateForm = ref({ name: "", prompt: "", is_default: false });
+const editingTemplate = ref(null); // null = nowy, object = edytowany
+const savingTemplate = ref(false);
+const showTemplateForm = ref(false);
+
+const promptDescription = ref("");
+const isGeneratingPrompt = ref(false);
+
+async function loadTemplates() {
+	try {
+		const res = await api.getAuditTemplates();
+		templates.value = res.data;
+	} catch {
+		toast.error("Nie udało się załadować szablonów.");
+	}
+}
+
+function openNewTemplate() {
+	editingTemplate.value = null;
+	templateForm.value = { name: "", prompt: "", is_default: false };
+	promptDescription.value = "";
+	showTemplateForm.value = true;
+}
+
+function openEditTemplate(t) {
+	editingTemplate.value = t;
+	templateForm.value = { name: t.name, prompt: t.prompt, is_default: t.is_default };
+	promptDescription.value = "";
+	showTemplateForm.value = true;
+}
+
+function cancelTemplateForm() {
+	showTemplateForm.value = false;
+	editingTemplate.value = null;
+}
+
+async function generatePrompt() {
+	if (!promptDescription.value.trim()) {
+		toast.error("Opisz cel audytu, aby wygenerować prompt.");
+		return;
+	}
+	isGeneratingPrompt.value = true;
+	try {
+		const res = await api.generateAuditPrompt(promptDescription.value);
+		templateForm.value.prompt = res.data.prompt;
+		toast.success("Prompt wygenerowany!");
+	} catch (err) {
+		toast.error(err.response?.data?.detail || "Nie udało się wygenerować promptu.");
+	} finally {
+		isGeneratingPrompt.value = false;
+	}
+}
+
+async function saveTemplate() {
+	if (!templateForm.value.name.trim() || !templateForm.value.prompt.trim()) {
+		toast.error("Nazwa i treść prompta są wymagane.");
+		return;
+	}
+	savingTemplate.value = true;
+	try {
+		if (editingTemplate.value) {
+			await api.updateAuditTemplate(editingTemplate.value.id, templateForm.value);
+			toast.success("Szablon zaktualizowany.");
+		} else {
+			await api.createAuditTemplate(templateForm.value);
+			toast.success("Szablon zapisany.");
+		}
+		await loadTemplates();
+		cancelTemplateForm();
+	} catch {
+		toast.error("Nie udało się zapisać szablonu.");
+	} finally {
+		savingTemplate.value = false;
+	}
+}
+
+async function deleteTemplate(id) {
+	if (!confirm("Usunąć ten szablon?")) return;
+	try {
+		await api.deleteAuditTemplate(id);
+		templates.value = templates.value.filter((t) => t.id !== id);
+		toast.success("Szablon usunięty.");
+	} catch {
+		toast.error("Nie udało się usunąć szablonu.");
+	}
+}
+
+async function setDefault(t) {
+	try {
+		await api.updateAuditTemplate(t.id, { is_default: true });
+		await loadTemplates();
+		toast.success(`"${t.name}" ustawiony jako domyślny.`);
+	} catch {
+		toast.error("Nie udało się ustawić domyślnego szablonu.");
 	}
 }
 </script>
@@ -72,6 +173,12 @@ async function saveSettings() {
 					class="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 rounded-none bg-transparent shadow-none"
 				>
 					Audytor i AI
+				</TabsTrigger>
+				<TabsTrigger
+					value="templates"
+					class="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 rounded-none bg-transparent shadow-none"
+				>
+					Szablony Audytów
 				</TabsTrigger>
 				<TabsTrigger
 					value="email"
@@ -149,6 +256,120 @@ async function saveSettings() {
 						</Button>
 					</CardFooter>
 				</Card>
+			</TabsContent>
+
+			<!-- ── Szablony Audytów ─────────────────────────────────────────── -->
+			<TabsContent value="templates">
+				<div class="space-y-4">
+					<!-- Lista szablonów -->
+					<Card v-if="templates.length > 0">
+						<CardHeader>
+							<CardTitle>Twoje szablony</CardTitle>
+							<CardDescription>
+								Wybierz szablon domyślny lub edytuj istniejący.
+							</CardDescription>
+						</CardHeader>
+						<CardContent class="space-y-3">
+							<div
+								v-for="t in templates"
+								:key="t.id"
+								class="flex items-start justify-between gap-4 p-3 rounded-lg border"
+								:class="t.is_default ? 'border-indigo-400 bg-indigo-50/40' : 'border-slate-200'"
+							>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-2 mb-1">
+										<span class="font-medium text-slate-900 text-sm">{{ t.name }}</span>
+										<Badge v-if="t.is_default" class="text-xs bg-indigo-100 text-indigo-700 border-indigo-200">Domyślny</Badge>
+									</div>
+									<p class="text-xs text-slate-500 line-clamp-2">{{ t.prompt }}</p>
+								</div>
+								<div class="flex gap-3 shrink-0">
+									<button
+										v-if="!t.is_default"
+										@click="setDefault(t)"
+										class="text-xs text-slate-500 hover:text-indigo-600 underline"
+									>Domyślny</button>
+									<button
+										@click="openEditTemplate(t)"
+										class="text-xs text-slate-500 hover:text-slate-900 underline"
+									>Edytuj</button>
+									<button
+										@click="deleteTemplate(t.id)"
+										class="text-xs text-red-400 hover:text-red-600 underline"
+									>Usuń</button>
+								</div>
+							</div>
+						</CardContent>
+					</Card>
+
+					<p v-else-if="!showTemplateForm" class="text-sm text-slate-500 text-center py-4">
+						Nie masz jeszcze żadnych szablonów. Kliknij "Dodaj szablon", aby zacząć.
+					</p>
+
+					<!-- Formularz nowego/edytowanego szablonu -->
+					<Card v-if="showTemplateForm">
+						<CardHeader>
+							<CardTitle>{{ editingTemplate ? 'Edytuj szablon' : 'Nowy szablon' }}</CardTitle>
+							<CardDescription>
+								Wpisz opis celu audytu i skorzystaj z AI, lub wpisz prompt ręcznie.
+							</CardDescription>
+						</CardHeader>
+						<CardContent class="space-y-4">
+							<div class="space-y-2">
+								<Label>Nazwa szablonu</Label>
+								<Input
+									v-model="templateForm.name"
+									placeholder="np. Audyt Social Media, Audyt Reklam Google"
+								/>
+							</div>
+
+							<!-- Generator AI -->
+							<div class="rounded-lg border border-dashed border-indigo-300 bg-indigo-50/30 p-4 space-y-3">
+								<p class="text-sm font-medium text-indigo-800">Wygeneruj prompt przez AI</p>
+								<p class="text-xs text-slate-500">Opisz, co chcesz audytować, a Gemini stworzy profesjonalny prompt.</p>
+								<textarea
+									v-model="promptDescription"
+									rows="2"
+									placeholder="np. Chcę audytować obecność firmy na Instagramie i Facebooku"
+									class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+								/>
+								<Button
+									variant="outline"
+									size="sm"
+									:disabled="isGeneratingPrompt"
+									@click="generatePrompt"
+								>
+									{{ isGeneratingPrompt ? 'Generowanie...' : 'Generuj prompt AI' }}
+								</Button>
+							</div>
+
+							<div class="space-y-2">
+								<Label>Treść prompta (instrukcje audytu)</Label>
+								<textarea
+									v-model="templateForm.prompt"
+									rows="8"
+									placeholder="Oceń obecność firmy na platformach społecznościowych..."
+									class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none font-mono"
+								/>
+							</div>
+
+							<label class="flex items-center gap-2 cursor-pointer">
+								<input type="checkbox" v-model="templateForm.is_default" class="rounded" />
+								<span class="text-sm text-slate-700">Ustaw jako domyślny szablon audytu</span>
+							</label>
+						</CardContent>
+						<CardFooter class="flex gap-2">
+							<Button :disabled="savingTemplate" @click="saveTemplate">
+								{{ savingTemplate ? 'Zapisywanie...' : 'Zapisz szablon' }}
+							</Button>
+							<Button variant="outline" @click="cancelTemplateForm">Anuluj</Button>
+						</CardFooter>
+					</Card>
+
+					<Button v-if="!showTemplateForm" @click="openNewTemplate">
+						+ Dodaj szablon
+					</Button>
+				</div>
 			</TabsContent>
 
 			<TabsContent value="email">

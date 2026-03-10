@@ -100,4 +100,22 @@ export default {
 	getKeywordSuggestions(description) {
 		return api.post("/ai/keyword-suggestions", { description });
 	},
+	generateAuditPrompt(description) {
+		return api.post("/ai/generate-audit-prompt", { description });
+	},
+	getAuditTemplates() {
+		return api.get("/settings/templates");
+	},
+	createAuditTemplate(data) {
+		return api.post("/settings/templates", data);
+	},
+	updateAuditTemplate(id, data) {
+		return api.put(`/settings/templates/${id}`, data);
+	},
+	deleteAuditTemplate(id) {
+		return api.delete(`/settings/templates/${id}`);
+	},
+	auditLeadWithTemplate(id, templateId) {
+		return api.post(`/leads/${id}/audit`, { template_id: templateId ?? null });
+	},
 };

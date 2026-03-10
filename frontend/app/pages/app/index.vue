@@ -392,6 +392,22 @@ const auditLimitReached = computed(
 const isAuditingAll = ref(false);
 const auditAllProgress = ref({ done: 0, total: 0 });
 
+// ─── Audit Templates ─────────────────────────────────────────────
+const auditTemplates = ref([]);
+const selectedTemplateId = ref(null);
+
+const fetchAuditTemplates = async () => {
+	try {
+		const res = await api.getAuditTemplates();
+		auditTemplates.value = res.data;
+		const def = res.data.find((t) => t.is_default);
+		if (def) selectedTemplateId.value = def.id;
+	} catch {
+		// Brak szablonów — używamy domyślnego SEO
+	}
+};
+// ─────────────────────────────────────────────────────────────────
+
 const auditAll = async () => {
 	const unaudited = leads.value.filter((l) => !l.audited);
 	if (unaudited.length === 0) {
@@ -404,7 +420,7 @@ const auditAll = async () => {
 
 	for (const lead of unaudited) {
 		try {
-			const response = await api.auditLead(lead.id);
+			const response = await api.auditLeadWithTemplate(lead.id, selectedTemplateId.value);
 			const updated = response.data;
 			const idx = leads.value.findIndex((l) => l.id === lead.id);
 			if (idx !== -1) {
@@ -428,6 +444,7 @@ const auditAll = async () => {
 onMounted(() => {
 	fetchLeads();
 	fetchUsage();
+	fetchAuditTemplates();
 });
 </script>
 
@@ -865,6 +882,17 @@ onMounted(() => {
 						</svg>
 						Eksport CSV
 					</Button>
+					<select
+						v-if="auditTemplates.length > 0 && leads.some((l) => !l.audited)"
+						v-model="selectedTemplateId"
+						class="text-xs rounded-md border border-indigo-200 bg-white px-2 py-1.5 text-indigo-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400"
+						title="Wybierz szablon audytu"
+					>
+						<option :value="null">Domyślny (SEO)</option>
+						<option v-for="t in auditTemplates" :key="t.id" :value="t.id">
+							{{ t.name }}
+						</option>
+					</select>
 					<Button
 						v-if="leads.some((l) => !l.audited)"
 						@click="auditAll"
