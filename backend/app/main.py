@@ -1,4 +1,6 @@
 import csv
+import hashlib
+import hmac
 import io
 import logging
 import os
@@ -38,6 +40,7 @@ def apply_migrations():
     users_cols = [
         ("plan", "VARCHAR DEFAULT 'free'"),
         ("plan_expires_at", "TIMESTAMP"),
+        ("lemon_subscription_id", "VARCHAR"),
     ]
     with database.engine.begin() as conn:
         for col_name, col_type in user_settings_cols:
@@ -433,6 +436,75 @@ def admin_set_plan(
     db.commit()
     logger.info("Admin %d set plan='%s' for user %d", current_user.id, request.plan, request.user_id)
     return {"message": f"Plan użytkownika {target_user.email} zmieniony na '{request.plan}'."}
+
+
+_LS_WEBHOOK_SECRET = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
+_LS_ACTIVE_STATUSES = {"active", "on_trial"}
+_LS_INACTIVE_STATUSES = {"expired", "cancelled", "unpaid", "paused"}
+
+@app.post("/api/webhooks/lemonsqueezy", include_in_schema=False)
+async def lemonsqueezy_webhook(request: Request, db: Session = Depends(database.get_db)):
+    raw_body = await request.body()
+
+    # Verify HMAC-SHA256 signature
+    if _LS_WEBHOOK_SECRET:
+        sig = request.headers.get("X-Signature", "")
+        expected = hmac.new(
+            _LS_WEBHOOK_SECRET.encode(), raw_body, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(expected, sig):
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+    import json
+    try:
+        payload = json.loads(raw_body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    event = payload.get("meta", {}).get("event_name", "")
+    custom_data = payload.get("meta", {}).get("custom_data", {})
+    attrs = payload.get("data", {}).get("attributes", {})
+    subscription_id = str(payload.get("data", {}).get("id", ""))
+    status = attrs.get("status", "")
+    customer_email = attrs.get("user_email", "")
+
+    # Find user — prefer custom user_id, fall back to email
+    user = None
+    raw_uid = custom_data.get("user_id")
+    if raw_uid:
+        try:
+            user = db.query(models.User).filter(models.User.id == int(raw_uid)).first()
+        except (ValueError, TypeError):
+            pass
+    if not user and customer_email:
+        user = db.query(models.User).filter(models.User.email == customer_email).first()
+
+    if not user:
+        logger.warning(
+            "LemonSqueezy webhook: no matching user for event=%s email=%s uid=%s",
+            event, customer_email, raw_uid,
+        )
+        return {"received": True}
+
+    if event in ("subscription_created", "subscription_updated"):
+        if status in _LS_ACTIVE_STATUSES:
+            user.plan = "pro"
+            user.lemon_subscription_id = subscription_id
+            user.plan_expires_at = None
+            logger.info("LS webhook: user %d upgraded to pro (sub %s)", user.id, subscription_id)
+        elif status in _LS_INACTIVE_STATUSES:
+            user.plan = "free"
+            logger.info(
+                "LS webhook: user %d downgraded to free (sub %s, status=%s)",
+                user.id, subscription_id, status,
+            )
+    elif event == "subscription_expired":
+        user.plan = "free"
+        user.lemon_subscription_id = None
+        logger.info("LS webhook: user %d subscription expired → free", user.id)
+
+    db.commit()
+    return {"received": True}
 
 
 @app.get("/api/admin/users")

@@ -12,6 +12,7 @@ class User(Base):
     role = Column(String, default="user")  # 'user' | 'admin'
     plan = Column(String, default="free")  # 'free' | 'pro' | 'admin'
     plan_expires_at = Column(DateTime, nullable=True)
+    lemon_subscription_id = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

@@ -6,6 +6,20 @@ definePageMeta({
 });
 
 const CONTACT_EMAIL = "hello@znajdzfirmy.pl";
+const config = useRuntimeConfig();
+const { user, init } = useAuth();
+
+await init();
+
+const checkoutUrl = computed(() => {
+	const base = config.public.lemonCheckoutUrl;
+	if (!base) return `mailto:${CONTACT_EMAIL}?subject=Zamówienie planu Pro`;
+	if (!user.value) return base;
+	const url = new URL(base);
+	url.searchParams.set("checkout[email]", user.value.email);
+	url.searchParams.set("checkout[custom][user_id]", String(user.value.id));
+	return url.toString();
+});
 
 const freePlan = [
 	"10 audytów AI miesięcznie",
@@ -88,7 +102,7 @@ const proPlan = [
 							<span class="text-5xl font-extrabold text-white">49 PLN</span>
 							<span class="text-slate-500 mb-1">/miesiąc</span>
 						</div>
-						<p class="text-slate-500 text-sm mt-2">Płatność jednorazowo za każdy miesiąc</p>
+						<p class="text-slate-500 text-sm mt-2">Płatność kartą lub BLIK</p>
 					</div>
 
 					<ul class="space-y-3 flex-1 mb-8">
@@ -99,14 +113,16 @@ const proPlan = [
 					</ul>
 
 					<a
-						:href="`mailto:${CONTACT_EMAIL}?subject=Zamówienie planu Pro – znajdzfirmy.pl&body=Cześć, chcę zamówić plan Pro. Mój adres e-mail na koncie to: `"
+						:href="checkoutUrl"
+						target="_blank"
+						rel="noopener noreferrer"
 						class="w-full h-11 flex items-center justify-center gap-2 rounded-full text-sm font-bold bg-gradient-to-r from-brand-green to-brand-teal text-black hover:-translate-y-0.5 transition-all shadow-[0_8px_30px_rgba(56,239,125,0.2)]"
 					>
 						<Zap class="w-4 h-4" />
 						Zamów plan Pro
 					</a>
 					<p class="text-center text-xs text-slate-600 mt-3">
-						Napisz e-mail → wystawiamy dostęp ręcznie w ciągu 24h
+						Dostęp aktywowany automatycznie po płatności
 					</p>
 				</div>
 			</div>
@@ -121,7 +137,7 @@ const proPlan = [
 					</div>
 					<div class="border-b border-white/10 pb-6">
 						<h3 class="text-white font-semibold mb-2">Jak zamówić plan Pro bez firmy?</h3>
-						<p class="text-slate-400 text-sm leading-relaxed">Wyślij e-mail na {{ CONTACT_EMAIL }} — przyjmujemy płatności przez przelew lub PayPal. Dostęp aktywujemy ręcznie w ciągu 24 godzin.</p>
+						<p class="text-slate-400 text-sm leading-relaxed">Kliknij "Zamów plan Pro" — płatność obsługuje LemonSqueezy (karta, BLIK). Dostęp aktywuje się automatycznie, bez żadnych formalności.</p>
 					</div>
 					<div class="border-b border-white/10 pb-6">
 						<h3 class="text-white font-semibold mb-2">Czy mogę anulować w dowolnym momencie?</h3>
