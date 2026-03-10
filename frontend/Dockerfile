@@ -27,11 +27,8 @@ FROM nginx:stable-alpine AS production
 # Remove default nginx config
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Provide default PORT if not provided by the cloud provider
-ENV PORT=80
-
-# Copy custom nginx config as a template for envsubst
-COPY nginx.conf /etc/nginx/templates/default.conf.template
+# Copy custom nginx config directly (port 80 hardcoded)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built artifacts from builder stage (Nuxt generate outputs to .output/public)
 COPY --from=builder /app/.output/public /usr/share/nginx/html
