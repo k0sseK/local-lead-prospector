@@ -270,3 +270,11 @@ local-lead-prospector/
 ├── docker-compose.yml
 └── README.md
 ```
+
+---
+
+## License & Self-Hosting
+
+This project is open-source and available under the **AGPL-3.0 License**. 
+
+You are free to self-host this application for your own use (requires your own Google Places and AI API keys). However, if you want a ready-to-use, hassle-free solution with premium features, check out the hosted version at [znajdzfirmy.pl](https://www.znajdzfirmy.pl).
