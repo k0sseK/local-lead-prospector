@@ -282,6 +282,14 @@ async def scan_for_leads(
 
     from scraper import scan_google_places
 
+    filters = {
+        "website_filter": scan_request.website_filter,
+        "min_rating": scan_request.min_rating,
+        "max_rating": scan_request.max_rating,
+        "min_reviews": scan_request.min_reviews,
+        "max_reviews": scan_request.max_reviews,
+    }
+
     try:
         new_leads_added = await scan_google_places(
             keyword=scan_request.keyword,
@@ -291,6 +299,7 @@ async def scan_for_leads(
             limit=scan_request.limit,
             db=db,
             user_id=current_user.id,
+            filters=filters,
         )
         increment_usage(db, current_user, "scans")
         return {"message": f"Scan completed. Added {new_leads_added} new leads."}

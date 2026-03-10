@@ -88,6 +88,12 @@ class ScanRequest(BaseModel):
     lng: float
     radius_km: float = 5.0
     limit: int = 10
+    # Filtry kwalifikacji leadów
+    website_filter: str = "all"       # "all" | "with" | "without"
+    min_rating: Optional[float] = None
+    max_rating: Optional[float] = None
+    min_reviews: Optional[int] = None
+    max_reviews: Optional[int] = None
 
 class EmailSendRequest(BaseModel):
     subject: str

@@ -88,10 +88,37 @@ async def _fetch_places(
 # Odpowiedzialność 3: Logika decyzji — czy miejsce jest dobrym leadem
 # ---------------------------------------------------------------------------
 
-def _is_good_lead(place: dict) -> bool:
+def _matches_filters(place: dict, filters: dict) -> bool:
     """
-    Kwalifikuje każdą firmę jako leada — ocena jakości odbywa się w audycie AI.
+    Kwalifikuje firmę jako leada na podstawie filtrów wybranych przez użytkownika.
+    Domyślnie (filtry puste) akceptuje wszystkich.
     """
+    rating: float = place.get("rating") or 0.0
+    reviews: int = place.get("userRatingCount") or 0
+    website: str = place.get("websiteUri", "") or ""
+
+    website_filter = filters.get("website_filter", "all")
+    if website_filter == "with" and not website:
+        return False
+    if website_filter == "without" and website:
+        return False
+
+    min_rating = filters.get("min_rating")
+    if min_rating is not None and rating < min_rating:
+        return False
+
+    max_rating = filters.get("max_rating")
+    if max_rating is not None and rating > max_rating:
+        return False
+
+    min_reviews = filters.get("min_reviews")
+    if min_reviews is not None and reviews < min_reviews:
+        return False
+
+    max_reviews = filters.get("max_reviews")
+    if max_reviews is not None and reviews > max_reviews:
+        return False
+
     return True
 
 
@@ -145,6 +172,7 @@ async def scan_google_places(
     limit: int,
     db: Session,
     user_id: int,
+    filters: dict | None = None,
 ) -> int:
     """
     Skanuje Google Places API, filtruje wyniki i zapisuje nowe leady do DB.
@@ -166,7 +194,8 @@ async def scan_google_places(
     places = await _fetch_places(keyword, lat, lng, radius_km, limit)
     logger.info("Received %d places from Google API", len(places))
 
-    qualified = [p for p in places if _is_good_lead(p)]
+    _filters = filters or {}
+    qualified = [p for p in places if _matches_filters(p, _filters)]
     logger.info("%d places qualified as leads after filtering", len(qualified))
 
     new_count = sum(_save_lead_if_new(p, db, user_id) for p in qualified)

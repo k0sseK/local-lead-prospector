@@ -42,6 +42,25 @@ const searchKeyword = ref("");
 const searchRadius = ref([5]);
 const searchLimit = ref(10);
 
+// ─── Filtry kwalifikacji ──────────────────────────────────────────
+const showFiltersPanel = ref(false);
+const filterWebsite = ref("all"); // "all" | "with" | "without"
+const filterMinRating = ref("");
+const filterMaxRating = ref("");
+const filterMinReviews = ref("");
+const filterMaxReviews = ref("");
+
+const activeFilterCount = computed(() => {
+	let count = 0;
+	if (filterWebsite.value !== "all") count++;
+	if (filterMinRating.value !== "") count++;
+	if (filterMaxRating.value !== "") count++;
+	if (filterMinReviews.value !== "") count++;
+	if (filterMaxReviews.value !== "") count++;
+	return count;
+});
+// ─────────────────────────────────────────────────────────────────
+
 const config = useRuntimeConfig();
 const googleMapsApiKey = config.public.googleMapsApiKey;
 
@@ -224,6 +243,11 @@ const runScan = async () => {
 			lng: markerPosition.value.lng,
 			radius_km: parseFloat(searchRadius.value[0]),
 			limit: parseInt(searchLimit.value, 10),
+			website_filter: filterWebsite.value,
+			min_rating: filterMinRating.value !== "" ? parseFloat(filterMinRating.value) : null,
+			max_rating: filterMaxRating.value !== "" ? parseFloat(filterMaxRating.value) : null,
+			min_reviews: filterMinReviews.value !== "" ? parseInt(filterMinReviews.value) : null,
+			max_reviews: filterMaxReviews.value !== "" ? parseInt(filterMaxReviews.value) : null,
 		};
 
 		const response = await api.triggerScan(payload);
@@ -672,6 +696,127 @@ onMounted(() => {
 								/>
 							</div>
 						</div>
+
+						<!-- ─── Filtry kwalifikacji ─────────────────────────────────── -->
+						<div class="pt-4 border-t border-slate-100">
+							<button
+								type="button"
+								@click="showFiltersPanel = !showFiltersPanel"
+								class="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors w-full"
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+								</svg>
+								<span>Filtry kwalifikacji</span>
+								<span
+									v-if="activeFilterCount > 0"
+									class="ml-1 inline-flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold px-1.5 py-0.5 leading-none"
+								>{{ activeFilterCount }} aktywne</span>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="14"
+									height="14"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="ml-auto transition-transform duration-200"
+									:class="showFiltersPanel ? 'rotate-180' : ''"
+								>
+									<polyline points="6 9 12 15 18 9"/>
+								</svg>
+							</button>
+
+							<div v-show="showFiltersPanel" class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4">
+								<!-- Strona WWW -->
+								<div class="space-y-1.5">
+									<p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Strona WWW</p>
+									<div class="flex gap-1.5">
+										<button
+											type="button"
+											@click="filterWebsite = 'all'"
+											:class="filterWebsite === 'all' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'"
+											class="flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all"
+										>Wszyscy</button>
+										<button
+											type="button"
+											@click="filterWebsite = 'without'"
+											:class="filterWebsite === 'without' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'"
+											class="flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all"
+										>Bez strony</button>
+										<button
+											type="button"
+											@click="filterWebsite = 'with'"
+											:class="filterWebsite === 'with' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'"
+											class="flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all"
+										>Ze stroną</button>
+									</div>
+								</div>
+
+								<!-- Ocena -->
+								<div class="space-y-1.5">
+									<p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Ocena (0 – 5)</p>
+									<div class="flex items-center gap-2">
+										<div class="flex-1 flex items-center gap-1">
+											<span class="text-xs text-slate-400 shrink-0">od</span>
+											<input
+												v-model="filterMinRating"
+												type="number"
+												min="0"
+												max="5"
+												step="0.1"
+												placeholder="0.0"
+												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+											/>
+										</div>
+										<div class="flex-1 flex items-center gap-1">
+											<span class="text-xs text-slate-400 shrink-0">do</span>
+											<input
+												v-model="filterMaxRating"
+												type="number"
+												min="0"
+												max="5"
+												step="0.1"
+												placeholder="5.0"
+												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+											/>
+										</div>
+									</div>
+								</div>
+
+								<!-- Recenzje -->
+								<div class="space-y-1.5">
+									<p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Liczba recenzji</p>
+									<div class="flex items-center gap-2">
+										<div class="flex-1 flex items-center gap-1">
+											<span class="text-xs text-slate-400 shrink-0">min</span>
+											<input
+												v-model="filterMinReviews"
+												type="number"
+												min="0"
+												step="1"
+												placeholder="0"
+												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+											/>
+										</div>
+										<div class="flex-1 flex items-center gap-1">
+											<span class="text-xs text-slate-400 shrink-0">max</span>
+											<input
+												v-model="filterMaxReviews"
+												type="number"
+												min="0"
+												step="1"
+												placeholder="∞"
+												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+											/>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<!-- ─────────────────────────────────────────────────────────── -->
 
 						<div class="pt-4 border-t border-slate-100">
 							<label
