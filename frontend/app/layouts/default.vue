@@ -20,7 +20,13 @@ const { isAuthenticated } = useAuth();
 						><span class="text-white">firmy.pl</span>
 					</span>
 				</NuxtLink>
-				<nav class="flex items-center gap-8">
+				<nav class="flex items-center gap-6">
+				<NuxtLink
+					to="/pricing"
+					class="hidden sm:inline-block text-sm font-semibold text-slate-400 hover:text-brand-green transition-colors"
+				>
+					Cennik
+				</NuxtLink>
 					<template v-if="isAuthenticated">
 						<NuxtLink
 							to="/app"

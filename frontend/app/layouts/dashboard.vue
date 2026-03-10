@@ -1,7 +1,8 @@
 <script setup>
 import { useAuth } from "@/composables/useAuth";
-import { LayoutDashboard, Settings, Home, LogOut } from "lucide-vue-next";
+import { LayoutDashboard, Settings, Home, LogOut, Zap } from "lucide-vue-next";
 import { useRoute } from "vue-router";
+import api from "@/services/api.js";
 
 const { user, logout } = useAuth();
 const route = useRoute();
@@ -16,6 +17,15 @@ const navItems = [
 	{ to: "/app/settings", icon: Settings, label: "Ustawienia" },
 	{ to: "/", icon: Home, label: "Powrót na stronę" },
 ];
+
+const userPlan = ref("free");
+
+onMounted(async () => {
+	try {
+		const res = await api.getUsage();
+		userPlan.value = res.data.plan;
+	} catch {}
+});
 </script>
 
 <template>
@@ -61,6 +71,18 @@ const navItems = [
 				</NuxtLink>
 			</nav>
 
+			<!-- Upgrade CTA (only for free plan) -->
+			<div v-if="userPlan === 'free'" class="px-3 pb-3">
+				<NuxtLink
+					to="/pricing"
+					class="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg bg-brand-green/10 border border-brand-green/20 text-brand-green text-xs font-semibold hover:bg-brand-green/15 transition-colors"
+				>
+					<Zap class="w-3.5 h-3.5 flex-shrink-0" />
+					<span>Upgrade do Pro</span>
+					<span class="ml-auto text-brand-green/60">49 PLN/mc</span>
+				</NuxtLink>
+			</div>
+
 			<!-- User -->
 			<div class="p-3 border-t border-brand-teal/10">
 				<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
@@ -73,9 +95,9 @@ const navItems = [
 						<span class="text-sm font-medium text-white truncate">{{
 							user?.email ?? "..."
 						}}</span>
-						<span class="text-xs text-slate-500">{{
-							user?.role ?? ""
-						}}</span>
+						<span class="text-xs" :class="userPlan === 'pro' ? 'text-brand-green font-semibold' : 'text-slate-500'">
+							{{ userPlan === 'pro' ? '⭐ Pro' : 'Free' }}
+						</span>
 					</div>
 					<button
 						@click="logout"
