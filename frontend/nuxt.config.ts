@@ -9,7 +9,15 @@ export default defineNuxtConfig({
 	},
 	devtools: { enabled: true },
 
-	modules: ["@nuxtjs/tailwindcss", "shadcn-nuxt", "@vueuse/motion/nuxt"],
+	modules: ["@nuxtjs/tailwindcss", "shadcn-nuxt", "@vueuse/motion/nuxt", "@nuxt/scripts"],
+
+	scripts: {
+		registry: {
+			googleAnalytics: {
+				id: process.env.NUXT_PUBLIC_GA_ID || "G-7KQK7CJRKM",
+			},
+		},
+	},
 	css: ["~/assets/css/tailwind.css"],
 
 	shadcn: {
