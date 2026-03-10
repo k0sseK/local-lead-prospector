@@ -1,6 +1,13 @@
 <script setup>
 import { useAuth } from "@/composables/useAuth";
-import { LayoutDashboard, Settings, Home, LogOut, Zap, ShieldCheck } from "lucide-vue-next";
+import {
+	LayoutDashboard,
+	Settings,
+	Home,
+	LogOut,
+	Zap,
+	ShieldCheck,
+} from "lucide-vue-next";
 import { useRoute } from "vue-router";
 import api from "@/services/api.js";
 
@@ -15,8 +22,12 @@ const initials = computed(() => {
 const navItems = [
 	{ to: "/app", icon: LayoutDashboard, label: "Prospector CRM" },
 	{ to: "/app/settings", icon: Settings, label: "Ustawienia" },
-	{ to: "/app/admin", icon: ShieldCheck, label: "Panel Admina", adminOnly: true },
-	{ to: "/", icon: Home, label: "Powrót na stronę" },
+	{
+		to: "/app/admin",
+		icon: ShieldCheck,
+		label: "Panel Admina",
+		adminOnly: true,
+	},
 ];
 
 const userPlan = ref("free");
@@ -58,7 +69,7 @@ onMounted(async () => {
 			<nav class="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
 				<NuxtLink
 					v-for="item in navItems"
-				v-show="!item.adminOnly || user?.role === 'admin'"
+					v-show="!item.adminOnly || user?.role === 'admin'"
 					:key="item.to"
 					:to="item.to"
 					class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all"
@@ -97,8 +108,15 @@ onMounted(async () => {
 						<span class="text-sm font-medium text-white truncate">{{
 							user?.email ?? "..."
 						}}</span>
-						<span class="text-xs" :class="userPlan === 'pro' ? 'text-brand-green font-semibold' : 'text-slate-500'">
-							{{ userPlan === 'pro' ? '⭐ Pro' : 'Free' }}
+						<span
+							class="text-xs"
+							:class="
+								userPlan === 'pro'
+									? 'text-brand-green font-semibold'
+									: 'text-slate-500'
+							"
+						>
+							{{ userPlan === "pro" ? "Pro" : "Free" }}
 						</span>
 					</div>
 					<button
