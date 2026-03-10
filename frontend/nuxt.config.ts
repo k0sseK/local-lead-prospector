@@ -59,7 +59,7 @@ export default defineNuxtConfig({
 
 	app: {
 		head: {
-			title: "Local Lead Prospector",
+			title: "znajdzfirmy.pl",
 			meta: [
 				{
 					name: "description",
@@ -68,6 +68,7 @@ export default defineNuxtConfig({
 				},
 			],
 			link: [
+				{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
 				{ rel: "preconnect", href: "https://api.fontshare.com" },
 				{
 					rel: "stylesheet",

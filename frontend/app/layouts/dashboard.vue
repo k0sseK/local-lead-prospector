@@ -1,34 +1,45 @@
 <script setup>
-import { useAuth } from "@/composables/useAuth"
-import { LayoutDashboard, Settings, Home, LogOut } from 'lucide-vue-next'
-import { useRoute } from 'vue-router'
+import { useAuth } from "@/composables/useAuth";
+import { LayoutDashboard, Settings, Home, LogOut } from "lucide-vue-next";
+import { useRoute } from "vue-router";
 
-const { user, logout } = useAuth()
-const route = useRoute()
+const { user, logout } = useAuth();
+const route = useRoute();
 
 const initials = computed(() => {
-	if (!user.value?.email) return "?"
-	return user.value.email.substring(0, 2).toUpperCase()
-})
+	if (!user.value?.email) return "?";
+	return user.value.email.substring(0, 2).toUpperCase();
+});
 
 const navItems = [
-	{ to: '/app', icon: LayoutDashboard, label: 'Prospector CRM' },
-	{ to: '/app/settings', icon: Settings, label: 'Ustawienia' },
-	{ to: '/', icon: Home, label: 'Powrót na stronę' },
-]
+	{ to: "/app", icon: LayoutDashboard, label: "Prospector CRM" },
+	{ to: "/app/settings", icon: Settings, label: "Ustawienia" },
+	{ to: "/", icon: Home, label: "Powrót na stronę" },
+];
 </script>
 
 <template>
-	<div class="min-h-screen flex" style="background-color: #0f1a18;">
+	<div class="min-h-screen flex" style="background-color: #0f1a18">
 		<!-- Sidebar -->
-		<aside class="w-64 hidden md:flex flex-col flex-shrink-0 sticky top-0 h-screen bg-brand-dark border-r border-brand-teal/10">
+		<aside
+			class="w-64 hidden md:flex flex-col flex-shrink-0 sticky top-0 h-screen bg-brand-dark border-r border-brand-teal/10"
+		>
 			<!-- Logo -->
-			<div class="h-16 flex items-center px-5 border-b border-brand-teal/10">
-				<NuxtLink to="/" class="flex items-center gap-2.5 group">
-					<div class="w-8 h-8 rounded-lg bg-brand-green flex items-center justify-center text-black font-bold text-base shadow-[0_0_10px_rgba(56,239,125,0.25)] group-hover:brightness-110 transition-all">
-						L
-					</div>
-					<span class="font-bold text-sm tracking-tight text-white truncate">Local Lead Prospector</span>
+			<div
+				class="h-16 flex items-center px-5 border-b border-brand-teal/10"
+			>
+				<NuxtLink to="/" class="flex items-center gap-2 group">
+					<img
+						src="/logo.png"
+						alt=""
+						class="h-6 w-auto flex-shrink-0"
+					/>
+					<span
+						class="font-bold text-sm tracking-tight leading-none truncate"
+					>
+						<span class="text-brand-green">znajdz</span
+						><span class="text-white">firmy.pl</span>
+					</span>
 				</NuxtLink>
 			</div>
 
@@ -39,9 +50,11 @@ const navItems = [
 					:key="item.to"
 					:to="item.to"
 					class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-					:class="route.path === item.to
-						? 'bg-brand-green/10 text-brand-green border border-brand-green/20'
-						: 'text-slate-400 hover:text-white hover:bg-white/5'"
+					:class="
+						route.path === item.to
+							? 'bg-brand-green/10 text-brand-green border border-brand-green/20'
+							: 'text-slate-400 hover:text-white hover:bg-white/5'
+					"
 				>
 					<component :is="item.icon" class="w-4 h-4 flex-shrink-0" />
 					{{ item.label }}
@@ -51,12 +64,18 @@ const navItems = [
 			<!-- User -->
 			<div class="p-3 border-t border-brand-teal/10">
 				<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
-					<div class="w-8 h-8 rounded-full bg-brand-teal/20 border border-brand-teal/30 flex items-center justify-center text-brand-green font-bold text-xs flex-shrink-0">
+					<div
+						class="w-8 h-8 rounded-full bg-brand-teal/20 border border-brand-teal/30 flex items-center justify-center text-brand-green font-bold text-xs flex-shrink-0"
+					>
 						{{ initials }}
 					</div>
 					<div class="flex flex-col flex-1 min-w-0">
-						<span class="text-sm font-medium text-white truncate">{{ user?.email ?? "..." }}</span>
-						<span class="text-xs text-slate-500">{{ user?.role ?? "" }}</span>
+						<span class="text-sm font-medium text-white truncate">{{
+							user?.email ?? "..."
+						}}</span>
+						<span class="text-xs text-slate-500">{{
+							user?.role ?? ""
+						}}</span>
 					</div>
 					<button
 						@click="logout"
@@ -72,14 +91,34 @@ const navItems = [
 		<!-- Main -->
 		<div class="flex-1 flex flex-col min-w-0">
 			<!-- Mobile header -->
-			<header class="md:hidden sticky top-0 z-30 flex h-16 items-center px-4 border-b bg-brand-dark border-brand-teal/10 justify-between">
+			<header
+				class="md:hidden sticky top-0 z-30 flex h-16 items-center px-4 border-b bg-brand-dark border-brand-teal/10 justify-between"
+			>
 				<NuxtLink to="/" class="flex items-center gap-2">
-					<div class="w-8 h-8 rounded-lg bg-brand-green flex items-center justify-center text-black font-bold">L</div>
+					<img
+						src="/logo.png"
+						alt=""
+						class="h-6 w-auto flex-shrink-0"
+					/>
+					<span class="font-bold text-sm tracking-tight leading-none">
+						<span class="text-brand-green">znajdz</span
+						><span class="text-white">firmy.pl</span>
+					</span>
 				</NuxtLink>
 				<span class="font-bold text-sm text-white">Prospector CRM</span>
 				<button class="text-slate-400 hover:text-white">
-					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" />
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="20"
+						height="20"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<line x1="4" x2="20" y1="12" y2="12" />
+						<line x1="4" x2="20" y1="6" y2="6" />
+						<line x1="4" x2="20" y1="18" y2="18" />
 					</svg>
 				</button>
 			</header>

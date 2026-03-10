@@ -13,15 +13,12 @@ const { isAuthenticated } = useAuth();
 			<div
 				class="container mx-auto px-6 lg:px-12 max-w-7xl flex h-20 items-center justify-between"
 			>
-				<NuxtLink to="/" class="flex items-center gap-3">
-					<div
-						class="w-9 h-9 rounded-md flex items-center justify-center bg-brand-green text-black font-bold text-xl shadow-[0_0_15px_rgba(56,239,125,0.3)]"
-					>
-						L
-					</div>
-					<span class="font-bold text-xl tracking-tight text-white"
-						>Local Lead Prospector</span
-					>
+				<NuxtLink to="/" class="flex items-center gap-2.5 group">
+					<img src="/logo.png" alt="" class="h-8 w-auto" />
+					<span class="font-bold text-xl tracking-tight leading-none">
+						<span class="text-brand-green">znajdz</span
+						><span class="text-white">firmy.pl</span>
+					</span>
 				</NuxtLink>
 				<nav class="flex items-center gap-8">
 					<template v-if="isAuthenticated">
@@ -60,15 +57,18 @@ const { isAuthenticated } = useAuth();
 			<div
 				class="container mx-auto px-6 lg:px-12 max-w-7xl flex flex-col md:flex-row items-center justify-between gap-10"
 			>
-				<NuxtLink to="/" class="flex items-center gap-3">
-					<div
-						class="w-8 h-8 rounded-lg flex items-center justify-center text-black font-extrabold bg-gradient-to-r from-brand-green to-brand-teal"
+				<NuxtLink to="/" class="flex items-center gap-2.5 group">
+					<img
+						src="/logo.png"
+						alt=""
+						class="h-7 w-auto opacity-60 group-hover:opacity-100 transition-opacity"
+					/>
+					<span
+						class="font-bold text-base tracking-tight leading-none opacity-60 group-hover:opacity-100 transition-opacity"
 					>
-						L
-					</div>
-					<span class="font-bold text-white tracking-tight"
-						>Local Lead Prospector</span
-					>
+						<span class="text-brand-green">znajdź</span
+						><span class="text-white">firmy.pl</span>
+					</span>
 				</NuxtLink>
 				<!-- <div class="flex gap-12 text-sm text-emerald-100/30">
 					<a href="#" class="hover:text-brand-green transition-colors"
@@ -82,7 +82,7 @@ const { isAuthenticated } = useAuth();
 					>
 				</div> -->
 				<p class="text-sm text-emerald-100/30">
-					&copy; 2026 Local Lead Prospector. Built for velocity.
+					&copy; 2026 znajdzfirmy.pl. Built for velocity.
 				</p>
 			</div>
 		</footer>
