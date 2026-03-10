@@ -15,7 +15,7 @@ from .ai_analyzer import generate_ai_analysis
 logger = logging.getLogger(__name__)
 
 
-async def run_full_audit(db_lead: models.Lead, db: Session) -> models.Lead:
+async def run_full_audit(db_lead: models.Lead, db: Session, template_id: int | None = None) -> models.Lead:
     """
     Orkiestruje pełny audyt leada w dwóch krokach:
       1. Audyt techniczny strony (business_auditor)
@@ -64,8 +64,31 @@ async def run_full_audit(db_lead: models.Lead, db: Session) -> models.Lead:
         .first()
     )
 
+    # Załaduj wybrany szablon; jeśli brak — weź domyślny użytkownika
+    audit_template = None
+    if template_id:
+        audit_template = (
+            db.query(models.AuditTemplate)
+            .filter(
+                models.AuditTemplate.id == template_id,
+                models.AuditTemplate.user_id == db_lead.user_id,
+            )
+            .first()
+        )
+    if not audit_template:
+        audit_template = (
+            db.query(models.AuditTemplate)
+            .filter(
+                models.AuditTemplate.user_id == db_lead.user_id,
+                models.AuditTemplate.is_default == True,
+            )
+            .first()
+        )
+
     try:
-        ai_result = await generate_ai_analysis(raw_data, db_lead.company_name, user_settings=user_settings)
+        ai_result = await generate_ai_analysis(
+            raw_data, db_lead.company_name, user_settings=user_settings, audit_template=audit_template
+        )
         logger.info("AI analysis completed for lead %d", db_lead.id)
     except Exception as exc:
         logger.error(

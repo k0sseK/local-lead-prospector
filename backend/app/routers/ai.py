@@ -88,3 +88,58 @@ Jeśli brak lokalizacji:
         raise HTTPException(
             status_code=500, detail=f"Błąd generowania słów kluczowych: {str(e)}"
         )
+
+
+@router.post("/generate-audit-prompt", response_model=schemas.GenerateAuditPromptResponse)
+async def generate_audit_prompt(
+    request: schemas.GenerateAuditPromptRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Generuje profesjonalny system prompt do audytu na podstawie opisu użytkownika."""
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    if not gemini_api_key:
+        raise HTTPException(status_code=503, detail="Klucz GEMINI_API_KEY nie jest skonfigurowany.")
+
+    description = request.description.strip()
+    if not description:
+        raise HTTPException(status_code=422, detail="Opis nie może być pusty.")
+
+    meta_prompt = f"""Jesteś ekspertem od marketingu cyfrowego i audytów biznesowych.
+
+Użytkownik chce stworzyć szablon audytu o następującym celu:
+"{description}"
+
+Wygeneruj profesjonalny system prompt do audytu firm, który:
+1. Opisuje konkretne aspekty, które należy ocenić (zgodnie z celem użytkownika)
+2. Podaje kryteria oceny każdego aspektu
+3. Wskazuje, jak przekształcić znalezione problemy w argumenty sprzedażowe
+4. Jest napisany w 2. osobie liczby pojedynczej (np. "Oceń czy firma posiada...")
+5. Ma długość 150-300 słów
+6. Jest w języku polskim
+
+Odpowiedz WYŁĄCZNIE samym tekstem prompta — bez wstępów, bez komentarzy, bez cudzysłowów."""
+
+    try:
+        import google.generativeai as genai
+
+        genai.configure(api_key=gemini_api_key)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+
+        response = await asyncio.to_thread(
+            model.generate_content,
+            meta_prompt,
+            generation_config=genai.GenerationConfig(temperature=0.75),
+        )
+
+        generated = response.text.strip()
+        if not generated:
+            raise ValueError("Pusta odpowiedź od Gemini")
+
+        return {"prompt": generated}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Generate audit prompt failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Błąd generowania prompta: {str(e)}")

@@ -121,6 +121,42 @@ class UserSettingsOut(UserSettingsBase):
         from_attributes = True
 
 
+class AuditTemplateCreate(BaseModel):
+    name: str
+    prompt: str
+    is_default: bool = False
+
+
+class AuditTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    prompt: Optional[str] = None
+    is_default: Optional[bool] = None
+
+
+class AuditTemplateOut(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    prompt: str
+    is_default: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AuditRequest(BaseModel):
+    template_id: Optional[int] = None
+
+
+class GenerateAuditPromptRequest(BaseModel):
+    description: str
+
+
+class GenerateAuditPromptResponse(BaseModel):
+    prompt: str
+
+
 class KeywordSuggestionRequest(BaseModel):
     description: str
 

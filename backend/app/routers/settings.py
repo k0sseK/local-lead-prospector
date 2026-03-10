@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -54,3 +56,98 @@ def upsert_settings(
     db.commit()
     db.refresh(settings)
     return settings
+
+
+# ─── Audit Templates ──────────────────────────────────────────────────────────
+
+@router.get("/templates", response_model=List[schemas.AuditTemplateOut])
+def list_templates(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return (
+        db.query(models.AuditTemplate)
+        .filter(models.AuditTemplate.user_id == current_user.id)
+        .order_by(models.AuditTemplate.created_at)
+        .all()
+    )
+
+
+@router.post("/templates", response_model=schemas.AuditTemplateOut, status_code=201)
+def create_template(
+    data: schemas.AuditTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if data.is_default:
+        # Wyczyść poprzedni domyślny
+        db.query(models.AuditTemplate).filter(
+            models.AuditTemplate.user_id == current_user.id,
+            models.AuditTemplate.is_default == True,
+        ).update({"is_default": False})
+
+    template = models.AuditTemplate(
+        user_id=current_user.id,
+        name=data.name,
+        prompt=data.prompt,
+        is_default=data.is_default,
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+@router.put("/templates/{template_id}", response_model=schemas.AuditTemplateOut)
+def update_template(
+    template_id: int,
+    data: schemas.AuditTemplateUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    template = (
+        db.query(models.AuditTemplate)
+        .filter(
+            models.AuditTemplate.id == template_id,
+            models.AuditTemplate.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not template:
+        raise HTTPException(status_code=404, detail="Szablon nie znaleziony.")
+
+    if data.is_default is True:
+        db.query(models.AuditTemplate).filter(
+            models.AuditTemplate.user_id == current_user.id,
+            models.AuditTemplate.is_default == True,
+        ).update({"is_default": False})
+
+    if data.name is not None:
+        template.name = data.name
+    if data.prompt is not None:
+        template.prompt = data.prompt
+    if data.is_default is not None:
+        template.is_default = data.is_default
+
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+@router.delete("/templates/{template_id}", status_code=204)
+def delete_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    deleted = (
+        db.query(models.AuditTemplate)
+        .filter(
+            models.AuditTemplate.id == template_id,
+            models.AuditTemplate.user_id == current_user.id,
+        )
+        .delete()
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Szablon nie znaleziony.")
+    db.commit()

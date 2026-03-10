@@ -50,6 +50,18 @@ def apply_migrations():
         for col_name, col_type in users_cols:
             conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
             logger.info(f"Ensured column exists: users.{col_name}")
+        # audit_templates — tworzone przez create_all, tu upewniamy się że tabela istnieje
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS audit_templates (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                name VARCHAR NOT NULL,
+                prompt TEXT NOT NULL,
+                is_default BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        logger.info("Ensured table exists: audit_templates")
 
 apply_migrations()
 
@@ -295,6 +307,7 @@ async def scan_for_leads(
 @app.post("/api/leads/{lead_id}/audit", response_model=schemas.Lead)
 async def audit_lead_endpoint(
     lead_id: int,
+    audit_request: schemas.AuditRequest = schemas.AuditRequest(),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -314,7 +327,7 @@ async def audit_lead_endpoint(
 
     try:
         from .audit_service import run_full_audit
-        result = await run_full_audit(db_lead, db)
+        result = await run_full_audit(db_lead, db, template_id=audit_request.template_id)
         increment_usage(db, current_user, "ai_audits", tokens_in=900, tokens_out=500, lead_id=lead_id)
         return result
     except Exception as exc:

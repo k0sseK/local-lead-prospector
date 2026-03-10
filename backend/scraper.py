@@ -90,18 +90,9 @@ async def _fetch_places(
 
 def _is_good_lead(place: dict) -> bool:
     """
-    Strategia kwalifikacji leada.
-    Wydzielona jako osobna funkcja — łatwa do testowania i A/B testowania.
-
-    Kwalifikuje firmę jeśli spełni KTÓRYKOLWIEK z warunków:
-    - brak strony www
-    - ocena poniżej 4.0
-    - mało recenzji (< 10)
+    Kwalifikuje każdą firmę jako leada — ocena jakości odbywa się w audycie AI.
     """
-    rating: float = place.get("rating", 0.0)
-    reviews: int = place.get("userRatingCount", 0)
-    website: str = place.get("websiteUri", "")
-    return not website or rating < 4.0 or reviews < 10
+    return True
 
 
 # ---------------------------------------------------------------------------

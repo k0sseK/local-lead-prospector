@@ -63,6 +63,17 @@ class UsageEvent(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class AuditTemplate(Base):
+    __tablename__ = "audit_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    prompt = Column(Text, nullable=False)
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class Lead(Base):
     __tablename__ = "leads"
 

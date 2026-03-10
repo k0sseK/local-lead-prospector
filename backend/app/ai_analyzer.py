@@ -10,7 +10,15 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 
-async def generate_ai_analysis(raw_data: dict, company_name: str, user_settings=None) -> dict:
+DEFAULT_AUDIT_CONDITIONS = """\
+- Jeśli ocena Google (rating) mieści się w przedziale 4.0–4.7, NIE mów że jest tragiczna. Zamiast tego podkreśl, że jest pole do poprawy by zdominować konkurencję i przyciągnąć więcej klientów.
+- Jeśli brak strony www — to poważny problem, podkreśl utratę klientów.
+- Jeśli brak SSL — wspomnij o ostrzeżeniach przeglądarek.
+- Jeśli wolne ładowanie (load_time > 2s) — wspomnij o współczynniku odrzuceń.
+- Jeśli brakuje tagów SEO — wspomnij o widoczności w wyszukiwarce."""
+
+
+async def generate_ai_analysis(raw_data: dict, company_name: str, user_settings=None, audit_template=None) -> dict:
     """
     Sends raw audit data to Gemini AI and returns structured selling points + email draft.
     Returns: {"selling_points": [...], "email_draft": "..."}
@@ -44,19 +52,24 @@ async def generate_ai_analysis(raw_data: dict, company_name: str, user_settings=
                 "W podpisie użyj placeholderów [Twoje Imię] i [Nazwa Twojej Firmy]."
             )
 
-        prompt = f"""Jesteś ekspertem SEO i marketingu cyfrowego. Analizujesz dane zebrane z audytu firmy "{company_name}".
+        audit_conditions = (
+            audit_template.prompt
+            if audit_template and audit_template.prompt.strip()
+            else DEFAULT_AUDIT_CONDITIONS
+        )
+        audit_name = audit_template.name if audit_template else "SEO i marketing cyfrowy"
+
+        prompt = f"""Jesteś ekspertem ds. {audit_name}. Analizujesz dane zebrane z audytu firmy "{company_name}".
 
 Oto surowe dane z audytu:
 {json.dumps(raw_data, indent=2, ensure_ascii=False)}
 
-Na podstawie tych danych:
+Instrukcje audytu:
+{audit_conditions}
+
+Na podstawie powyższych danych i instrukcji:
 
 1. Wygeneruj 2-3 mądre, biznesowe punkty zaczepienia (Selling Points) — krótkie obserwacje, które mogą posłużyć jako argument sprzedażowy w rozmowie z klientem.
-   - WAŻNE: Jeśli ocena Google (rating) mieści się w przedziale 4.0–4.7, NIE mów że jest tragiczna. Zamiast tego podkreśl, że jest pole do poprawy by zdominować konkurencję i przyciągnąć więcej klientów.
-   - Jeśli brak strony www — to poważny problem, podkreśl utratę klientów.
-   - Jeśli brak SSL — wspomnij o ostrzeżeniach przeglądarek.
-   - Jeśli wolne ładowanie (load_time > 2s) — wspomnij o współczynniku odrzuceń.
-   - Jeśli brakuje tagów SEO — wspomnij o widoczności w wyszukiwarce.
 
 2. {sender_block}
    E-mail powinien:
