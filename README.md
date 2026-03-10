@@ -1,162 +1,100 @@
 # Local Lead Prospector
 
-A multi-tenant SaaS platform for automated B2B lead generation, website auditing, and AI-driven outreach — targeting web development and local SEO service providers.
+**Find local businesses, audit their websites, and close deals — automated.**
+
+Local Lead Prospector is an open-source B2B lead generation platform. Search for local businesses via Google Places, automatically audit their web presence, let AI write personalized outreach emails, and track every prospect through a built-in CRM — all scoped per user account.
+
+A hosted version is available at [znajdzfirmy.pl](https://www.znajdzfirmy.pl).
 
 ---
 
-## Overview
+## Features
 
-Local Lead Prospector automates the entire top-of-funnel sales process: discovering local businesses via Google Places, auditing their digital presence, generating AI-personalized outreach emails, and tracking prospects through a built-in Kanban CRM pipeline — all scoped per authenticated user.
+**Lead Discovery**
+- Search businesses by keyword and radius using Google Places API (New)
+- Interactive map view of discovered leads
+- Per-user deduplication — the same business is never imported twice
+- CSV export for any lead selection
 
----
+**Website Auditor**
+- SSL/HTTPS status, responsive design check, page load time
+- SEO audit: `<title>`, `<h1>`, `<meta description>`
+- CMS fingerprinting (WordPress, Next.js, Shopify, and others)
+- Email address extraction, social media presence detection
 
-## Key Features
+**AI-Powered Outreach**
+- Gemini 2.5 Flash generates personalized cold emails and selling points per lead
+- Configurable sender persona: name, company, offer description, tone of voice
+- One-click send directly from the CRM
 
-### Lead Discovery
-- Map-based search powered by the **Google Places API (New)**
-- Configurable keyword, radius, and result limit per scan
-- Per-user deduplication — the same business is never imported twice for the same account
+**Email Delivery**
+- Resend API or custom SMTP — your choice, configured per account
+- Lead automatically moves to `Contacted` on send
 
-### Website Auditor
-Automated technical analysis of each prospect's website:
-- SSL/HTTPS detection (including redirect chain inspection)
-- Responsive design check (viewport meta tag)
-- Page load time measurement
-- SEO tag audit: `<title>`, `<h1>`, `<meta description>`
-- CMS fingerprinting (WordPress, Next.js, Shopify)
-- Email address extraction (mailto links + HTML text scan)
-- Social media presence detection (Facebook, Instagram, LinkedIn)
+**CRM Pipeline**
+- Kanban board with 5 stages and drag-and-drop
+- Bulk status updates and bulk delete
+- Per-lead notes, audit results, and AI output in one view
 
-### AI Analysis (Gemini 2.5 Flash)
-- Sends raw audit data to Google Gemini
-- Returns 2–3 structured selling points tailored to the specific business
-- Generates a ready-to-send, non-aggressive Polish sales email draft
+**Plans & Payments**
+- Free and Pro tiers with monthly quotas (scans, AI audits, emails sent)
+- LemonSqueezy subscription integration with webhook-based plan sync
+- Quota enforcement with graceful in-app messaging
 
-### Email Delivery (Resend)
-- One-click email dispatch directly from the UI
-- Powered by the **Resend** transactional email API
-- Automatically moves the lead to `contacted` status on send
+**Authentication**
+- JWT-based auth with bcrypt password hashing
+- Password reset via email
+- Complete data isolation per user account
 
-### CRM Pipeline (Kanban)
-- Drag-and-drop board with five stages: `New`, `To Contact`, `Contacted`, `Rejected`, `Closed`
-- Status persisted to the database via `PATCH /api/leads/{id}`
+**Admin Panel**
+- User management and manual plan assignment
+- Per-user usage stats, quota monitoring, and cost tracking
 
-### Authentication & Multi-Tenancy
-- JWT-based authentication (HS256, 7-day tokens)
-- bcrypt password hashing
-- All lead data is scoped to the authenticated user — complete data isolation between accounts
-- Role field on user model (`user` / `admin`) for future access control
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    Docker Network                    │
-│                                                      │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────┐ │
-│  │   Frontend   │   │   Backend    │   │   DB     │ │
-│  │  Nuxt 4 +    │──▶│  FastAPI +   │──▶│ Postgres │ │
-│  │  Nginx :80   │   │  Uvicorn     │   │ :5432    │ │
-│  └──────────────┘   │  :8000       │   └──────────┘ │
-│                     └──────────────┘                 │
-└─────────────────────────────────────────────────────┘
-```
-
-The three services communicate over an isolated Docker bridge network (`app-network`). The backend waits for a PostgreSQL healthcheck before starting.
+**Infrastructure**
+- Per-IP rate limiting (30 req/min, configurable)
+- Interactive API docs at `/api/docs`
+- Dockerized — three services (frontend, backend, PostgreSQL) wired together with a single `docker compose up`
 
 ---
 
 ## Tech Stack
 
-### Frontend
-| Technology | Role |
-|---|---|
-| **Nuxt 4** (Vue 3 + Composition API) | SSR-capable SPA framework |
-| **TypeScript** | Type safety across composables and pages |
-| **Tailwind CSS** | Utility-first styling |
-| **shadcn-vue** (Reka UI) | Accessible, unstyled component primitives |
-| **Nuxt middleware** | Client-side route protection via JWT cookie |
+**Backend:** FastAPI, SQLAlchemy, PostgreSQL, Google Gemini (`gemini-2.5-flash`), httpx, BeautifulSoup4, Resend
 
-### Backend
-| Technology | Role |
-|---|---|
-| **FastAPI** | Async REST API with automatic OpenAPI docs |
-| **SQLAlchemy** | ORM with declarative models |
-| **PostgreSQL 15** | Production-grade relational database |
-| **python-jose** | JWT creation and verification |
-| **passlib + bcrypt** | Secure password hashing |
-| **httpx + BeautifulSoup4** | Async website scraping and HTML parsing |
-| **google-generativeai** | Gemini 2.5 Flash AI integration |
-| **Resend** | Transactional email delivery |
+**Frontend:** Nuxt 4, Vue 3, Tailwind CSS, shadcn-vue, vue3-google-map, vuedraggable
 
-### DevOps
-| Technology | Role |
-|---|---|
-| **Docker & Docker Compose** | Containerised, reproducible environment |
-| **Nginx** | Static file serving + reverse proxy for frontend |
-| **PostgreSQL named volume** | Persistent database storage across restarts |
+**Payments:** LemonSqueezy
+
+**Infrastructure:** Docker, Nginx, Docker Compose
 
 ---
 
-## API Reference
+## Self-Hosting
 
-All endpoints except `/api/auth/*` require a `Bearer <token>` header.
+### Prerequisites
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/auth/register` | Create account, returns JWT |
-| `POST` | `/api/auth/login` | Authenticate, returns JWT |
-| `GET` | `/api/auth/me` | Get current user profile |
-| `GET` | `/api/leads` | List authenticated user's leads |
-| `PATCH` | `/api/leads/{id}` | Update lead status |
-| `POST` | `/api/scan` | Discover leads via Google Places |
-| `POST` | `/api/leads/{id}/audit` | Run website audit + AI analysis |
-| `POST` | `/api/leads/{id}/send-email` | Send outreach email via Resend |
+- Docker and Docker Compose
+- [Google Cloud project](https://console.cloud.google.com/) with Places API (New) enabled
+- [Google AI Studio](https://aistudio.google.com/apikey) API key (Gemini)
+- [Resend](https://resend.com) account or custom SMTP credentials
+- LemonSqueezy account (optional — required only for paid plan integration)
 
-Interactive API docs: `http://localhost:8000/docs`
+### Quick Start
 
----
+```bash
+git clone https://github.com/marcellocodes/local-lead-prospector
+cd local-lead-prospector
+cp backend/.env.example backend/.env
+# Fill in your values in backend/.env
+docker compose up --build
+```
 
-## Data Model
+Frontend: `http://localhost` · API docs: `http://localhost:8000/docs`
 
-### User
-| Column | Type | Notes |
-|---|---|---|
-| `id` | Integer PK | Auto-increment |
-| `email` | String (unique) | Login identifier |
-| `hashed_password` | String | bcrypt hash |
-| `role` | String | `user` \| `admin` |
-| `created_at` | DateTime | UTC |
-
-### Lead
-| Column | Type | Notes |
-|---|---|---|
-| `id` | Integer PK | Auto-increment |
-| `place_id` | String (unique) | Google Places ID |
-| `company_name` | String | — |
-| `phone` | String | — |
-| `address` | String | — |
-| `rating` | Float | Google rating |
-| `reviews_count` | Integer | — |
-| `website_uri` | String | — |
-| `email` | String | Extracted during audit |
-| `has_ssl` | Boolean | — |
-| `audited` | Boolean | — |
-| `audit_report` | JSON | Full raw + AI analysis |
-| `status` | String | Pipeline stage |
-| `user_id` | Integer | Owner (no FK constraint) |
-| `created_at` | DateTime | UTC |
-
----
-
-## Environment Variables
-
-Create `backend/.env` based on the following:
+### Environment Variables
 
 ```env
-# Database (auto-configured by Docker Compose)
+# Database (pre-configured for Docker Compose)
 DATABASE_URL=postgresql://llp_user:llp_password@db:5432/llp_db
 
 # Google Places API (New)
@@ -167,114 +105,30 @@ GEMINI_API_KEY=your_key_here
 
 # Resend email delivery
 RESEND_API_KEY=your_key_here
+RESEND_FROM_EMAIL=you@yourdomain.com
 
-# JWT signing secret — change in production
+# JWT signing secret — generate with: openssl rand -hex 32
 SECRET_KEY=change-this-in-production
 ACCESS_TOKEN_EXPIRE_DAYS=7
+
+# CORS — comma-separated allowed frontend origins
+ALLOWED_ORIGINS=http://localhost,http://localhost:3000
+
+# Password reset links (set to your public frontend URL in production)
+FRONTEND_URL=http://localhost:3000
+
+# LemonSqueezy (optional)
+LEMONSQUEEZY_WEBHOOK_SECRET=your_webhook_secret
+
+# Admin cost alerts (optional)
+ADMIN_EMAIL=you@yourdomain.com
+ADMIN_COST_ALERT_USD=2.0
 ```
 
 ---
 
-## Getting Started
+## License
 
-### Docker (Recommended)
+Licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](./LICENSE).
 
-Requires Docker and Docker Compose.
-
-```bash
-# 1. Configure environment
-cp backend/.env.example backend/.env
-# edit backend/.env with your API keys
-
-# 2. Build and start all services
-docker-compose up --build
-```
-
-| Service | URL |
-|---|---|
-| Frontend | http://localhost |
-| Backend API docs | http://localhost:8000/docs |
-
----
-
-### Manual (Development)
-
-#### Backend
-
-```bash
-cd backend
-python -m venv venv
-
-# Linux/macOS
-source venv/bin/activate
-# Windows
-venv\Scripts\activate
-
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-Requires a running PostgreSQL instance. Set `DATABASE_URL` in `backend/.env` accordingly.
-
-#### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend dev server runs on `http://localhost:3000` by default.
-
----
-
-## Project Structure
-
-```
-local-lead-prospector/
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI app, all lead endpoints
-│   │   ├── models.py            # SQLAlchemy ORM models (User, Lead)
-│   │   ├── schemas.py           # Pydantic request/response schemas
-│   │   ├── database.py          # SQLAlchemy engine + session factory
-│   │   ├── dependencies.py      # JWT auth, password hashing
-│   │   ├── business_auditor.py  # Async website scraper
-│   │   ├── ai_analyzer.py       # Gemini integration
-│   │   ├── audit_service.py     # Orchestrates audit + AI pipeline
-│   │   └── routers/
-│   │       └── auth.py          # /api/auth/* endpoints
-│   ├── scraper.py               # Google Places scan logic
-│   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/
-│   └── app/
-│       ├── pages/               # Nuxt file-based routing
-│       │   ├── index.vue        # Landing page
-│       │   ├── login.vue
-│       │   ├── register.vue
-│       │   └── app/index.vue    # Main dashboard (protected)
-│       ├── components/
-│       │   ├── KanbanBoard.vue
-│       │   ├── KanbanCard.vue
-│       │   └── ui/              # shadcn-vue component library
-│       ├── composables/
-│       │   └── useAuth.ts       # JWT cookie management + auth state
-│       ├── middleware/
-│       │   └── auth.ts          # Route guard
-│       ├── layouts/
-│       │   ├── default.vue
-│       │   └── dashboard.vue
-│       └── services/
-│           └── api.js           # Axios instance with auth interceptors
-├── docker-compose.yml
-└── README.md
-```
-
----
-
-## License & Self-Hosting
-
-This project is open-source and available under the **AGPL-3.0 License**. 
-
-You are free to self-host this application for your own use (requires your own Google Places and AI API keys). However, if you want a ready-to-use, hassle-free solution with premium features, check out the hosted version at [znajdzfirmy.pl](https://www.znajdzfirmy.pl).
+You are free to self-host this application for personal use. If you modify and run it over a network, you must make your source code available under the same license. For a ready-to-use hosted solution, visit [znajdzfirmy.pl](https://www.znajdzfirmy.pl).
