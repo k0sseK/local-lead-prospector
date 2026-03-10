@@ -1,3 +1,5 @@
+<img width="1581" height="393" alt="llp-banner" src="https://github.com/user-attachments/assets/abfdafd9-687f-402a-8cbb-bec5262472a8" />
+
 # Local Lead Prospector
 
 **Find local businesses, audit their websites, and close deals — automated.**
