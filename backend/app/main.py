@@ -84,15 +84,30 @@ app.include_router(auth_router.router)
 app.include_router(settings_router.router)
 app.include_router(ai_router.router)
 
-# ─── Rate limiting (in-memory, per IP, 30 req/min) ───────────────────────────
+# ─── Rate limiting (in-memory, per real client IP, 120 req/min) ──────────────
+# NOTE: Railway (and most reverse-proxies) terminate TLS and forward the
+# original client IP in the X-Forwarded-For header.  Using request.client.host
+# alone would give the proxy's internal IP, effectively sharing one bucket
+# across ALL users and causing false 429s for everyone simultaneously.
 _ip_log: dict[str, list] = defaultdict(list)
 _last_cleanup = time.time()
-_RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "30"))
+_RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "120"))
+
+
+def _get_client_ip(request: Request) -> str:
+    """Return the real client IP, honouring X-Forwarded-For from Railway/Nginx."""
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        # The header may contain a comma-separated list; the first entry is the
+        # original client.  Strip whitespace to be safe.
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
     global _last_cleanup
-    ip = (request.client.host if request.client else "unknown")
+    ip = _get_client_ip(request)
     now = time.time()
 
     # Periodic cleanup every 5 minutes to avoid memory growth
@@ -106,6 +121,7 @@ async def rate_limit_middleware(request: Request, call_next):
 
     _ip_log[ip] = [t for t in _ip_log[ip] if now - t < 60]
     if len(_ip_log[ip]) >= _RATE_LIMIT:
+        logger.warning("Rate limit hit for IP %s (%d req/min)", ip, len(_ip_log[ip]))
         return JSONResponse(
             status_code=429,
             content={"detail": "Zbyt wiele żądań. Poczekaj chwilę i spróbuj ponownie."},
