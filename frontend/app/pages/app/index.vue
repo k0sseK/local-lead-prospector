@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import api from "@/services/api.js";
+import api from "@/services/api";
 import {
 	GoogleMap,
 	CustomMarker,
@@ -9,7 +9,7 @@ import {
 import { useRuntimeConfig } from "#app";
 import KanbanBoard from "@/components/KanbanBoard.vue";
 import { useToast } from "vue-toastification";
-import { useLeadStatus } from "@/composables/useLeadStatus.js";
+import { useLeadStatus } from "@/composables/useLeadStatus";
 import { useRouter } from "#imports";
 import { formatDate } from "@/utils/format.js";
 import {
@@ -20,7 +20,7 @@ import {
 	Globe,
 	MapPin,
 	FileText,
-	Search
+	Search,
 } from "lucide-vue-next";
 
 definePageMeta({
@@ -30,26 +30,12 @@ definePageMeta({
 
 const router = useRouter();
 const toast = useToast();
-const leads = ref([]);
-const loading = ref(true);
 const error = ref(null);
 const viewMode = ref("kanban");
 
+// ─── Global leads cache (shared across pages, TTL 1 min) ─────────────────────
+const { leads, loading, fetchLeads, refreshLeads } = useLeads();
 const { updateLeadStatus } = useLeadStatus(leads);
-
-const fetchLeads = async () => {
-	try {
-		loading.value = true;
-		const response = await api.getLeads();
-		leads.value = response.data;
-	} catch (err) {
-		error.value =
-			"Failed to load leads from the API. Make sure the backend is running.";
-		console.error(err);
-	} finally {
-		loading.value = false;
-	}
-};
 
 const searchKeyword = ref("");
 const searchRadius = ref([5]);
@@ -300,8 +286,8 @@ const runScan = async () => {
 		const response = await api.triggerScan(payload);
 		scanMessage.value = response.data.message;
 
-		await fetchLeads();
-		await fetchUsage();
+		await refreshLeads();
+		await refreshQuota(); // force-refresh counters after scan mutation
 	} catch (err) {
 		const detail = err.response?.data?.detail;
 		if (err.response?.status === 429) {
@@ -438,16 +424,9 @@ const exportCsv = async () => {
 };
 
 // ─── Quota / Usage ───────────────────────────────────────────────
-const usage = ref(null);
-
-const fetchUsage = async () => {
-	try {
-		const res = await api.getUsage();
-		usage.value = res.data;
-	} catch {
-		// nie blokuj UI jeśli endpoint zawiedzie
-	}
-};
+// Global cache (shared with layout sidebar), TTL 5 min.
+// Use refreshQuota() after mutating actions (scan, audit).
+const { quota: usage, fetchQuota, refreshQuota } = useQuota();
 
 const scanLimitReached = computed(
 	() => usage.value && usage.value.usage.scans >= usage.value.limits.scans,
@@ -513,7 +492,7 @@ const auditAll = async () => {
 		auditAllProgress.value.done++;
 	}
 
-	await fetchUsage();
+	await refreshQuota(); // force-refresh counters after audit mutations
 	isAuditingAll.value = false;
 	toast.success("Audyt wszystkich leadów zakończony!");
 };
@@ -528,7 +507,7 @@ onMounted(() => {
 	window.addEventListener("resize", checkMobile);
 
 	fetchLeads();
-	fetchUsage();
+	fetchQuota(); // uses TTL cache — no duplicate call if layout already fetched
 	fetchAuditTemplates();
 });
 </script>
@@ -1610,18 +1589,26 @@ onMounted(() => {
 						:class="[
 							listSelectedIds.has(lead.id)
 								? 'border-brand-green/40 ring-2 ring-brand-green/10'
-								: 'border-slate-200 hover:shadow-md'
+								: 'border-slate-200 hover:shadow-md',
 						]"
-						@click="listSelectionMode ? toggleListSelectLead(lead.id) : router.push(`/app/lead/${lead.id}`)"
+						@click="
+							listSelectionMode
+								? toggleListSelectLead(lead.id)
+								: router.push(`/app/lead/${lead.id}`)
+						"
 					>
 						<div>
 							<div class="flex justify-between items-start mb-2">
-								<div class="flex items-start gap-2 flex-1 min-w-0">
+								<div
+									class="flex items-start gap-2 flex-1 min-w-0"
+								>
 									<input
 										v-if="listSelectionMode"
 										type="checkbox"
 										:checked="listSelectedIds.has(lead.id)"
-										@click.stop="toggleListSelectLead(lead.id)"
+										@click.stop="
+											toggleListSelectLead(lead.id)
+										"
 										class="w-4 h-4 rounded border-slate-300 text-brand-teal focus:ring-brand-green/40 cursor-pointer mt-0.5 flex-shrink-0"
 									/>
 									<div class="min-w-0">
@@ -1630,15 +1617,33 @@ onMounted(() => {
 										>
 											{{ lead.company_name }}
 										</h4>
-										<div class="flex flex-wrap gap-1 mt-1.5">
+										<div
+											class="flex flex-wrap gap-1 mt-1.5"
+										>
 											<span
 												class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold"
-												:class="LIST_STATUSES.find((s) => s.id === lead.status)?.color || 'bg-slate-100 text-slate-700'"
+												:class="
+													LIST_STATUSES.find(
+														(s) =>
+															s.id ===
+															lead.status,
+													)?.color ||
+													'bg-slate-100 text-slate-700'
+												"
 											>
-												{{ LIST_STATUSES.find((s) => s.id === lead.status)?.label || lead.status }}
+												{{
+													LIST_STATUSES.find(
+														(s) =>
+															s.id ===
+															lead.status,
+													)?.label || lead.status
+												}}
 											</span>
 											<span
-												v-if="!lead.has_ssl && lead.website"
+												v-if="
+													!lead.has_ssl &&
+													lead.website
+												"
 												class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200"
 											>
 												Brak SSL!
@@ -1656,26 +1661,50 @@ onMounted(() => {
 									v-if="lead.rating"
 									class="flex items-center bg-yellow-50 px-1.5 py-0.5 rounded text-[11px] text-yellow-700 font-medium border border-yellow-100 flex-shrink-0 ml-2"
 								>
-									<Star class="w-3 h-3 text-yellow-400 fill-yellow-400 mr-0.5" />
+									<Star
+										class="w-3 h-3 text-yellow-400 fill-yellow-400 mr-0.5"
+									/>
 									{{ lead.rating }}
 								</div>
 							</div>
 
 							<div class="text-xs text-slate-500 space-y-1 mt-3">
-								<p v-if="lead.address" class="flex items-start gap-1">
-									<MapPin class="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
-									<span class="line-clamp-2">{{ lead.address }}</span>
+								<p
+									v-if="lead.address"
+									class="flex items-start gap-1"
+								>
+									<MapPin
+										class="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400"
+									/>
+									<span class="line-clamp-2">{{
+										lead.address
+									}}</span>
 								</p>
-								<p v-if="lead.phone" class="flex items-center gap-1">
-									<Phone class="w-3 h-3 flex-shrink-0 text-slate-400" />
+								<p
+									v-if="lead.phone"
+									class="flex items-center gap-1"
+								>
+									<Phone
+										class="w-3 h-3 flex-shrink-0 text-slate-400"
+									/>
 									{{ lead.phone }}
 								</p>
-								<p v-if="lead.email" class="flex items-center gap-1 truncate">
-									<Mail class="w-3 h-3 flex-shrink-0 text-slate-400" />
+								<p
+									v-if="lead.email"
+									class="flex items-center gap-1 truncate"
+								>
+									<Mail
+										class="w-3 h-3 flex-shrink-0 text-slate-400"
+									/>
 									{{ lead.email }}
 								</p>
-								<p v-if="lead.website" class="flex items-center gap-1 truncate">
-									<Globe class="w-3 h-3 flex-shrink-0 text-slate-400" />
+								<p
+									v-if="lead.website"
+									class="flex items-center gap-1 truncate"
+								>
+									<Globe
+										class="w-3 h-3 flex-shrink-0 text-slate-400"
+									/>
 									{{ lead.website }}
 								</p>
 							</div>
@@ -1685,7 +1714,11 @@ onMounted(() => {
 							<div class="mt-4">
 								<button
 									v-if="lead.audited"
-									@click.stop="router.push(`/app/lead/${lead.id}/audit`)"
+									@click.stop="
+										router.push(
+											`/app/lead/${lead.id}/audit`,
+										)
+									"
 									class="w-full text-xs font-semibold py-1.5 bg-brand-green/10 text-brand-teal rounded hover:bg-brand-green/20 border border-brand-green/20 flex items-center justify-center gap-1 transition-colors"
 								>
 									<FileText class="w-3.5 h-3.5" />
@@ -1693,7 +1726,9 @@ onMounted(() => {
 								</button>
 								<button
 									v-else
-									@click.stop="router.push(`/app/lead/${lead.id}`)"
+									@click.stop="
+										router.push(`/app/lead/${lead.id}`)
+									"
 									class="w-full text-xs font-semibold py-1.5 bg-brand-green/10 text-brand-teal rounded hover:bg-brand-green/20 border border-brand-green/20 flex items-center justify-center gap-1 transition-colors"
 								>
 									<CheckCircle class="w-3.5 h-3.5" />
@@ -1701,8 +1736,12 @@ onMounted(() => {
 								</button>
 							</div>
 
-							<div class="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400">
-								<span class="uppercase font-semibold">ID: {{ lead.id }}</span>
+							<div
+								class="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400"
+							>
+								<span class="uppercase font-semibold"
+									>ID: {{ lead.id }}</span
+								>
 								<span>{{ formatDate(lead.created_at) }}</span>
 							</div>
 						</div>
@@ -1713,12 +1752,17 @@ onMounted(() => {
 						v-if="leads.length === 0"
 						class="col-span-full py-12 text-center text-slate-500 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center"
 					>
-						<div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+						<div
+							class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3"
+						>
 							<Search class="w-6 h-6 text-slate-400" />
 						</div>
-						<p class="text-sm font-medium text-slate-900">Brak leadów</p>
+						<p class="text-sm font-medium text-slate-900">
+							Brak leadów
+						</p>
 						<p class="text-xs mt-1 max-w-sm">
-							Użyj wyszukiwarki powyżej, aby znaleźć potencjalnych klientów w Twojej okolicy.
+							Użyj wyszukiwarki powyżej, aby znaleźć potencjalnych
+							klientów w Twojej okolicy.
 						</p>
 					</div>
 				</div>

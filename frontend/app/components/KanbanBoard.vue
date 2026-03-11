@@ -3,7 +3,7 @@ import { ref, watch, computed } from "vue";
 import draggable from "vuedraggable";
 import KanbanCard from "@/components/KanbanCard.vue";
 import { useToast } from "vue-toastification";
-import api from "@/services/api.js";
+import api from "@/services/api";
 
 const props = defineProps({
 	leads: {

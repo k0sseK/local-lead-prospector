@@ -1,5 +1,6 @@
 <script setup>
 import { useAuth } from "@/composables/useAuth";
+import { useQuota } from "@/composables/useQuota";
 import {
 	LayoutDashboard,
 	Settings,
@@ -11,7 +12,6 @@ import {
 	Download,
 } from "lucide-vue-next";
 import { useRoute } from "vue-router";
-import api from "@/services/api.js";
 
 const { user, logout } = useAuth();
 const route = useRoute();
@@ -34,15 +34,12 @@ const navItems = [
 	},
 ];
 
-const userPlan = ref("free");
+// Quota state — shared global cache; no duplicate API call if already fetched
+const { quota, fetchQuota } = useQuota();
+const userPlan = computed(() => quota.value?.plan ?? "free");
 const isMobileMenuOpen = ref(false);
 
-onMounted(async () => {
-	try {
-		const res = await api.getUsage();
-		userPlan.value = res.data.plan;
-	} catch {}
-});
+onMounted(() => fetchQuota());
 </script>
 
 <template>

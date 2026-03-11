@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useToast } from "vue-toastification";
-import api from "@/services/api.js";
+import api from "@/services/api";
 import { formatDate } from "@/utils/format.js";
 import {
 	Users,

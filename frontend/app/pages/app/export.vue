@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "#imports";
 import { useToast } from "vue-toastification";
-import api from "@/services/api.js";
 import {
 	ArrowLeft,
 	Download,
@@ -20,8 +19,10 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const leads = ref([]);
-const loading = ref(true);
+// ─── Global cached state (shared with index/scan-results) ────────────────────
+const { leads, loading, fetchLeads } = useLeads();
+const { quota: usage, fetchQuota } = useQuota();
+
 const selectedIds = ref(new Set());
 const isExporting = ref(false);
 
@@ -48,39 +49,27 @@ const fileName = ref(
 	`leads-export-${new Date().toISOString().slice(0, 10)}.csv`,
 );
 
-const usage = ref(null);
-
-const fetchData = async () => {
-	try {
-		loading.value = true;
-		const [leadsRes, usageRes] = await Promise.all([
-			api.getLeads(),
-			api.getUsage(),
-		]);
-		leads.value = leadsRes.data;
-		usage.value = usageRes.data;
-		// Pre-select from ?ids= query param, otherwise select all
-		const idsParam = route.query.ids;
-		if (idsParam) {
-			const preselected = new Set(
-				String(idsParam).split(",").map(Number).filter(Boolean),
-			);
-			selectedIds.value = new Set(
-				leadsRes.data
-					.map((l) => l.id)
-					.filter((id) => preselected.has(id)),
-			);
-		} else {
-			selectedIds.value = new Set(leadsRes.data.map((l) => l.id));
-		}
-	} catch {
-		toast.error("Nie udało się załadować danych.");
-	} finally {
-		loading.value = false;
+/** Apply ?ids= pre-selection after leads are loaded. */
+function applyPreselect() {
+	const idsParam = route.query.ids;
+	if (idsParam) {
+		const preselected = new Set(
+			String(idsParam).split(",").map(Number).filter(Boolean),
+		);
+		selectedIds.value = new Set(
+			leads.value.map((l) => l.id).filter((id) => preselected.has(id)),
+		);
+	} else {
+		selectedIds.value = new Set(leads.value.map((l) => l.id));
 	}
-};
+}
 
-onMounted(fetchData);
+onMounted(async () => {
+	// Both calls respect TTL cache — no extra API round-trips when navigating
+	// from index or scan-results where leads/quota were already fetched.
+	await Promise.all([fetchLeads(), fetchQuota()]);
+	applyPreselect();
+});
 
 const selectedLeads = computed(() =>
 	leads.value.filter((l) => selectedIds.value.has(l.id)),

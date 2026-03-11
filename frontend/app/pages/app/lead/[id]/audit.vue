@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "#imports";
 import { useToast } from "vue-toastification";
-import api from "@/services/api.js";
+import api from "@/services/api";
 import { formatDate, initials } from "@/utils/format.js";
 import {
 	ArrowLeft,

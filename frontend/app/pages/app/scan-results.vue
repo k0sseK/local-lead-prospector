@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "#imports";
 import { useToast } from "vue-toastification";
-import api from "@/services/api.js";
+import api from "@/services/api";
 import {
 	ArrowLeft,
 	CheckCircle,
@@ -29,8 +29,9 @@ definePageMeta({ layout: "dashboard", middleware: ["auth"] });
 const router = useRouter();
 const toast = useToast();
 
-const leads = ref([]);
-const loading = ref(true);
+// ─── Global leads cache (shared with index/export, TTL 1 min) ────────────────
+const { leads, loading, fetchLeads } = useLeads();
+
 const searchQuery = ref("");
 const sortBy = ref("newest");
 const filterHasEmail = ref(false);
@@ -41,20 +42,8 @@ const selectedIds = ref(new Set());
 const page = ref(1);
 const pageSize = 20;
 
-const fetchLeads = async () => {
-	try {
-		loading.value = true;
-		const res = await api.getLeads();
-		leads.value = res.data;
-	} catch (err) {
-		toast.error("Nie udało się załadować leadów.");
-	} finally {
-		loading.value = false;
-	}
-};
-
 onMounted(() => {
-	fetchLeads();
+	fetchLeads(); // no-op if data is already fresh from another page
 });
 
 const filteredLeads = computed(() => {
