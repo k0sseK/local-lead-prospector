@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useToast } from "vue-toastification";
 import api from "@/services/api.js";
+import { CheckCircle, FileText } from "lucide-vue-next";
 
 const toast = useToast();
 
@@ -320,12 +321,12 @@ const sendEmail = async () => {
 		<div v-if="lead.audited === false" class="mt-3">
 			<button
 				@click.stop="emit('audit-lead', lead.id)"
-				class="w-full text-xs font-semibold px-2 py-1.5 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 transition-colors border border-indigo-100 flex justify-center items-center"
+				class="w-full text-xs font-semibold py-1.5 bg-brand-green/10 text-brand-teal rounded hover:bg-brand-green/20 border border-brand-green/20 flex items-center justify-center gap-1 transition-colors"
 				:disabled="isAuditing"
 			>
 				<span v-if="isAuditing" class="flex items-center gap-2">
 					<svg
-						class="animate-spin h-3.5 w-3.5 text-indigo-700"
+						class="animate-spin h-3.5 w-3.5 text-brand-teal"
 						xmlns="http://www.w3.org/2000/svg"
 						fill="none"
 						viewBox="0 0 24 24"
@@ -347,18 +348,7 @@ const sendEmail = async () => {
 					Analizowanie AI...
 				</span>
 				<span v-else class="flex items-center gap-1">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-3.5 w-3.5"
-						viewBox="0 0 20 20"
-						fill="currentColor"
-					>
-						<path
-							fill-rule="evenodd"
-							d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-							clip-rule="evenodd"
-						/>
-					</svg>
+					<CheckCircle class="w-3.5 h-3.5" />
 					Audyt AI
 				</span>
 			</button>
@@ -369,22 +359,9 @@ const sendEmail = async () => {
 		>
 			<button
 				@click.stop="openModal"
-				class="w-full text-xs font-semibold px-2 py-1.5 bg-purple-50 text-purple-700 rounded hover:bg-purple-100 transition-colors border border-purple-100 flex justify-center items-center gap-1"
+				class="w-full text-xs font-semibold py-1.5 bg-brand-green/10 text-brand-teal rounded hover:bg-brand-green/20 border border-brand-green/20 flex items-center justify-center gap-1 transition-colors"
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					class="h-3.5 w-3.5"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-					/>
-				</svg>
+				<FileText class="w-3.5 h-3.5" />
 				Raport AI
 			</button>
 		</div>

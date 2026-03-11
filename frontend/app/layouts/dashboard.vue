@@ -7,6 +7,8 @@ import {
 	LogOut,
 	Zap,
 	ShieldCheck,
+	ScanSearch,
+	Download,
 } from "lucide-vue-next";
 import { useRoute } from "vue-router";
 import api from "@/services/api.js";
@@ -20,7 +22,9 @@ const initials = computed(() => {
 });
 
 const navItems = [
-	{ to: "/app", icon: LayoutDashboard, label: "Prospector CRM" },
+	{ to: "/app", icon: LayoutDashboard, label: "Wyszukiwarka" },
+	{ to: "/app/scan-results", icon: ScanSearch, label: "Wyniki skanów" },
+	{ to: "/app/export", icon: Download, label: "Eksport CSV" },
 	{ to: "/app/settings", icon: Settings, label: "Ustawienia" },
 	{
 		to: "/app/admin",
@@ -50,7 +54,11 @@ onMounted(async () => {
 			<div
 				class="h-16 flex items-center px-5 border-b border-brand-teal/10"
 			>
-				<NuxtLink to="/" class="flex items-center gap-2 group">
+				<NuxtLink
+					to="/"
+					class="flex items-center gap-2 group focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 transition-colors"
+					@mousedown.prevent
+				>
 					<img
 						src="/logo.png"
 						alt=""
@@ -72,12 +80,14 @@ onMounted(async () => {
 					v-show="!item.adminOnly || user?.role === 'admin'"
 					:key="item.to"
 					:to="item.to"
-					class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+					class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-75 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 border"
 					:class="
-						route.path === item.to
-							? 'bg-brand-green/10 text-brand-green border border-brand-green/20'
-							: 'text-slate-400 hover:text-white hover:bg-white/5'
+						route.path.startsWith(item.to) &&
+						(item.to === '/app' ? route.path === '/app' : true)
+							? 'bg-brand-green/10 text-brand-green border-brand-green/20'
+							: 'text-slate-400 hover:text-white hover:bg-white/5 border-transparent'
 					"
+					@mousedown.prevent
 				>
 					<component :is="item.icon" class="w-4 h-4 flex-shrink-0" />
 					{{ item.label }}
@@ -88,10 +98,11 @@ onMounted(async () => {
 			<div v-if="userPlan === 'free'" class="px-3 pb-3">
 				<NuxtLink
 					to="/pricing"
-					class="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg bg-brand-green/10 border border-brand-green/20 text-brand-green text-xs font-semibold hover:bg-brand-green/15 transition-colors"
+					class="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg bg-brand-green/10 border border-brand-green/20 text-brand-green text-xs font-semibold hover:bg-brand-green/15 transition-colors focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+					@mousedown.prevent
 				>
 					<Zap class="w-3.5 h-3.5 flex-shrink-0" />
-					<span>Upgrade do Pro</span>
+					<span>Ulepsz do Pro</span>
 					<span class="ml-auto text-brand-green/60">49 PLN/mc</span>
 				</NuxtLink>
 			</div>
@@ -116,7 +127,7 @@ onMounted(async () => {
 									: 'text-slate-500'
 							"
 						>
-							{{ userPlan === "pro" ? "Pro" : "Free" }}
+							{{ userPlan === "pro" ? "Pro" : "Darmowy" }}
 						</span>
 					</div>
 					<button
@@ -136,7 +147,10 @@ onMounted(async () => {
 			<header
 				class="md:hidden sticky top-0 z-30 flex h-16 items-center px-4 border-b bg-brand-dark border-brand-teal/10 justify-between"
 			>
-				<NuxtLink to="/" class="flex items-center gap-2">
+				<NuxtLink
+					to="/"
+					class="flex items-center gap-2 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+				>
 					<img
 						src="/logo.png"
 						alt=""
@@ -148,7 +162,9 @@ onMounted(async () => {
 					</span>
 				</NuxtLink>
 				<span class="font-bold text-sm text-white">Prospector CRM</span>
-				<button class="text-slate-400 hover:text-white">
+				<button
+					class="text-slate-400 hover:text-white focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						width="20"
@@ -172,3 +188,29 @@ onMounted(async () => {
 		</div>
 	</div>
 </template>
+
+<style scoped>
+/* Aggressively remove all focus indicators that cause the "white outline" */
+:deep(a:focus),
+:deep(button:focus),
+:deep(a:active),
+:deep(button:active),
+:deep(a:focus-visible),
+:deep(button:focus-visible) {
+	outline: none !important;
+	outline: 0 !important;
+	box-shadow: none !important;
+	-webkit-appearance: none;
+	appearance: none;
+	--tw-ring-offset-width: 0px !important;
+	--tw-ring-width: 0px !important;
+	--tw-ring-color: transparent !important;
+}
+
+aside a,
+aside button,
+header a,
+header button {
+	-webkit-tap-highlight-color: transparent;
+}
+</style>

@@ -10,12 +10,25 @@ import { useRuntimeConfig } from "#app";
 import KanbanBoard from "@/components/KanbanBoard.vue";
 import { useToast } from "vue-toastification";
 import { useLeadStatus } from "@/composables/useLeadStatus.js";
+import { useRouter } from "#imports";
+import { formatDate } from "@/utils/format.js";
+import {
+	CheckCircle,
+	Star,
+	Mail,
+	Phone,
+	Globe,
+	MapPin,
+	FileText,
+	Search
+} from "lucide-vue-next";
 
 definePageMeta({
 	layout: "dashboard",
 	middleware: ["auth"],
 });
 
+const router = useRouter();
 const toast = useToast();
 const leads = ref([]);
 const loading = ref(true);
@@ -160,7 +173,7 @@ const onMapClick = (e) => {
 };
 
 const locateUser = () => {
-	if ((!"geolocation") in navigator || !navigator.geolocation) {
+	if (!("geolocation" in navigator) || !navigator.geolocation) {
 		toast.error(
 			"Geolokalizacja nie jest obsługiwana przez Twoją przeglądarkę.",
 		);
@@ -266,10 +279,22 @@ const runScan = async () => {
 			limit: parseInt(searchLimit.value, 10),
 			country_code: searchCountry.value,
 			website_filter: filterWebsite.value,
-			min_rating: filterMinRating.value !== "" ? parseFloat(filterMinRating.value) : null,
-			max_rating: filterMaxRating.value !== "" ? parseFloat(filterMaxRating.value) : null,
-			min_reviews: filterMinReviews.value !== "" ? parseInt(filterMinReviews.value) : null,
-			max_reviews: filterMaxReviews.value !== "" ? parseInt(filterMaxReviews.value) : null,
+			min_rating:
+				filterMinRating.value !== ""
+					? parseFloat(filterMinRating.value)
+					: null,
+			max_rating:
+				filterMaxRating.value !== ""
+					? parseFloat(filterMaxRating.value)
+					: null,
+			min_reviews:
+				filterMinReviews.value !== ""
+					? parseInt(filterMinReviews.value)
+					: null,
+			max_reviews:
+				filterMaxReviews.value !== ""
+					? parseInt(filterMaxReviews.value)
+					: null,
 		};
 
 		const response = await api.triggerScan(payload);
@@ -507,7 +532,7 @@ onMounted(() => {
 		>
 			<div>
 				<h1 class="text-3xl font-bold tracking-tight text-slate-900">
-					Leady
+					Wyszukiwarka
 				</h1>
 				<p class="text-slate-500 mt-2">
 					Wyszukuj nowe firmy na mapie i zarządzaj lejkiem
@@ -518,7 +543,7 @@ onMounted(() => {
 			<!-- Licznik zużycia -->
 			<div v-if="usage" class="flex flex-wrap gap-2 shrink-0">
 				<span
-					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium"
 					:class="
 						usage.usage.ai_audits >= usage.limits.ai_audits
 							? 'border-red-300 bg-red-50 text-red-700'
@@ -526,7 +551,7 @@ onMounted(() => {
 					"
 				>
 					<svg
-						class="w-3 h-3"
+						class="w-4 h-4"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -543,7 +568,7 @@ onMounted(() => {
 					}}
 				</span>
 				<span
-					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium"
 					:class="
 						usage.usage.scans >= usage.limits.scans
 							? 'border-red-300 bg-red-50 text-red-700'
@@ -551,7 +576,7 @@ onMounted(() => {
 					"
 				>
 					<svg
-						class="w-3 h-3"
+						class="w-4 h-4"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -566,27 +591,30 @@ onMounted(() => {
 					Skany: {{ usage.usage.scans }}/{{ usage.limits.scans }}
 				</span>
 				<span
-					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium capitalize"
+					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium capitalize"
 					:class="
 						usage.plan === 'pro'
-							? 'border-violet-300 bg-violet-50 text-violet-700'
+							? 'border-brand-green/30 bg-brand-green/10 text-brand-teal'
 							: 'border-slate-200 bg-white text-slate-500'
 					"
 				>
-					{{ usage.plan === "pro" ? "Pro" : "Free" }}
+					{{ usage.plan === "pro" ? "Pro" : "Darmowy" }}
 				</span>
 			</div>
 		</div>
 
-		<Card class="border-slate-200">
-			<CardHeader>
-				<CardTitle>Pozyskaj Nowe Leady</CardTitle>
-				<CardDescription
-					>Skorzystaj z wyszukiwarki opartej o Google
-					Places</CardDescription
-				>
-			</CardHeader>
-			<CardContent>
+		<div
+			class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm"
+		>
+			<div class="p-6 border-b border-slate-100">
+				<h3 class="text-lg font-bold text-slate-900">
+					Pozyskaj Nowe Leady
+				</h3>
+				<p class="text-sm text-slate-500">
+					Skorzystaj z wyszukiwarki opartej o Google Places
+				</p>
+			</div>
+			<div class="p-6">
 				<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
 					<!-- Settings form -->
 					<div class="md:col-span-4 space-y-6">
@@ -602,7 +630,7 @@ onMounted(() => {
 										@click="
 											showKeywordPanel = !showKeywordPanel
 										"
-										class="inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-800 transition-colors"
+										class="inline-flex items-center gap-1 text-xs font-medium text-brand-teal hover:text-brand-teal/90 transition-colors"
 									>
 										✨ Magiczne słowa kluczowe
 									</button>
@@ -614,10 +642,10 @@ onMounted(() => {
 								<!-- Inline keyword suggestion panel -->
 								<div
 									v-show="showKeywordPanel"
-									class="mt-2 rounded-lg border border-violet-200 bg-violet-50 p-4 space-y-3"
+									class="mt-2 rounded-lg border border-brand-green/20 bg-brand-green/5 p-4 space-y-3"
 								>
 									<p
-										class="text-xs font-semibold text-violet-700 uppercase tracking-wide"
+										class="text-xs font-semibold text-brand-teal uppercase tracking-wide"
 									>
 										Generator słów kluczowych AI
 									</p>
@@ -625,12 +653,12 @@ onMounted(() => {
 										v-model="keywordDescription"
 										rows="2"
 										placeholder="Opisz kogo szukasz, np. chcę znaleźć hydraulików w Warszawie"
-										class="w-full rounded-md border border-violet-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
+										class="w-full rounded-md border border-brand-green/20 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-green/40 resize-none"
 									/>
 									<Button
 										@click="generateKeywords"
 										:disabled="isGeneratingKeywords"
-										class="w-full bg-violet-600 hover:bg-violet-700 text-white text-sm"
+										class="w-full bg-brand-teal hover:bg-brand-teal/90 text-white text-sm"
 										size="sm"
 									>
 										<svg
@@ -666,7 +694,7 @@ onMounted(() => {
 									>
 										<p
 											v-if="keywordDetectedLocation"
-											class="text-xs text-violet-600"
+											class="text-xs text-brand-teal"
 										>
 											📍 Wykryto lokalizację:
 											<strong>{{
@@ -680,7 +708,7 @@ onMounted(() => {
 												v-for="kw in keywordSuggestions"
 												:key="kw"
 												@click="applyKeyword(kw)"
-												class="cursor-pointer bg-white border border-violet-300 text-violet-700 hover:bg-violet-100 transition-colors text-xs px-2 py-1"
+												class="cursor-pointer bg-white border border-brand-green/30 text-brand-teal hover:bg-brand-green/10 transition-colors text-xs px-2 py-1"
 											>
 												{{ kw }}
 											</Badge>
@@ -721,20 +749,43 @@ onMounted(() => {
 
 						<!-- ─── Kraj wyszukiwania ──────────────────────────────────────────── -->
 						<div class="pt-4 border-t border-slate-100 space-y-2">
-							<label class="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+							<label
+								class="text-sm font-medium text-slate-700 flex items-center gap-1.5"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="14"
+									height="14"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<circle cx="12" cy="12" r="10" />
+									<path
+										d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+									/>
+								</svg>
 								Kraj wyszukiwania
 							</label>
 							<select
 								v-model="searchCountry"
 								id="search-country-select"
-								class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition-colors"
+								class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-green/30 transition-colors"
 							>
-								<option v-for="c in COUNTRIES" :key="c.code" :value="c.code">
+								<option
+									v-for="c in COUNTRIES"
+									:key="c.code"
+									:value="c.code"
+								>
 									{{ c.name }}
 								</option>
 							</select>
-							<p class="text-xs text-slate-400">Wyniki zostaną ograniczone do wybranego kraju.</p>
+							<p class="text-xs text-slate-400">
+								Wyniki zostaną ograniczone do wybranego kraju.
+							</p>
 						</div>
 						<!-- ──────────────────────────────────────────────────────────────── -->
 
@@ -745,14 +796,27 @@ onMounted(() => {
 								@click="showFiltersPanel = !showFiltersPanel"
 								class="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors w-full"
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="14"
+									height="14"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<polygon
+										points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+									/>
 								</svg>
 								<span>Filtry kwalifikacji</span>
 								<span
 									v-if="activeFilterCount > 0"
-									class="ml-1 inline-flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold px-1.5 py-0.5 leading-none"
-								>{{ activeFilterCount }} aktywne</span>
+									class="ml-1 inline-flex items-center justify-center rounded-full bg-brand-green/10 text-brand-teal text-xs font-semibold px-1.5 py-0.5 leading-none"
+									>{{ activeFilterCount }} aktywne</span
+								>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
 									width="14"
@@ -764,44 +828,80 @@ onMounted(() => {
 									stroke-linecap="round"
 									stroke-linejoin="round"
 									class="ml-auto transition-transform duration-200"
-									:class="showFiltersPanel ? 'rotate-180' : ''"
+									:class="
+										showFiltersPanel ? 'rotate-180' : ''
+									"
 								>
-									<polyline points="6 9 12 15 18 9"/>
+									<polyline points="6 9 12 15 18 9" />
 								</svg>
 							</button>
 
-							<div v-show="showFiltersPanel" class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4">
+							<div
+								v-show="showFiltersPanel"
+								class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4"
+							>
 								<!-- Strona WWW -->
 								<div class="space-y-1.5">
-									<p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Strona WWW</p>
+									<p
+										class="text-xs font-semibold text-slate-500 uppercase tracking-wide"
+									>
+										Strona WWW
+									</p>
 									<div class="flex gap-1.5">
 										<button
 											type="button"
 											@click="filterWebsite = 'all'"
-											:class="filterWebsite === 'all' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'"
+											:class="
+												filterWebsite === 'all'
+													? 'bg-brand-green text-white border-brand-green'
+													: 'bg-white text-slate-600 border-slate-200 hover:border-brand-green'
+											"
 											class="flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all"
-										>Wszyscy</button>
+										>
+											Wszyscy
+										</button>
 										<button
 											type="button"
 											@click="filterWebsite = 'without'"
-											:class="filterWebsite === 'without' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'"
+											:class="
+												filterWebsite === 'without'
+													? 'bg-brand-teal text-white border-brand-teal'
+													: 'bg-white text-slate-600 border-slate-200 hover:border-brand-teal/50'
+											"
 											class="flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all"
-										>Bez strony</button>
+										>
+											Bez strony
+										</button>
 										<button
 											type="button"
 											@click="filterWebsite = 'with'"
-											:class="filterWebsite === 'with' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'"
+											:class="
+												filterWebsite === 'with'
+													? 'bg-brand-teal text-white border-brand-teal'
+													: 'bg-white text-slate-600 border-slate-200 hover:border-brand-teal/50'
+											"
 											class="flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all"
-										>Ze stroną</button>
+										>
+											Ze stroną
+										</button>
 									</div>
 								</div>
 
 								<!-- Ocena -->
 								<div class="space-y-1.5">
-									<p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Ocena (0 – 5)</p>
+									<p
+										class="text-xs font-semibold text-slate-500 uppercase tracking-wide"
+									>
+										Ocena (0 – 5)
+									</p>
 									<div class="flex items-center gap-2">
-										<div class="flex-1 flex items-center gap-1">
-											<span class="text-xs text-slate-400 shrink-0">od</span>
+										<div
+											class="flex-1 flex items-center gap-1"
+										>
+											<span
+												class="text-xs text-slate-400 shrink-0"
+												>od</span
+											>
 											<input
 												v-model="filterMinRating"
 												type="number"
@@ -809,11 +909,16 @@ onMounted(() => {
 												max="5"
 												step="0.1"
 												placeholder="0.0"
-												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-green/30"
 											/>
 										</div>
-										<div class="flex-1 flex items-center gap-1">
-											<span class="text-xs text-slate-400 shrink-0">do</span>
+										<div
+											class="flex-1 flex items-center gap-1"
+										>
+											<span
+												class="text-xs text-slate-400 shrink-0"
+												>do</span
+											>
 											<input
 												v-model="filterMaxRating"
 												type="number"
@@ -821,7 +926,7 @@ onMounted(() => {
 												max="5"
 												step="0.1"
 												placeholder="5.0"
-												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-green/30"
 											/>
 										</div>
 									</div>
@@ -829,28 +934,42 @@ onMounted(() => {
 
 								<!-- Recenzje -->
 								<div class="space-y-1.5">
-									<p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Liczba recenzji</p>
+									<p
+										class="text-xs font-semibold text-slate-500 uppercase tracking-wide"
+									>
+										Liczba recenzji
+									</p>
 									<div class="flex items-center gap-2">
-										<div class="flex-1 flex items-center gap-1">
-											<span class="text-xs text-slate-400 shrink-0">min</span>
+										<div
+											class="flex-1 flex items-center gap-1"
+										>
+											<span
+												class="text-xs text-slate-400 shrink-0"
+												>min</span
+											>
 											<input
 												v-model="filterMinReviews"
 												type="number"
 												min="0"
 												step="1"
 												placeholder="0"
-												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-green/30"
 											/>
 										</div>
-										<div class="flex-1 flex items-center gap-1">
-											<span class="text-xs text-slate-400 shrink-0">max</span>
+										<div
+											class="flex-1 flex items-center gap-1"
+										>
+											<span
+												class="text-xs text-slate-400 shrink-0"
+												>max</span
+											>
 											<input
 												v-model="filterMaxReviews"
 												type="number"
 												min="0"
 												step="1"
 												placeholder="∞"
-												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+												class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-green/30"
 											/>
 										</div>
 									</div>
@@ -968,7 +1087,7 @@ onMounted(() => {
 								</div>
 								<NuxtLink
 									to="/pricing"
-									class="flex items-center justify-center gap-2 w-full rounded-md bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 px-4 py-2.5 text-sm font-bold text-white transition-all shadow-sm"
+									class="flex items-center justify-center gap-2 w-full rounded-md bg-gradient-to-r from-brand-green to-brand-teal hover:opacity-90 px-4 py-2.5 text-sm font-bold text-black transition-all shadow-sm"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -995,7 +1114,7 @@ onMounted(() => {
 								:class="
 									scanLimitReached
 										? 'bg-slate-300 cursor-not-allowed text-slate-500 hover:bg-slate-300'
-										: 'bg-indigo-600 hover:bg-indigo-700'
+										: 'bg-brand-teal hover:bg-brand-teal/90'
 								"
 							>
 								<span
@@ -1081,9 +1200,29 @@ onMounted(() => {
 
 						<div
 							v-if="scanMessage"
-							class="mt-4 p-3 rounded-md bg-green-50 text-green-700 text-sm border border-green-200"
+							class="mt-4 p-3 rounded-md bg-green-50 text-green-700 text-sm border border-green-200 flex items-center justify-between gap-3"
 						>
-							{{ scanMessage }}
+							<span>{{ scanMessage }}</span>
+							<NuxtLink
+								to="/app/scan-results"
+								class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition-colors"
+							>
+								Zobacz wyniki
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path d="M5 12h14" />
+									<path d="m12 5 7 7-7 7" />
+								</svg>
+							</NuxtLink>
 						</div>
 					</div>
 
@@ -1109,7 +1248,7 @@ onMounted(() => {
 										width="36"
 										height="36"
 										viewBox="0 0 24 24"
-										fill="#4f46e5"
+										fill="#11998e"
 										stroke="white"
 										stroke-width="2"
 										stroke-linecap="round"
@@ -1127,18 +1266,18 @@ onMounted(() => {
 								:options="{
 									center: markerPosition,
 									radius: searchRadius[0] * 1000,
-									strokeColor: '#4f46e5',
+									strokeColor: '#11998e',
 									strokeOpacity: 0.8,
 									strokeWeight: 2,
-									fillColor: '#4f46e5',
+									fillColor: '#11998e',
 									fillOpacity: 0.1,
 								}"
 							/>
 						</GoogleMap>
 					</div>
 				</div>
-			</CardContent>
-		</Card>
+			</div>
+		</div>
 
 		<!-- Leads Section -->
 		<div v-if="loading" class="text-center py-10 text-slate-500">
@@ -1152,9 +1291,7 @@ onMounted(() => {
 		</div>
 		<div v-else>
 			<div class="flex justify-between items-center mb-4">
-				<h2 class="text-xl font-semibold text-slate-900">
-					Tablica leadów
-				</h2>
+				<h2 class="text-xl font-bold text-slate-900">Tablica leadów</h2>
 				<div class="flex items-center gap-3">
 					<Button
 						v-if="leads.length > 0"
@@ -1185,7 +1322,7 @@ onMounted(() => {
 							leads.some((l) => !l.audited)
 						"
 						v-model="selectedTemplateId"
-						class="text-xs rounded-md border border-indigo-200 bg-white px-2 py-1.5 text-indigo-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400"
+						class="text-xs rounded-md border border-brand-green/30 bg-white px-2 py-1.5 text-brand-teal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-green/40"
 						title="Wybierz szablon audytu"
 					>
 						<option :value="null">Domyślny (SEO)</option>
@@ -1203,7 +1340,7 @@ onMounted(() => {
 						:disabled="isAuditingAll"
 						variant="outline"
 						size="sm"
-						class="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+						class="border-brand-green/30 text-brand-teal hover:bg-brand-green/10"
 					>
 						<svg
 							v-if="isAuditingAll"
@@ -1312,7 +1449,7 @@ onMounted(() => {
 										!listAllSelected
 									"
 									@change="toggleListSelectAll"
-									class="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+									class="w-4 h-4 rounded accent-brand-teal cursor-pointer"
 								/>
 								<span
 									class="text-sm text-slate-600 font-medium"
@@ -1405,7 +1542,7 @@ onMounted(() => {
 						class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
 						:class="
 							listSelectionMode
-								? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+								? 'bg-brand-green/10 text-brand-teal hover:bg-brand-green/20'
 								: 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 shadow-sm'
 						"
 					>
@@ -1454,99 +1591,128 @@ onMounted(() => {
 					</button>
 				</div>
 
-				<!-- List table -->
+				<!-- List view as Cards Grid -->
 				<div
-					class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden"
+					class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4"
 				>
-					<ul role="list" class="divide-y divide-slate-100">
-						<li
-							v-for="lead in leads"
-							:key="lead.id"
-							class="p-4 flex items-center justify-between transition-colors"
-							:class="[
-								listSelectionMode
-									? 'cursor-pointer select-none'
-									: '',
-								listSelectionMode &&
-								listSelectedIds.has(lead.id)
-									? 'bg-indigo-50 hover:bg-indigo-50'
-									: 'hover:bg-slate-50',
-							]"
-							@click="
-								listSelectionMode
-									? toggleListSelectLead(lead.id)
-									: undefined
-							"
-						>
-							<!-- Checkbox -->
-							<div
-								v-if="listSelectionMode"
-								class="mr-3 flex-shrink-0"
-							>
+					<div
+						v-for="lead in leads"
+						:key="lead.id"
+						class="bg-white p-4 rounded-xl shadow-sm border transition-shadow cursor-pointer group flex flex-col justify-between"
+						:class="[
+							listSelectedIds.has(lead.id)
+								? 'border-brand-green/40 ring-2 ring-brand-green/10'
+								: 'border-slate-200 hover:shadow-md'
+						]"
+						@click="listSelectionMode ? toggleListSelectLead(lead.id) : router.push(`/app/lead/${lead.id}`)"
+					>
+						<div>
+							<div class="flex justify-between items-start mb-2">
+								<div class="flex items-start gap-2 flex-1 min-w-0">
+									<input
+										v-if="listSelectionMode"
+										type="checkbox"
+										:checked="listSelectedIds.has(lead.id)"
+										@click.stop="toggleListSelectLead(lead.id)"
+										class="w-4 h-4 rounded border-slate-300 text-brand-teal focus:ring-brand-green/40 cursor-pointer mt-0.5 flex-shrink-0"
+									/>
+									<div class="min-w-0">
+										<h4
+											class="text-sm font-semibold text-slate-900 leading-tight group-hover:text-brand-teal transition-colors line-clamp-2"
+										>
+											{{ lead.company_name }}
+										</h4>
+										<div class="flex flex-wrap gap-1 mt-1.5">
+											<span
+												class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold"
+												:class="LIST_STATUSES.find((s) => s.id === lead.status)?.color || 'bg-slate-100 text-slate-700'"
+											>
+												{{ LIST_STATUSES.find((s) => s.id === lead.status)?.label || lead.status }}
+											</span>
+											<span
+												v-if="!lead.has_ssl && lead.website"
+												class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200"
+											>
+												Brak SSL!
+											</span>
+											<span
+												v-else-if="lead.slow_website"
+												class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-700 border border-yellow-200"
+											>
+												Wolna strona
+											</span>
+										</div>
+									</div>
+								</div>
 								<div
-									class="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
-									:class="
-										listSelectedIds.has(lead.id)
-											? 'bg-indigo-600 border-indigo-600'
-											: 'bg-white border-slate-300'
-									"
+									v-if="lead.rating"
+									class="flex items-center bg-yellow-50 px-1.5 py-0.5 rounded text-[11px] text-yellow-700 font-medium border border-yellow-100 flex-shrink-0 ml-2"
 								>
-									<svg
-										v-if="listSelectedIds.has(lead.id)"
-										xmlns="http://www.w3.org/2000/svg"
-										width="10"
-										height="10"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="white"
-										stroke-width="3.5"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<polyline
-											points="20 6 9 17 4 12"
-										></polyline>
-									</svg>
+									<Star class="w-3 h-3 text-yellow-400 fill-yellow-400 mr-0.5" />
+									{{ lead.rating }}
 								</div>
 							</div>
 
-							<div class="flex-1 min-w-0">
-								<p
-									class="text-sm font-semibold text-indigo-600 truncate"
-								>
-									{{ lead.company_name }}
+							<div class="text-xs text-slate-500 space-y-1 mt-3">
+								<p v-if="lead.address" class="flex items-start gap-1">
+									<MapPin class="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
+									<span class="line-clamp-2">{{ lead.address }}</span>
 								</p>
-								<p class="mt-1 text-sm text-slate-500 truncate">
-									{{ lead.address || "Brak adresu" }} •
-									{{ lead.phone || "Brak telefonu" }}
+								<p v-if="lead.phone" class="flex items-center gap-1">
+									<Phone class="w-3 h-3 flex-shrink-0 text-slate-400" />
+									{{ lead.phone }}
+								</p>
+								<p v-if="lead.email" class="flex items-center gap-1 truncate">
+									<Mail class="w-3 h-3 flex-shrink-0 text-slate-400" />
+									{{ lead.email }}
+								</p>
+								<p v-if="lead.website" class="flex items-center gap-1 truncate">
+									<Globe class="w-3 h-3 flex-shrink-0 text-slate-400" />
+									{{ lead.website }}
 								</p>
 							</div>
-							<div class="flex items-center gap-3 ml-3">
-								<span
-									class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold capitalize"
-									:class="
-										LIST_STATUSES.find(
-											(s) => s.id === lead.status,
-										)?.color ||
-										'bg-slate-100 text-slate-700'
-									"
+						</div>
+
+						<div class="mt-auto">
+							<div class="mt-4">
+								<button
+									v-if="lead.audited"
+									@click.stop="router.push(`/app/lead/${lead.id}/audit`)"
+									class="w-full text-xs font-semibold py-1.5 bg-brand-green/10 text-brand-teal rounded hover:bg-brand-green/20 border border-brand-green/20 flex items-center justify-center gap-1 transition-colors"
 								>
-									{{
-										LIST_STATUSES.find(
-											(s) => s.id === lead.status,
-										)?.label || lead.status
-									}}
-								</span>
+									<FileText class="w-3.5 h-3.5" />
+									Raport AI
+								</button>
+								<button
+									v-else
+									@click.stop="router.push(`/app/lead/${lead.id}`)"
+									class="w-full text-xs font-semibold py-1.5 bg-brand-green/10 text-brand-teal rounded hover:bg-brand-green/20 border border-brand-green/20 flex items-center justify-center gap-1 transition-colors"
+								>
+									<CheckCircle class="w-3.5 h-3.5" />
+									Audyt AI
+								</button>
 							</div>
-						</li>
-						<li
-							v-if="leads.length === 0"
-							class="p-8 text-center text-slate-500"
-						>
-							Brak leadów. Uruchom skanowanie wyszukiwarką
-							powyżej!
-						</li>
-					</ul>
+
+							<div class="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400">
+								<span class="uppercase font-semibold">ID: {{ lead.id }}</span>
+								<span>{{ formatDate(lead.created_at) }}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Empty State -->
+					<div
+						v-if="leads.length === 0"
+						class="col-span-full py-12 text-center text-slate-500 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center"
+					>
+						<div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+							<Search class="w-6 h-6 text-slate-400" />
+						</div>
+						<p class="text-sm font-medium text-slate-900">Brak leadów</p>
+						<p class="text-xs mt-1 max-w-sm">
+							Użyj wyszukiwarki powyżej, aby znaleźć potencjalnych klientów w Twojej okolicy.
+						</p>
+					</div>
 				</div>
 			</div>
 		</div>

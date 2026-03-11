@@ -9,7 +9,12 @@ export default defineNuxtConfig({
 	},
 	devtools: { enabled: true },
 
-	modules: ["@nuxtjs/tailwindcss", "shadcn-nuxt", "@vueuse/motion/nuxt", "@nuxt/scripts"],
+	modules: [
+		"@nuxtjs/tailwindcss",
+		"shadcn-nuxt",
+		"@vueuse/motion/nuxt",
+		"@nuxt/scripts",
+	],
 
 	scripts: {
 		registry: {
@@ -69,6 +74,7 @@ export default defineNuxtConfig({
 	app: {
 		head: {
 			title: "znajdzfirmy.pl",
+
 			meta: [
 				{
 					name: "description",
