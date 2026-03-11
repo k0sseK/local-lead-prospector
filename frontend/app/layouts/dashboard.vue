@@ -35,6 +35,7 @@ const navItems = [
 ];
 
 const userPlan = ref("free");
+const isMobileMenuOpen = ref(false);
 
 onMounted(async () => {
 	try {
@@ -163,6 +164,7 @@ onMounted(async () => {
 				</NuxtLink>
 				<span class="font-bold text-sm text-white">Prospector CRM</span>
 				<button
+					@click="isMobileMenuOpen = !isMobileMenuOpen"
 					class="text-slate-400 hover:text-white focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
 				>
 					<svg
@@ -180,6 +182,119 @@ onMounted(async () => {
 					</svg>
 				</button>
 			</header>
+
+			<!-- Mobile Menu Dropdown -->
+			<div
+				v-show="isMobileMenuOpen"
+				class="md:hidden fixed inset-0 z-50 bg-brand-dark/95 backdrop-blur-sm flex flex-col pt-16"
+			>
+				<div
+					class="absolute top-0 left-0 right-0 h-16 px-4 flex items-center justify-between border-b border-brand-teal/10 bg-brand-dark"
+				>
+					<NuxtLink
+						to="/"
+						class="flex items-center gap-2 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+						@click="isMobileMenuOpen = false"
+					>
+						<img
+							src="/logo.png"
+							alt=""
+							class="h-6 w-auto flex-shrink-0"
+						/>
+						<span
+							class="font-bold text-sm tracking-tight leading-none"
+						>
+							<span class="text-brand-green">znajdz</span
+							><span class="text-white">firmy.pl</span>
+						</span>
+					</NuxtLink>
+					<button
+						@click="isMobileMenuOpen = false"
+						class="text-slate-400 hover:text-white focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<line x1="18" y1="6" x2="6" y2="18"></line>
+							<line x1="6" y1="6" x2="18" y2="18"></line>
+						</svg>
+					</button>
+				</div>
+
+				<nav class="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
+					<NuxtLink
+						v-for="item in navItems"
+						v-show="!item.adminOnly || user?.role === 'admin'"
+						:key="item.to"
+						:to="item.to"
+						class="flex items-center gap-4 px-4 py-3 rounded-xl text-base font-medium transition-colors border"
+						:class="
+							route.path.startsWith(item.to) &&
+							(item.to === '/app' ? route.path === '/app' : true)
+								? 'bg-brand-green/10 text-brand-green border-brand-green/20'
+								: 'text-slate-400 hover:text-white hover:bg-white/5 border-transparent'
+						"
+						@click="isMobileMenuOpen = false"
+					>
+						<component
+							:is="item.icon"
+							class="w-5 h-5 flex-shrink-0"
+						/>
+						{{ item.label }}
+					</NuxtLink>
+				</nav>
+
+				<div class="px-4 pb-4" v-if="userPlan === 'free'">
+					<NuxtLink
+						to="/pricing"
+						class="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-brand-green/10 border border-brand-green/20 text-brand-green text-sm font-semibold hover:bg-brand-green/15 transition-colors focus:outline-none"
+						@click="isMobileMenuOpen = false"
+					>
+						<Zap class="w-4 h-4 flex-shrink-0" />
+						<span>Ulepsz do Pro</span>
+					</NuxtLink>
+				</div>
+
+				<!-- User mobile footer -->
+				<div class="p-4 border-t border-brand-teal/10 pb-8">
+					<div class="flex items-center gap-3">
+						<div
+							class="w-10 h-10 rounded-full bg-brand-teal/20 border border-brand-teal/30 flex items-center justify-center text-brand-green font-bold text-sm flex-shrink-0"
+						>
+							{{ initials }}
+						</div>
+						<div class="flex flex-col flex-1 min-w-0">
+							<span
+								class="text-sm font-medium text-white truncate"
+								>{{ user?.email ?? "..." }}</span
+							>
+							<span
+								class="text-xs"
+								:class="
+									userPlan === 'pro'
+										? 'text-brand-green font-semibold'
+										: 'text-slate-500'
+								"
+							>
+								{{ userPlan === "pro" ? "Pro" : "Darmowy" }}
+							</span>
+						</div>
+						<button
+							@click="logout"
+							title="Wyloguj"
+							class="text-slate-400 hover:text-brand-green transition-colors flex-shrink-0 p-2"
+						>
+							<LogOut class="w-5 h-5" />
+						</button>
+					</div>
+				</div>
+			</div>
 
 			<!-- Page content -->
 			<main class="flex-1 overflow-x-hidden text-slate-800">

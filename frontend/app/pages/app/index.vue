@@ -519,6 +519,14 @@ const auditAll = async () => {
 };
 
 onMounted(() => {
+	const checkMobile = () => {
+		if (window.innerWidth < 768) {
+			viewMode.value = "list";
+		}
+	};
+	checkMobile();
+	window.addEventListener("resize", checkMobile);
+
 	fetchLeads();
 	fetchUsage();
 	fetchAuditTemplates();
@@ -1390,7 +1398,7 @@ onMounted(() => {
 						</span>
 					</Button>
 					<div
-						class="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm"
+						class="hidden md:flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm"
 					>
 						<Button
 							variant="ghost"
