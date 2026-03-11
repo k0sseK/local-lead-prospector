@@ -32,14 +32,6 @@ async function handleSubmit() {
 <template>
 	<div class="flex-1 flex items-center justify-center py-16 px-4">
 		<div class="w-full max-w-md">
-			<div class="flex justify-center mb-8">
-				<div
-					class="w-12 h-12 rounded-xl bg-brand-green flex items-center justify-center text-black font-extrabold text-2xl shadow-[0_0_20px_rgba(56,239,125,0.3)]"
-				>
-					L
-				</div>
-			</div>
-
 			<div class="text-center mb-8">
 				<h1 class="text-3xl font-extrabold text-white mb-2">
 					Zaloguj się

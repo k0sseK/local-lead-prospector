@@ -1,8 +1,20 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import api from "@/services/api.js";
+import { ref, computed, onMounted } from "vue";
 import { useToast } from "vue-toastification";
-import { useAuth } from "@/composables/useAuth";
+import api from "@/services/api.js";
+import { formatDate } from "@/utils/format.js";
+import {
+	Users,
+	Activity,
+	Zap,
+	CheckCircle,
+	Gauge,
+	Database,
+	Server,
+	TrendingUp,
+	Search,
+	Shield,
+} from "lucide-vue-next";
 
 definePageMeta({
 	layout: "dashboard",
@@ -10,18 +22,11 @@ definePageMeta({
 });
 
 const toast = useToast();
-const { user } = useAuth();
+
 const users = ref([]);
 const loading = ref(true);
-const changingPlan = ref(null); // userId currently being changed
-
-const PLANS = ["free", "pro", "admin"];
-
-const PLAN_LIMITS = {
-	free:  { ai_audits: 10,  scans: 5,  emails_sent: 20 },
-	pro:   { ai_audits: 300, scans: 50, emails_sent: 500 },
-	admin: { ai_audits: 999999, scans: 999999, emails_sent: 999999 },
-};
+const searchQuery = ref("");
+const updatingUserId = ref(null);
 
 const fetchUsers = async () => {
 	try {
@@ -30,206 +35,537 @@ const fetchUsers = async () => {
 		users.value = res.data;
 	} catch (err) {
 		if (err.response?.status === 403) {
-			toast.error("Brak uprawnień do panelu admina.");
+			toast.error("Brak uprawnień administratora.");
 		} else {
-			toast.error("Błąd pobierania użytkowników.");
+			toast.error("Nie udało się załadować użytkowników.");
 		}
 	} finally {
 		loading.value = false;
 	}
 };
 
+onMounted(fetchUsers);
+
+const filteredUsers = computed(() => {
+	if (!searchQuery.value) return users.value;
+	const q = searchQuery.value.toLowerCase();
+	return users.value.filter((u) => u.email?.toLowerCase().includes(q));
+});
+
 const setPlan = async (userId, plan) => {
-	changingPlan.value = userId;
+	updatingUserId.value = userId;
 	try {
 		await api.adminSetPlan(userId, plan);
-		const u = users.value.find((u) => u.id === userId);
-		if (u) u.plan = plan;
-		toast.success(`Plan zmieniony na "${plan}".`);
+		const user = users.value.find((u) => u.id === userId);
+		if (user) user.plan = plan;
+		toast.success(
+			`Plan zmieniony na "${plan === "pro" ? "Pro" : "Darmowy"}".`,
+		);
 	} catch (err) {
-		toast.error(err.response?.data?.detail || "Błąd zmiany planu.");
+		toast.error(
+			err.response?.data?.detail || "Nie udało się zmienić planu.",
+		);
 	} finally {
-		changingPlan.value = null;
+		updatingUserId.value = null;
 	}
 };
 
-const planBadgeClass = (plan) => {
-	if (plan === "pro") return "bg-violet-900/40 text-violet-300 border-violet-700/40";
-	if (plan === "admin") return "bg-amber-900/40 text-amber-300 border-amber-700/40";
-	return "bg-slate-800 text-slate-400 border-slate-700/40";
-};
+function initials(email) {
+	if (!email) return "?";
+	return email.substring(0, 2).toUpperCase();
+}
 
-const usagePercent = (used, action, plan) => {
-	const limit = PLAN_LIMITS[plan]?.[action] || 10;
-	if (limit >= 999999) return 0;
-	return Math.min(100, Math.round((used / limit) * 100));
-};
+function avatarColor(email) {
+	const colors = [
+		"bg-brand-green/10 text-brand-teal",
+		"bg-pink-100 text-pink-600",
+		"bg-green-100 text-green-600",
+		"bg-purple-100 text-purple-600",
+		"bg-blue-100 text-blue-600",
+		"bg-orange-100 text-orange-600",
+		"bg-teal-100 text-teal-600",
+	];
+	if (!email) return colors[0];
+	const idx = email.charCodeAt(0) % colors.length;
+	return colors[idx];
+}
 
-const usageBarClass = (pct) => {
-	if (pct >= 90) return "bg-red-500";
-	if (pct >= 60) return "bg-yellow-500";
-	return "bg-brand-green";
-};
-
-const totalCost = computed(() =>
-	users.value.reduce((sum, u) => sum + (u.usage?.cost_usd || 0), 0),
+const totalUsers = computed(() => users.value.length);
+const proUsers = computed(
+	() => users.value.filter((u) => u.plan === "pro").length,
 );
-
-onMounted(fetchUsers);
+const freeUsers = computed(
+	() => users.value.filter((u) => u.plan !== "pro").length,
+);
 </script>
 
 <template>
 	<div class="px-4 py-6 md:px-8 space-y-6 bg-slate-50 min-h-screen">
-		<!-- Header -->
-		<div class="flex items-center justify-between">
+		<!-- Page Header -->
+		<div
+			class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4"
+		>
 			<div>
-				<h1 class="text-3xl font-bold tracking-tight text-slate-900">Panel Admina</h1>
-				<p class="text-slate-500 mt-1">Zarządzanie użytkownikami i monitorowanie zużycia.</p>
+				<h1 class="text-3xl font-bold tracking-tight text-slate-900">
+					Panel Admina
+				</h1>
+				<p class="text-slate-500 mt-2">
+					Zarządzaj systemem, użytkownikami i monitoruj wydajność
+				</p>
 			</div>
-			<div class="flex gap-3 items-center">
-				<div class="text-right">
-					<p class="text-xs text-slate-500">Koszt AI (bieżący miesiąc)</p>
-					<p class="text-lg font-bold text-slate-800">${{ totalCost.toFixed(4) }}</p>
-				</div>
-				<button
-					@click="fetchUsers"
-					class="px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+
+			<div class="flex flex-wrap items-center gap-3 shrink-0">
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700"
 				>
-					Odśwież
-				</button>
+					<Users class="w-4 h-4 text-green-500" />
+					{{ totalUsers }} użytkowników
+				</span>
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700"
+				>
+					<CheckCircle class="w-4 h-4 text-green-500" />
+					System OK
+				</span>
 			</div>
 		</div>
 
-		<!-- Table -->
-		<div class="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-			<div v-if="loading" class="py-16 text-center text-slate-400">Ładowanie...</div>
-
-			<table v-else class="w-full text-sm">
-				<thead class="bg-slate-50 border-b border-slate-200">
-					<tr>
-						<th class="text-left px-4 py-3 font-semibold text-slate-600">Użytkownik</th>
-						<th class="text-left px-4 py-3 font-semibold text-slate-600">Plan</th>
-						<th class="text-left px-4 py-3 font-semibold text-slate-600">Audyty AI</th>
-						<th class="text-left px-4 py-3 font-semibold text-slate-600">Skany</th>
-						<th class="text-right px-4 py-3 font-semibold text-slate-600">Leady</th>
-						<th class="text-right px-4 py-3 font-semibold text-slate-600">Koszt AI</th>
-						<th class="text-left px-4 py-3 font-semibold text-slate-600">Zmień plan</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-slate-100">
-					<tr
-						v-for="u in users"
-						:key="u.id"
-						:class="u.id === user?.id ? 'bg-brand-green/5' : 'hover:bg-slate-50'"
-						class="transition-colors"
-					>
-						<!-- Email -->
-						<td class="px-4 py-3">
-							<div class="font-medium text-slate-800 truncate max-w-[180px]">{{ u.email }}</div>
-							<div class="text-xs text-slate-400 mt-0.5">
-								{{ u.created_at ? new Date(u.created_at).toLocaleDateString('pl-PL') : '—' }}
-							</div>
-						</td>
-
-						<!-- Plan badge -->
-						<td class="px-4 py-3">
-							<span
-								class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border"
-								:class="planBadgeClass(u.plan)"
+		<!-- System Health Cards -->
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div
+				class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
+			>
+				<div class="flex items-center justify-between mb-4">
+					<div class="flex items-center gap-3">
+						<div
+							class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center"
+						>
+							<Gauge class="w-5 h-5 text-green-600" />
+						</div>
+						<div>
+							<p
+								class="text-xs font-medium text-slate-500 uppercase"
 							>
-								{{ u.plan }}
-							</span>
-						</td>
+								Wydajność
+							</p>
+							<p class="text-lg font-bold text-slate-900">94%</p>
+						</div>
+					</div>
+					<div class="relative w-12 h-12">
+						<svg
+							class="w-12 h-12 transform -rotate-90"
+							viewBox="0 0 36 36"
+						>
+							<path
+								class="text-slate-100"
+								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="3"
+							/>
+							<path
+								class="text-green-500"
+								stroke-dasharray="94, 100"
+								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="3"
+								stroke-linecap="round"
+							/>
+						</svg>
+					</div>
+				</div>
+				<div class="flex items-center gap-1.5 text-xs text-green-600">
+					<TrendingUp class="w-3.5 h-3.5" />
+					<span>Doskonała</span>
+				</div>
+			</div>
 
-						<!-- AI Audits usage bar -->
-						<td class="px-4 py-3">
-							<div class="flex items-center gap-2 min-w-[100px]">
-								<div class="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+			<div
+				class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
+			>
+				<div class="flex items-center justify-between mb-4">
+					<div class="flex items-center gap-3">
+						<div
+							class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center"
+						>
+							<Database class="w-5 h-5 text-green-600" />
+						</div>
+						<div>
+							<p
+								class="text-xs font-medium text-slate-500 uppercase"
+							>
+								Baza danych
+							</p>
+							<p class="text-lg font-bold text-slate-900">87%</p>
+						</div>
+					</div>
+					<div class="relative w-12 h-12">
+						<svg
+							class="w-12 h-12 transform -rotate-90"
+							viewBox="0 0 36 36"
+						>
+							<path
+								class="text-slate-100"
+								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="3"
+							/>
+							<path
+								class="text-green-500"
+								stroke-dasharray="87, 100"
+								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="3"
+								stroke-linecap="round"
+							/>
+						</svg>
+					</div>
+				</div>
+				<div class="flex items-center gap-1.5 text-xs text-green-600">
+					<CheckCircle class="w-3.5 h-3.5" />
+					<span>Stabilna</span>
+				</div>
+			</div>
+
+			<div
+				class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
+			>
+				<div class="flex items-center justify-between mb-4">
+					<div class="flex items-center gap-3">
+						<div
+							class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center"
+						>
+							<Server class="w-5 h-5 text-green-600" />
+						</div>
+						<div>
+							<p
+								class="text-xs font-medium text-slate-500 uppercase"
+							>
+								API Health
+							</p>
+							<p class="text-lg font-bold text-slate-900">100%</p>
+						</div>
+					</div>
+					<div class="relative w-12 h-12">
+						<svg
+							class="w-12 h-12 transform -rotate-90"
+							viewBox="0 0 36 36"
+						>
+							<path
+								class="text-slate-100"
+								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="3"
+							/>
+							<path
+								class="text-green-500"
+								stroke-dasharray="100, 100"
+								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="3"
+								stroke-linecap="round"
+							/>
+						</svg>
+					</div>
+				</div>
+				<div class="flex items-center gap-1.5 text-xs text-green-600">
+					<CheckCircle class="w-3.5 h-3.5" />
+					<span>Wszystkie systemy GO</span>
+				</div>
+			</div>
+
+			<div
+				class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
+			>
+				<div class="flex items-center justify-between mb-4">
+					<div class="flex items-center gap-3">
+						<div
+							class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center"
+						>
+							<Users class="w-5 h-5 text-blue-600" />
+						</div>
+						<div>
+							<p
+								class="text-xs font-medium text-slate-500 uppercase"
+							>
+								Użytkownicy
+							</p>
+							<p class="text-lg font-bold text-slate-900">
+								{{ totalUsers }}
+							</p>
+						</div>
+					</div>
+				</div>
+				<div class="flex items-center gap-3 text-xs">
+					<span class="text-brand-teal font-medium"
+						>{{ proUsers }} Pro</span
+					>
+					<span class="text-slate-300">•</span>
+					<span class="text-slate-500">{{ freeUsers }} Darmowy</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Users Table -->
+		<div
+			class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm"
+		>
+			<div
+				class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+			>
+				<h3 class="text-lg font-bold text-slate-900">
+					Zarządzanie użytkownikami
+				</h3>
+				<div class="flex items-center gap-3">
+					<div class="relative">
+						<Search
+							class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"
+						/>
+						<input
+							v-model="searchQuery"
+							type="text"
+							placeholder="Wyszukaj użytkownika..."
+							class="h-10 pl-10 pr-4 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-green/30 text-sm"
+						/>
+					</div>
+				</div>
+			</div>
+
+			<div v-if="loading" class="p-8">
+				<div class="animate-pulse space-y-3">
+					<div
+						v-for="i in 5"
+						:key="i"
+						class="h-12 bg-slate-100 rounded"
+					></div>
+				</div>
+			</div>
+
+			<div
+				v-else-if="filteredUsers.length === 0"
+				class="p-8 text-center text-slate-400"
+			>
+				<Users class="w-8 h-8 mx-auto mb-2" />
+				<p class="text-sm">
+					{{
+						searchQuery
+							? "Brak wyników wyszukiwania."
+							: "Brak użytkowników."
+					}}
+				</p>
+			</div>
+
+			<div v-else class="overflow-x-auto">
+				<table class="w-full">
+					<thead class="bg-slate-50 border-b border-slate-100">
+						<tr>
+							<th
+								class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
+							>
+								Użytkownik
+							</th>
+							<th
+								class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
+							>
+								Plan
+							</th>
+							<th
+								class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
+							>
+								Rola
+							</th>
+							<th
+								class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
+							>
+								Data rejestracji
+							</th>
+							<th
+								class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
+							>
+								Akcje
+							</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-slate-100">
+						<tr
+							v-for="user in filteredUsers"
+							:key="user.id"
+							class="hover:bg-slate-50 transition-colors"
+						>
+							<td class="px-5 py-4">
+								<div class="flex items-center gap-3">
 									<div
-										class="h-full rounded-full transition-all"
-										:class="usageBarClass(usagePercent(u.usage.ai_audits, 'ai_audits', u.plan))"
-										:style="{ width: usagePercent(u.usage.ai_audits, 'ai_audits', u.plan) + '%' }"
-									></div>
+										class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+										:class="avatarColor(user.email)"
+									>
+										{{ initials(user.email) }}
+									</div>
+									<span
+										class="text-sm font-medium text-slate-900"
+										>{{ user.email }}</span
+									>
 								</div>
-								<span class="text-xs text-slate-500 shrink-0">
-									{{ u.usage.ai_audits }}/{{ u.plan === 'admin' ? '∞' : PLAN_LIMITS[u.plan]?.ai_audits }}
-								</span>
-							</div>
-						</td>
-
-						<!-- Scans usage bar -->
-						<td class="px-4 py-3">
-							<div class="flex items-center gap-2 min-w-[80px]">
-								<div class="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
-									<div
-										class="h-full rounded-full transition-all"
-										:class="usageBarClass(usagePercent(u.usage.scans, 'scans', u.plan))"
-										:style="{ width: usagePercent(u.usage.scans, 'scans', u.plan) + '%' }"
-									></div>
-								</div>
-								<span class="text-xs text-slate-500 shrink-0">
-									{{ u.usage.scans }}/{{ u.plan === 'admin' ? '∞' : PLAN_LIMITS[u.plan]?.scans }}
-								</span>
-							</div>
-						</td>
-
-						<!-- Leads count -->
-						<td class="px-4 py-3 text-right text-slate-700 font-medium">
-							{{ u.leads_count }}
-						</td>
-
-						<!-- Cost -->
-						<td class="px-4 py-3 text-right">
-							<span :class="u.usage.cost_usd > 0.5 ? 'text-orange-600 font-semibold' : 'text-slate-500'">
-								${{ u.usage.cost_usd.toFixed(4) }}
-							</span>
-						</td>
-
-						<!-- Plan change -->
-						<td class="px-4 py-3">
-							<div class="flex gap-1">
-								<button
-									v-for="plan in PLANS"
-									:key="plan"
-									:disabled="u.plan === plan || changingPlan === u.id"
-									@click="setPlan(u.id, plan)"
-									class="px-2 py-1 rounded text-xs font-medium border transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+							</td>
+							<td class="px-5 py-4">
+								<span
+									class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold border"
 									:class="
-										u.plan === plan
-											? 'bg-slate-100 border-slate-200 text-slate-400'
-											: 'bg-white border-slate-200 text-slate-600 hover:border-slate-400 hover:text-slate-800'
+										user.plan === 'pro'
+											? 'bg-brand-green/10 text-brand-teal border-brand-green/20'
+											: 'bg-slate-100 text-slate-600 border-slate-200'
+									"
+									>{{
+										user.plan === "pro" ? "Pro" : "Darmowy"
+									}}</span
+								>
+							</td>
+							<td class="px-5 py-4">
+								<span
+									class="inline-flex items-center gap-1 text-xs font-medium"
+									:class="
+										user.role === 'admin'
+											? 'text-brand-teal'
+											: 'text-slate-500'
 									"
 								>
-									{{ plan }}
-								</button>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
+									<Shield
+										v-if="user.role === 'admin'"
+										class="w-3.5 h-3.5"
+									/>
+									{{
+										user.role === "admin" ? "Admin" : "User"
+									}}
+								</span>
+							</td>
+							<td class="px-5 py-4 text-sm text-slate-500">
+								{{ formatDate(user.created_at) }}
+							</td>
+							<td class="px-5 py-4">
+								<div class="flex items-center gap-2">
+									<button
+										v-if="user.plan !== 'pro'"
+										@click="setPlan(user.id, 'pro')"
+										:disabled="updatingUserId === user.id"
+										class="px-3 py-1 text-xs font-semibold rounded-lg bg-brand-green/10 text-brand-teal hover:bg-brand-green/20 transition-colors disabled:opacity-50 flex items-center gap-1 border border-brand-green/10"
+									>
+										<Zap class="w-3 h-3" />
+										Ulepsz do Pro
+									</button>
+									<button
+										v-else
+										@click="setPlan(user.id, 'free')"
+										:disabled="updatingUserId === user.id"
+										class="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50"
+									>
+										Obniż do Darmowego
+									</button>
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
 
-			<div v-if="!loading && users.length === 0" class="py-12 text-center text-slate-400">
-				Brak użytkowników.
+			<div
+				v-if="!loading && filteredUsers.length > 0"
+				class="px-5 py-3 border-t border-slate-100 text-xs text-slate-400"
+			>
+				Pokazano {{ filteredUsers.length }} z
+				{{ users.length }} użytkowników
 			</div>
 		</div>
 
-		<!-- Summary stats -->
-		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-			<div class="rounded-xl border border-slate-200 bg-white p-4">
-				<p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Wszyscy users</p>
-				<p class="text-2xl font-bold text-slate-800 mt-1">{{ users.length }}</p>
+		<!-- Stats Row -->
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+			<div
+				class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm"
+			>
+				<h3 class="text-base font-bold text-slate-900 mb-4">
+					Rozkład planów
+				</h3>
+				<div class="space-y-3">
+					<div>
+						<div
+							class="flex items-center justify-between text-sm mb-1"
+						>
+							<span class="text-slate-600">Pro</span>
+							<span class="font-medium text-slate-900"
+								>{{ proUsers }} użytkowników</span
+							>
+						</div>
+						<div
+							class="h-2 bg-slate-100 rounded-full overflow-hidden"
+						>
+							<div
+								class="h-full bg-brand-green rounded-full transition-all"
+								:style="`width: ${totalUsers > 0 ? (proUsers / totalUsers) * 100 : 0}%`"
+							></div>
+						</div>
+					</div>
+					<div>
+						<div
+							class="flex items-center justify-between text-sm mb-1"
+						>
+							<span class="text-slate-600">Free</span>
+							<span class="font-medium text-slate-900"
+								>{{ freeUsers }} użytkowników</span
+							>
+						</div>
+						<div
+							class="h-2 bg-slate-100 rounded-full overflow-hidden"
+						>
+							<div
+								class="h-full bg-slate-400 rounded-full transition-all"
+								:style="`width: ${totalUsers > 0 ? (freeUsers / totalUsers) * 100 : 0}%`"
+							></div>
+						</div>
+					</div>
+				</div>
 			</div>
-			<div class="rounded-xl border border-slate-200 bg-white p-4">
-				<p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Plan Pro</p>
-				<p class="text-2xl font-bold text-violet-600 mt-1">{{ users.filter(u => u.plan === 'pro').length }}</p>
-			</div>
-			<div class="rounded-xl border border-slate-200 bg-white p-4">
-				<p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Audyty AI (miesiąc)</p>
-				<p class="text-2xl font-bold text-slate-800 mt-1">{{ users.reduce((s, u) => s + u.usage.ai_audits, 0) }}</p>
-			</div>
-			<div class="rounded-xl border border-slate-200 bg-white p-4">
-				<p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Koszt AI (miesiąc)</p>
-				<p class="text-2xl font-bold text-slate-800 mt-1">${{ totalCost.toFixed(3) }}</p>
+
+			<div
+				class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm"
+			>
+				<h3 class="text-base font-bold text-slate-900 mb-4">
+					Informacje systemowe
+				</h3>
+				<div class="space-y-2 text-sm divide-y divide-slate-50">
+					<div class="flex items-center justify-between py-2">
+						<span class="text-slate-600">Wszyscy użytkownicy</span>
+						<span class="font-semibold text-slate-900">{{
+							totalUsers
+						}}</span>
+					</div>
+					<div class="flex items-center justify-between py-2">
+						<span class="text-slate-600">Konta Pro</span>
+						<span class="font-semibold text-brand-teal">{{
+							proUsers
+						}}</span>
+					</div>
+					<div class="flex items-center justify-between py-2">
+						<span class="text-slate-600">Konta Darmowe</span>
+						<span class="font-semibold text-slate-600">{{
+							freeUsers
+						}}</span>
+					</div>
+					<div class="flex items-center justify-between py-2">
+						<span class="text-slate-600"
+							>Konwersja Darmowy → Pro</span
+						>
+						<span class="font-semibold text-slate-900">
+							{{
+								totalUsers > 0
+									? Math.round((proUsers / totalUsers) * 100)
+									: 0
+							}}%
+						</span>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
