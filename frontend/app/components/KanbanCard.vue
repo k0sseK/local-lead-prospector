@@ -21,11 +21,22 @@ const emit = defineEmits(["audit-lead", "lead-deleted"]);
 const isModalOpen = ref(false);
 const isSendingEmail = ref(false);
 const isDeleting = ref(false);
+const isRegeneratingEmail = ref(false);
 const emailSubject = ref("");
 const editableEmailDraft = ref("");
 const notesValue = ref("");
 const isSavingNotes = ref(false);
 const notesTimeout = ref(null);
+const selectedEmailLanguage = ref("auto");
+
+const EMAIL_LANGUAGES = [
+	{ value: "auto", label: "🌐 Auto-wykrywanie" },
+	{ value: "polskim", label: "🇵🇱 Polski" },
+	{ value: "angielskim", label: "🇬🇧 Angielski" },
+	{ value: "hiszpańskim", label: "🇪🇸 Hiszpański" },
+	{ value: "niemieckim", label: "🇩🇪 Niemiecki" },
+	{ value: "francuskim", label: "🇫🇷 Francuski" },
+];
 
 const formattedDate = computed(() => {
 	if (!props.lead.created_at) return "";
@@ -35,6 +46,7 @@ const formattedDate = computed(() => {
 const openModal = () => {
 	editableEmailDraft.value = props.lead.audit_report?.email_draft || "";
 	notesValue.value = props.lead.notes || "";
+	selectedEmailLanguage.value = "auto";
 	isModalOpen.value = true;
 };
 
@@ -81,6 +93,23 @@ const deleteLead = async () => {
 		toast.error("Nie udało się usunąć leada.");
 	} finally {
 		isDeleting.value = false;
+	}
+};
+
+const regenerateEmail = async () => {
+	try {
+		isRegeneratingEmail.value = true;
+		const lang = selectedEmailLanguage.value === "auto" ? null : selectedEmailLanguage.value;
+		const response = await api.auditLeadWithTemplate(props.lead.id, null, lang);
+		const updated = response.data;
+		Object.assign(props.lead, updated);
+		editableEmailDraft.value = updated.audit_report?.email_draft || "";
+		toast.success("Mail zregenerowany!");
+	} catch (err) {
+		console.error(err);
+		toast.error(err.response?.data?.detail || "Nie udało się zregenerować maila.");
+	} finally {
+		isRegeneratingEmail.value = false;
 	}
 };
 
@@ -541,6 +570,51 @@ const sendEmail = async () => {
 									Skopiuj Maila
 								</button>
 							</div>
+
+							<!-- Language selector + regenerate -->
+							<div class="flex items-center gap-2 mb-3">
+								<select
+									v-model="selectedEmailLanguage"
+									id="email-language-select"
+									class="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+									title="Wybierz język maila"
+								>
+									<option
+										v-for="lang in EMAIL_LANGUAGES"
+										:key="lang.value"
+										:value="lang.value"
+									>{{ lang.label }}</option>
+								</select>
+								<button
+									@click="regenerateEmail"
+									:disabled="isRegeneratingEmail"
+									class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-60 shadow-sm whitespace-nowrap"
+									title="Wygeneruj nową wersję maila w wybranym języku"
+								>
+									<svg
+										v-if="isRegeneratingEmail"
+										class="animate-spin h-3.5 w-3.5"
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+									>
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+									</svg>
+									<svg
+										v-else
+										xmlns="http://www.w3.org/2000/svg"
+										class="h-3.5 w-3.5"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+									>
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+									</svg>
+									{{ isRegeneratingEmail ? "Generuję..." : "Regeneruj maila" }}
+								</button>
+							</div>
+
 							<textarea
 								v-model="editableEmailDraft"
 								class="w-full bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700 leading-relaxed font-mono max-h-64 overflow-y-auto mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"

@@ -115,7 +115,10 @@ export default {
 	deleteAuditTemplate(id) {
 		return api.delete(`/settings/templates/${id}`);
 	},
-	auditLeadWithTemplate(id, templateId) {
-		return api.post(`/leads/${id}/audit`, { template_id: templateId ?? null });
+	auditLeadWithTemplate(id, templateId, targetLanguage) {
+		return api.post(`/leads/${id}/audit`, {
+			template_id: templateId ?? null,
+			target_language: targetLanguage ?? null,
+		});
 	},
 };
