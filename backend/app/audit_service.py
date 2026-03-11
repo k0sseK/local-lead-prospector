@@ -15,7 +15,43 @@ from .ai_analyzer import generate_ai_analysis
 logger = logging.getLogger(__name__)
 
 
-async def run_full_audit(db_lead: models.Lead, db: Session, template_id: int | None = None) -> models.Lead:
+# Mapowanie kodu kraju (ISO alpha-2) -> nazwa języka w celowniku (pl. gramatyka dla promptów)
+COUNTRY_LANGUAGE_MAP = {
+    "PL": "polskim",
+    "ES": "hiszpańskim",
+    "DE": "niemieckim",
+    "FR": "francuskim",
+    "EN": "angielskim",
+    "GB": "angielskim",
+    "US": "angielskim",
+    "IT": "włoskim",
+    "PT": "portugalskim",
+    "NL": "niderlandzkim",
+    "CZ": "czeskim",
+    "SK": "słowackim",
+    "RO": "rumuńskim",
+    "HU": "węgierskim",
+    "UA": "ukraińskim",
+}
+
+
+def _detect_language_from_address(address: str | None) -> str | None:
+    """
+    Próbuje wykryć język na podstawie 2-literowego kodu kraju na końcu adresu.
+    Przykład: "Calle Mayor 5, Madrid, Spain, ES" -> "hiszpańskim".
+    Zwraca None jeśli nie uda się wykryć.
+    """
+    if not address:
+        return None
+    parts = [p.strip() for p in address.replace(",", " ").split()]
+    if parts:
+        candidate = parts[-1].upper()
+        if candidate in COUNTRY_LANGUAGE_MAP:
+            return COUNTRY_LANGUAGE_MAP[candidate]
+    return None
+
+
+async def run_full_audit(db_lead: models.Lead, db: Session, template_id: int | None = None, target_language: str | None = None) -> models.Lead:
     """
     Orkiestruje pełny audyt leada w dwóch krokach:
       1. Audyt techniczny strony (business_auditor)
@@ -64,6 +100,15 @@ async def run_full_audit(db_lead: models.Lead, db: Session, template_id: int | N
         .first()
     )
 
+    # ─── Rozstrzygnij język maila ─────────────────────────────────────────────
+    # Priorytet: 1) explicit target_language z requestu, 2) auto-wykrycie z adresu,
+    # 3) domyślny język z user_settings, 4) fallback na "polskim"
+    if not target_language:
+        target_language = _detect_language_from_address(db_lead.address)
+    if not target_language:
+        target_language = getattr(user_settings, "default_email_language", None) or "polskim"
+    # ─────────────────────────────────────────────────────────────────────────
+
     # Załaduj wybrany szablon; jeśli brak — weź domyślny użytkownika
     audit_template = None
     if template_id:
@@ -87,7 +132,8 @@ async def run_full_audit(db_lead: models.Lead, db: Session, template_id: int | N
 
     try:
         ai_result = await generate_ai_analysis(
-            raw_data, db_lead.company_name, user_settings=user_settings, audit_template=audit_template
+            raw_data, db_lead.company_name, user_settings=user_settings, audit_template=audit_template,
+            target_language=target_language
         )
         logger.info("AI analysis completed for lead %d", db_lead.id)
     except Exception as exc:

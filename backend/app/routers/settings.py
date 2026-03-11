@@ -52,6 +52,7 @@ def upsert_settings(
     settings.smtp_user = data.smtp_user
     settings.smtp_password = data.smtp_password
     settings.smtp_from_email = data.smtp_from_email
+    settings.default_email_language = data.default_email_language
 
     db.commit()
     db.refresh(settings)

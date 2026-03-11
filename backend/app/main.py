@@ -37,6 +37,7 @@ def apply_migrations():
         ("smtp_user", "VARCHAR"),
         ("smtp_password", "VARCHAR"),
         ("smtp_from_email", "VARCHAR"),
+        ("default_email_language", "VARCHAR DEFAULT 'polskim'"),
     ]
     users_cols = [
         ("plan", "VARCHAR DEFAULT 'free'"),
@@ -337,7 +338,7 @@ async def audit_lead_endpoint(
 
     try:
         from .audit_service import run_full_audit
-        result = await run_full_audit(db_lead, db, template_id=audit_request.template_id)
+        result = await run_full_audit(db_lead, db, template_id=audit_request.template_id, target_language=audit_request.target_language)
         increment_usage(db, current_user, "ai_audits", tokens_in=900, tokens_out=500, lead_id=lead_id)
         return result
     except Exception as exc:

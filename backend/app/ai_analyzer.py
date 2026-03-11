@@ -18,7 +18,7 @@ DEFAULT_AUDIT_CONDITIONS = """\
 - Jeśli brakuje tagów SEO — wspomnij o widoczności w wyszukiwarce."""
 
 
-async def generate_ai_analysis(raw_data: dict, company_name: str, user_settings=None, audit_template=None) -> dict:
+async def generate_ai_analysis(raw_data: dict, company_name: str, user_settings=None, audit_template=None, target_language: str = "polskim") -> dict:
     """
     Sends raw audit data to Gemini AI and returns structured selling points + email draft.
     Returns: {"selling_points": [...], "email_draft": "..."}
@@ -75,7 +75,7 @@ Na podstawie powyższych danych i instrukcji:
    E-mail powinien:
    - Być skierowany do właściciela firmy "{company_name}"
    - Zawierać konkretne odniesienia do znalezionych problemów
-   - Być napisany w języku polskim
+   - Napisz e-mail w języku: {target_language}
 
 Odpowiedz WYŁĄCZNIE w formacie JSON z następującą strukturą:
 {{

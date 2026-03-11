@@ -34,6 +34,7 @@ class UserSettings(Base):
     smtp_user = Column(String, nullable=True)
     smtp_password = Column(String, nullable=True)
     smtp_from_email = Column(String, nullable=True)
+    default_email_language = Column(String, default="polskim")  # domyślny język maili
 
 class MonthlyUsage(Base):
     __tablename__ = "monthly_usage"

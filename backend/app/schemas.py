@@ -119,6 +119,7 @@ class UserSettingsBase(BaseModel):
     smtp_user: Optional[str] = None
     smtp_password: Optional[str] = None
     smtp_from_email: Optional[str] = None
+    default_email_language: str = "polskim"
 
 class UserSettingsOut(UserSettingsBase):
     id: int
@@ -154,6 +155,7 @@ class AuditTemplateOut(BaseModel):
 
 class AuditRequest(BaseModel):
     template_id: Optional[int] = None
+    target_language: Optional[str] = None  # np. "polskim", "angielskim", "hiszpańskim"
 
 
 class GenerateAuditPromptRequest(BaseModel):
