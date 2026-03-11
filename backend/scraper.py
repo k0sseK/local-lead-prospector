@@ -1,3 +1,4 @@
+import math
 import os
 import logging
 import httpx
@@ -55,13 +56,17 @@ async def _fetch_places(
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
         "X-Goog-FieldMask": _FIELD_MASK,
     }
-    # locationRestriction — twarde ograniczenie obszaru (nie hint jak locationBias)
+    # locationRestriction.rectangle — twarde ograniczenie obszaru.
+    # API searchText nie obsługuje circle w locationRestriction — wymaga rectangle (viewport).
+    # Obliczamy prostokąt otaczający okrąg (bounding box).
+    lat_delta = radius_km / 111.32
+    lng_delta = radius_km / (111.32 * math.cos(math.radians(lat)))
     payload = {
         "textQuery": keyword,
         "locationRestriction": {
-            "circle": {
-                "center": {"latitude": lat, "longitude": lng},
-                "radius": radius_km * 1000.0,
+            "rectangle": {
+                "low":  {"latitude": lat - lat_delta, "longitude": lng - lng_delta},
+                "high": {"latitude": lat + lat_delta, "longitude": lng + lng_delta},
             }
         },
         "languageCode": country_code,          # język wyników (np. "pl", "es")
