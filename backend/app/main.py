@@ -300,6 +300,7 @@ async def scan_for_leads(
             db=db,
             user_id=current_user.id,
             filters=filters,
+            country_code=scan_request.country_code,
         )
         increment_usage(db, current_user, "scans")
         return {"message": f"Scan completed. Added {new_leads_added} new leads."}

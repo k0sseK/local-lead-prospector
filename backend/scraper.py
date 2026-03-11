@@ -36,10 +36,17 @@ def _validate_api_key() -> None:
 # ---------------------------------------------------------------------------
 
 async def _fetch_places(
-    keyword: str, lat: float, lng: float, radius_km: float, limit: int
+    keyword: str,
+    lat: float,
+    lng: float,
+    radius_km: float,
+    limit: int,
+    country_code: str = "pl",
 ) -> list[dict]:
     """
     Wysyła zapytanie do Google Places API (New) Text Search.
+    Używa locationRestriction (twarde ograniczenie) zamiast locationBias (hint),
+    co eliminuje wyniki spoza wybranego obszaru.
     Rzuca ConnectionError przy problemach sieciowych,
     ValueError przy błędach API.
     """
@@ -48,14 +55,17 @@ async def _fetch_places(
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
         "X-Goog-FieldMask": _FIELD_MASK,
     }
+    # locationRestriction — twarde ograniczenie obszaru (nie hint jak locationBias)
     payload = {
         "textQuery": keyword,
-        "locationBias": {
+        "locationRestriction": {
             "circle": {
                 "center": {"latitude": lat, "longitude": lng},
                 "radius": radius_km * 1000.0,
             }
         },
+        "languageCode": country_code,          # język wyników (np. "pl", "es")
+        "regionCode": country_code.upper(),    # region/kraj wyników (np. "PL", "ES")
         "maxResultCount": limit,
     }
 
@@ -173,6 +183,7 @@ async def scan_google_places(
     db: Session,
     user_id: int,
     filters: dict | None = None,
+    country_code: str = "pl",
 ) -> int:
     """
     Skanuje Google Places API, filtruje wyniki i zapisuje nowe leady do DB.
@@ -187,11 +198,11 @@ async def scan_google_places(
     _validate_api_key()
 
     logger.info(
-        "Scanning Google Places: keyword='%s', lat=%.4f, lng=%.4f, radius=%.1fkm, limit=%d",
-        keyword, lat, lng, radius_km, limit,
+        "Scanning Google Places: keyword='%s', lat=%.4f, lng=%.4f, radius=%.1fkm, limit=%d, country='%s'",
+        keyword, lat, lng, radius_km, limit, country_code,
     )
 
-    places = await _fetch_places(keyword, lat, lng, radius_km, limit)
+    places = await _fetch_places(keyword, lat, lng, radius_km, limit, country_code)
     logger.info("Received %d places from Google API", len(places))
 
     _filters = filters or {}

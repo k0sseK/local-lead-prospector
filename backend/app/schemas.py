@@ -88,6 +88,7 @@ class ScanRequest(BaseModel):
     lng: float
     radius_km: float = 5.0
     limit: int = 10
+    country_code: str = "pl"          # kod kraju ISO 3166-1 alpha-2, np. "pl", "es", "de"
     # Filtry kwalifikacji leadów
     website_filter: str = "all"       # "all" | "with" | "without"
     min_rating: Optional[float] = None
