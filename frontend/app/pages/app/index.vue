@@ -41,6 +41,27 @@ const fetchLeads = async () => {
 const searchKeyword = ref("");
 const searchRadius = ref([5]);
 const searchLimit = ref(10);
+const searchCountry = ref("pl"); // kod kraju ISO 3166-1 alpha-2
+
+const COUNTRIES = [
+	{ code: "pl", name: "Polska 🇵🇱" },
+	{ code: "de", name: "Niemcy 🇩🇪" },
+	{ code: "fr", name: "Francja 🇫🇷" },
+	{ code: "es", name: "Hiszpania 🇪🇸" },
+	{ code: "it", name: "Włochy 🇮🇹" },
+	{ code: "pt", name: "Portugalia 🇵🇹" },
+	{ code: "nl", name: "Holandia 🇳🇱" },
+	{ code: "be", name: "Belgia 🇧🇪" },
+	{ code: "at", name: "Austria 🇦🇹" },
+	{ code: "ch", name: "Szwajcaria 🇨🇭" },
+	{ code: "cz", name: "Czechy 🇨🇿" },
+	{ code: "sk", name: "Słowacja 🇸🇰" },
+	{ code: "hu", name: "Węgry 🇭🇺" },
+	{ code: "ro", name: "Rumunia 🇷🇴" },
+	{ code: "ua", name: "Ukraina 🇺🇦" },
+	{ code: "gb", name: "Wielka Brytania 🇬🇧" },
+	{ code: "us", name: "USA 🇺🇸" },
+];
 
 // ─── Filtry kwalifikacji ──────────────────────────────────────────
 const showFiltersPanel = ref(false);
@@ -243,6 +264,7 @@ const runScan = async () => {
 			lng: markerPosition.value.lng,
 			radius_km: parseFloat(searchRadius.value[0]),
 			limit: parseInt(searchLimit.value, 10),
+			country_code: searchCountry.value,
 			website_filter: filterWebsite.value,
 			min_rating: filterMinRating.value !== "" ? parseFloat(filterMinRating.value) : null,
 			max_rating: filterMaxRating.value !== "" ? parseFloat(filterMaxRating.value) : null,
@@ -696,6 +718,25 @@ onMounted(() => {
 								/>
 							</div>
 						</div>
+
+						<!-- ─── Kraj wyszukiwania ──────────────────────────────────────────── -->
+						<div class="pt-4 border-t border-slate-100 space-y-2">
+							<label class="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+								Kraj wyszukiwania
+							</label>
+							<select
+								v-model="searchCountry"
+								id="search-country-select"
+								class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition-colors"
+							>
+								<option v-for="c in COUNTRIES" :key="c.code" :value="c.code">
+									{{ c.name }}
+								</option>
+							</select>
+							<p class="text-xs text-slate-400">Wyniki zostaną ograniczone do wybranego kraju.</p>
+						</div>
+						<!-- ──────────────────────────────────────────────────────────────── -->
 
 						<!-- ─── Filtry kwalifikacji ─────────────────────────────────── -->
 						<div class="pt-4 border-t border-slate-100">
