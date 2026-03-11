@@ -12,6 +12,7 @@ const form = ref({
 	company_name: "",
 	offer_description: "",
 	tone_of_voice: "formalny",
+	default_email_language: "polskim",
 	email_provider: "resend",
 	resend_api_key: "",
 	smtp_host: "",
@@ -26,7 +27,17 @@ const saving = ref(false);
 const toneOptions = [
 	{ value: "formalny", label: "Formalny i profesjonalny" },
 	{ value: "luzny-startupowy", label: "Luźny i startupowy" },
-	{ value: "krotki-sprzedazowy", label: "Krótki, bezpośredni i sprzedażowy" },
+	{ value: "krotki-sprzedazowy", label: "Krótki, bezpośrednio i sprzedażowy" },
+];
+
+const languageOptions = [
+	{ value: "polskim", label: "🇵🇱 Polski" },
+	{ value: "angielskim", label: "🇬🇧 Angielski" },
+	{ value: "hiszpańskim", label: "🇪🇸 Hiszpański" },
+	{ value: "niemieckim", label: "🇩🇪 Niemiecki" },
+	{ value: "francuskim", label: "🇫🇷 Francuski" },
+	{ value: "włoskim", label: "🇮🇹 Włoski" },
+	{ value: "portugalskim", label: "🇵🇹 Portugalski" },
 ];
 
 onMounted(async () => {
@@ -246,6 +257,24 @@ async function setDefault(t) {
 									{{ option.label }}
 								</option>
 							</select>
+						</div>
+
+						<div class="space-y-2">
+							<Label for="default_email_language">Domyślny język maila</Label>
+							<select
+								id="default_email_language"
+								v-model="form.default_email_language"
+								class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+							>
+								<option
+									v-for="option in languageOptions"
+									:key="option.value"
+									:value="option.value"
+								>
+									{{ option.label }}
+								</option>
+							</select>
+							<p class="text-xs text-slate-500">Używany gdy wykrywanie automatyczne zawiedzie (możesz nadpisać w każdym leądzie z osobna).</p>
 						</div>
 					</CardContent>
 					<CardFooter>
