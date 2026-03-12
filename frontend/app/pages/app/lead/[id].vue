@@ -80,8 +80,9 @@ const statusInfo = computed(
 const fetchLead = async () => {
 	try {
 		loading.value = true;
-		const res = await api.getLeads();
-		lead.value = res.data.find((l) => l.id === parseInt(route.params.id));
+		const leadId = parseInt(route.params.id);
+		const res = await api.getLead(leadId);
+		lead.value = res.data;
 		if (!lead.value) {
 			error.value = "Lead nie został znaleziony.";
 		} else {

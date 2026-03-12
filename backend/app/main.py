@@ -238,6 +238,22 @@ def bulk_delete_leads(
     return {"deleted": deleted}
 
 
+@app.get("/api/leads/{lead_id}", response_model=schemas.Lead)
+def get_lead(
+    lead_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
+    if db_lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return db_lead
+
+
 @app.patch("/api/leads/{lead_id}", response_model=schemas.Lead)
 def update_lead_status(
     lead_id: int,

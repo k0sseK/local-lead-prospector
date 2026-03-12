@@ -179,6 +179,9 @@ export default {
 	},
 
 	// Leads
+	getLead(id: number): Promise<AxiosResponse> {
+		return api.get(`/leads/${id}`);
+	},
 	getLeads(params?: {
 		page?: number;
 		page_size?: number;
