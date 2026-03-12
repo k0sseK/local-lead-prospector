@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "#imports";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
@@ -29,8 +29,13 @@ definePageMeta({ layout: "dashboard", middleware: ["auth"] });
 const router = useRouter();
 const toast = useToast();
 
-// ─── Global leads cache (shared with index/export, TTL 1 min) ────────────────
-const { leads, loading, fetchLeads } = useLeads();
+// Server-side paginated local state (niezależny od useLeads)
+const leads = ref([]);
+const total = ref(0);
+const loading = ref(false);
+
+// Invaliduje cache kanban/export po mutacjach
+const { invalidateLeads } = useLeads();
 
 const searchQuery = ref("");
 const sortBy = ref("newest");
@@ -42,9 +47,54 @@ const selectedIds = ref(new Set());
 const page = ref(1);
 const pageSize = 20;
 
-onMounted(() => {
-	fetchLeads(); // no-op if data is already fresh from another page
+const fetchResults = async () => {
+	loading.value = true;
+	try {
+		const res = await api.getLeads({
+			page: page.value,
+			page_size: pageSize,
+			search: searchQuery.value || undefined,
+			sort_by: sortBy.value,
+			has_email: filterHasEmail.value || undefined,
+			has_phone: filterHasPhone.value || undefined,
+			has_website: filterHasWebsite.value || undefined,
+			min_rating:
+				filterMinRating.value > 0 ? filterMinRating.value : undefined,
+		});
+		leads.value = res.data.items;
+		total.value = res.data.total;
+	} catch {
+		toast.error("Nie udało się załadować leadów.");
+	} finally {
+		loading.value = false;
+	}
+};
+
+// Zmiana filtrów/sortowania → reset do strony 1 i refetch
+const resetAndFetch = () => {
+	if (page.value === 1) {
+		fetchResults();
+	} else {
+		page.value = 1; // watch(page) wyzwoli fetchResults
+	}
+};
+
+watch(
+	[sortBy, filterHasEmail, filterHasPhone, filterHasWebsite, filterMinRating],
+	resetAndFetch,
+);
+
+// Debounce dla wyszukiwania tekstowego
+let _searchTimer = null;
+watch(searchQuery, () => {
+	clearTimeout(_searchTimer);
+	_searchTimer = setTimeout(resetAndFetch, 300);
 });
+
+// Zmiana strony → fetch
+watch(page, fetchResults);
+
+onMounted(fetchResults);
 
 const totalPages = computed(() =>
 	Math.max(1, Math.ceil(total.value / pageSize)),
@@ -295,7 +345,7 @@ function statusBadge(lead) {
 					@click="router.push('/app')"
 					class="mt-4 px-4 py-2 bg-brand-teal text-white rounded-lg text-sm font-medium hover:bg-brand-teal/90 transition-colors"
 				>
-					Przejdź do dashboardu
+					Przejdź do wyszukiwarki
 				</button>
 			</div>
 
