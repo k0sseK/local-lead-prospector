@@ -3,12 +3,12 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install dependencies first (layer caching)
-# Build context = repo root (Railway reads railway.toml from repo root)
-COPY backend/requirements.txt .
+# Build context = backend/ (Railway uses service root as Docker build context)
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source
-COPY backend/ .
+COPY . .
 
 EXPOSE 8000
 
