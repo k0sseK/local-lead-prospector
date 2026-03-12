@@ -90,7 +90,11 @@ api.interceptors.response.use(
 		};
 
 		// ── 401: clear session and redirect ──────────────────────────────────
-		if (axiosError.response?.status === 401) {
+		// Skip redirect for auth endpoints (login, register, etc.) so the
+		// component's own catch handler can display the inline error message.
+		const requestUrl = axiosError.config?.url ?? "";
+		const isAuthEndpoint = requestUrl.includes("/auth/");
+		if (axiosError.response?.status === 401 && !isAuthEndpoint) {
 			document.cookie = "auth_token=; Max-Age=0; path=/";
 			window.location.href = "/login";
 			return Promise.reject(error);
