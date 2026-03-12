@@ -13,6 +13,7 @@ import resend
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -547,6 +548,44 @@ async def lemonsqueezy_webhook(request: Request, db: Session = Depends(database.
 
     db.commit()
     return {"received": True}
+
+
+@app.get("/api/admin/stats")
+def admin_get_stats(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Zwraca zagregowane statystyki systemu (tylko admin)."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Brak uprawnień.")
+
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    total_users = db.query(models.User).count()
+    pro_users = db.query(models.User).filter(models.User.plan == "pro").count()
+    new_users_this_month = db.query(models.User).filter(models.User.created_at >= month_start).count()
+    total_leads = db.query(models.Lead).count()
+
+    # Sumuj z monthly_usage wszystkich użytkowników za bieżący miesiąc
+    monthly_agg = db.query(
+        func.coalesce(func.sum(models.MonthlyUsage.ai_audits), 0).label("ai_audits"),
+        func.coalesce(func.sum(models.MonthlyUsage.scans), 0).label("scans"),
+        func.coalesce(func.sum(models.MonthlyUsage.emails_sent), 0).label("emails_sent"),
+        func.coalesce(func.sum(models.MonthlyUsage.cost_usd), 0).label("cost_usd"),
+    ).filter(models.MonthlyUsage.month == month).first()
+
+    return {
+        "total_users": total_users,
+        "pro_users": pro_users,
+        "new_users_this_month": new_users_this_month,
+        "total_leads": total_leads,
+        "month": month,
+        "ai_audits_this_month": int(monthly_agg.ai_audits) if monthly_agg else 0,
+        "scans_this_month": int(monthly_agg.scans) if monthly_agg else 0,
+        "emails_sent_this_month": int(monthly_agg.emails_sent) if monthly_agg else 0,
+        "cost_usd_this_month": round(float(monthly_agg.cost_usd or 0), 4) if monthly_agg else 0.0,
+    }
 
 
 @app.get("/api/admin/users")
