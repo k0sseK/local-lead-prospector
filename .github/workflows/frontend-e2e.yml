@@ -122,7 +122,7 @@ jobs:
             - name: Start Nuxt preview server
               working-directory: frontend
               run: |
-                  pnpm exec npx serve .output/public -l 3000 &
+                  pnpm exec npx serve .output/public -l 3000 --single &
                   echo "Waiting for Nuxt to be ready..."
                   for i in $(seq 1 15); do
                     curl -sf http://localhost:3000 && break || sleep 2
