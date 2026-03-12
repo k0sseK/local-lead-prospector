@@ -68,7 +68,7 @@ jobs:
                   uvicorn app.main:app --host 0.0.0.0 --port 8000 &
                   echo "Waiting for backend to be ready..."
                   for i in $(seq 1 20); do
-                    curl -sf http://localhost:8000/health && break || sleep 2
+                    curl -sf http://localhost:8000/health && echo "Backend ready" && break || sleep 2
                   done
 
             # ── Frontend setup ─────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ jobs:
             # 11. Seed test user account (idempotent – safe to run every time)
             - name: Seed E2E test account
               run: |
-                  curl -sf -X POST http://localhost:8000/auth/register \
+                  curl -sf -X POST http://localhost:8000/api/auth/register \
                     -H "Content-Type: application/json" \
                     -d '{"email":"${{ secrets.E2E_TEST_EMAIL }}","password":"${{ secrets.E2E_TEST_PASSWORD }}"}' \
                     || echo "User may already exist – continuing"

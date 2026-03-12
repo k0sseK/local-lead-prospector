@@ -30,6 +30,12 @@ logger = logging.getLogger(__name__)
 models.Base.metadata.create_all(bind=database.engine)
 
 def apply_migrations():
+    # SQLite (used in CI) already has all columns from create_all().
+    # Raw DDL below uses PostgreSQL-specific syntax (SERIAL, NOW(), IF NOT EXISTS on ALTER)
+    # that would crash SQLite – skip it entirely on non-PG dialects.
+    if database.engine.dialect.name != "postgresql":
+        logger.info("Skipping DDL migrations (non-PostgreSQL dialect: %s)", database.engine.dialect.name)
+        return
     from sqlalchemy import text
     user_settings_cols = [
         ("email_provider", "VARCHAR DEFAULT 'resend'"),
@@ -85,6 +91,12 @@ app.add_middleware(
 app.include_router(auth_router.router)
 app.include_router(settings_router.router)
 app.include_router(ai_router.router)
+
+
+@app.get("/health", tags=["meta"])
+def health_check():
+    """Liveness probe used by CI and Railway health checks."""
+    return {"status": "ok"}
 
 # ─── Rate limiting (in-memory, per real client IP, 120 req/min) ──────────────
 # NOTE: Railway (and most reverse-proxies) terminate TLS and forward the
