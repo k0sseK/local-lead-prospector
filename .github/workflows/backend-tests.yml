@@ -1,0 +1,58 @@
+name: Backend Tests (pytest)
+
+# ── Triggers ──────────────────────────────────────────────────────────────────
+# Runs on every push and PR that touches backend code or test files.
+# Skips if only docs / frontend files changed.
+on:
+    push:
+        branches: ["main"]
+        paths:
+            - "backend/**"
+            - ".github/workflows/backend-tests.yml"
+    pull_request:
+        branches: ["main"]
+        paths:
+            - "backend/**"
+            - ".github/workflows/backend-tests.yml"
+
+jobs:
+    pytest:
+        name: pytest (Python ${{ matrix.python-version }})
+        runs-on: ubuntu-latest
+
+        strategy:
+            fail-fast: true
+            matrix:
+                python-version: ["3.10"] # match the version in backend/.venv
+
+        steps:
+            # 1. Checkout
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            # 2. Python setup
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ matrix.python-version }}
+                  cache: "pip"
+                  cache-dependency-path: backend/requirements.txt
+
+            # 3. Install deps
+            - name: Install dependencies
+              working-directory: backend
+              run: pip install -r requirements-dev.txt
+
+            # 4. Run tests
+            # DATABASE_URL is overridden to SQLite in-memory inside conftest.py,
+            # so no database service is needed here.
+            - name: Run pytest
+              working-directory: backend
+              env:
+                  SECRET_KEY: ci-test-secret-not-for-production
+                  # Disable external service calls (no real API keys in unit tests)
+                  GEMINI_API_KEY: ""
+                  GOOGLE_PLACES_API_KEY: ""
+                  RESEND_API_KEY: ""
+                  ADMIN_EMAIL: ""
+              run: python -m pytest tests/ -v --tb=short

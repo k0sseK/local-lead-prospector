@@ -13,46 +13,55 @@ A hosted version is available at [znajdzfirmy.pl](https://www.znajdzfirmy.pl).
 ## Features
 
 **Lead Discovery**
+
 - Search businesses by keyword and radius using Google Places API (New)
 - Interactive map view of discovered leads
 - Per-user deduplication — the same business is never imported twice
 - CSV export for any lead selection
 
 **Website Auditor**
+
 - SSL/HTTPS status, responsive design check, page load time
 - SEO audit: `<title>`, `<h1>`, `<meta description>`
 - CMS fingerprinting (WordPress, Next.js, Shopify, and others)
 - Email address extraction, social media presence detection
 
 **AI-Powered Outreach**
+
 - Gemini 2.5 Flash generates personalized cold emails and selling points per lead
 - Configurable sender persona: name, company, offer description, tone of voice
 - One-click send directly from the CRM
 
 **Email Delivery**
+
 - Resend API or custom SMTP — your choice, configured per account
 - Lead automatically moves to `Contacted` on send
 
 **CRM Pipeline**
+
 - Kanban board with 5 stages and drag-and-drop
 - Bulk status updates and bulk delete
 - Per-lead notes, audit results, and AI output in one view
 
 **Plans & Payments**
+
 - Free and Pro tiers with monthly quotas (scans, AI audits, emails sent)
 - LemonSqueezy subscription integration with webhook-based plan sync
 - Quota enforcement with graceful in-app messaging
 
 **Authentication**
+
 - JWT-based auth with bcrypt password hashing
 - Password reset via email
 - Complete data isolation per user account
 
 **Admin Panel**
+
 - User management and manual plan assignment
 - Per-user usage stats, quota monitoring, and cost tracking
 
 **Infrastructure**
+
 - Per-IP rate limiting (30 req/min, configurable)
 - Interactive API docs at `/api/docs`
 - Dockerized — three services (frontend, backend, PostgreSQL) wired together with a single `docker compose up`
@@ -126,6 +135,82 @@ LEMONSQUEEZY_WEBHOOK_SECRET=your_webhook_secret
 ADMIN_EMAIL=you@yourdomain.com
 ADMIN_COST_ALERT_USD=2.0
 ```
+
+---
+
+## Testing
+
+The project uses a two-layer testing strategy: **pytest** for backend business logic (fast, no external services) and **Playwright** for frontend end-to-end tests (black-box, runs against a live app).
+
+### Backend — pytest
+
+Tests use an in-memory SQLite database — no PostgreSQL, no API keys, no Docker required.
+
+```bash
+# One-time setup (adds pytest to your local venv)
+cd backend
+pip install -r requirements-dev.txt
+
+# Run tests
+python -m pytest tests/ -v
+```
+
+> `requirements-dev.txt` is for local development only. Railway and Docker use `requirements.txt` which does not include test tools.
+
+### Frontend — Playwright (E2E, black-box)
+
+Playwright clicks through the real app. Both servers must be running before you start tests.
+
+**One-time setup:**
+
+```bash
+cd frontend
+pnpm install                              # installs @playwright/test from devDependencies
+pnpm exec playwright install chromium    # downloads ~280 MB Chromium browser (once)
+```
+
+**Set test account credentials** (must exist in your local database — register via `/register`):
+
+```powershell
+# PowerShell
+$env:E2E_TEST_EMAIL    = "tester@example.com"
+$env:E2E_TEST_PASSWORD = "YourPassword123"
+```
+
+```bash
+# bash / zsh
+export E2E_TEST_EMAIL="tester@example.com"
+export E2E_TEST_PASSWORD="YourPassword123"
+```
+
+**Run tests** (start both servers first — `start_dev.bat` or manually):
+
+```bash
+pnpm test:e2e:ui      # interactive UI mode — recommended, shows every click live
+pnpm test:e2e         # headless, results in terminal
+pnpm test:e2e:debug   # headed + Playwright Inspector for debugging
+```
+
+> Playwright is a `devDependency`. The frontend Docker image (`nginx:alpine`) is built from static files only — Playwright never ends up in the production image.
+
+### Pre-push checklist
+
+Before every `git push`:
+
+```bash
+# 1. Start the app (if not already running)
+start_dev.bat
+
+# 2. Backend tests — takes ~0.3s
+cd backend
+python -m pytest tests/ -v
+
+# 3. E2E tests — takes ~15–30s
+cd frontend
+pnpm test:e2e:ui
+```
+
+Railway deploys automatically after a successful push. GitHub Actions workflows (`.github/workflows/`) are included for future CI automation but are not required today.
 
 ---
 
