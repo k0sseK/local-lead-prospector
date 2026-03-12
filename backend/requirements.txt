@@ -12,3 +12,8 @@ python-jose[cryptography]
 passlib[bcrypt]
 bcrypt==4.0.1
 python-multipart
+
+# Testing
+pytest>=7.4
+pytest-mock>=3.12
+pytest-asyncio>=0.23
