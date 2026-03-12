@@ -110,7 +110,7 @@ jobs:
               working-directory: frontend
               run: pnpm exec playwright install-deps chromium
 
-            # 9. Build Nuxt for production (SPA mode → generates static files)
+            # 9. Build Nuxt for production (SSR → generates .output/server/index.mjs)
             - name: Build Nuxt
               working-directory: frontend
               env:
@@ -118,11 +118,14 @@ jobs:
                   NUXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
               run: pnpm build
 
-            # 10. Serve Nuxt SPA with a static file server
+            # 10. Start Nuxt SSR server (nuxt build produces a Node server, not static files)
             - name: Start Nuxt preview server
               working-directory: frontend
+              env:
+                  PORT: "3000"
+                  NUXT_PUBLIC_API_BASE: "http://localhost:8000/api"
               run: |
-                  pnpm exec npx serve .output/public -l 3000 --single &
+                  node .output/server/index.mjs &
                   echo "Waiting for Nuxt to be ready..."
                   for i in $(seq 1 15); do
                     curl -sf http://localhost:3000 && break || sleep 2
