@@ -171,7 +171,7 @@ function statusBadge(lead) {
 		>
 			<div>
 				<h1 class="text-3xl font-bold tracking-tight text-slate-900">
-					Wyniki skanowania
+					Wyniki Skanowania
 				</h1>
 				<p class="text-slate-500 mt-2">
 					Znaleziono <strong>{{ filteredLeads.length }}</strong> firm

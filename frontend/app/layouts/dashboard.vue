@@ -23,7 +23,7 @@ const initials = computed(() => {
 
 const navItems = [
 	{ to: "/app", icon: LayoutDashboard, label: "Wyszukiwarka" },
-	{ to: "/app/scan-results", icon: ScanSearch, label: "Wyniki skanów" },
+	{ to: "/app/scan-results", icon: ScanSearch, label: "Wyniki Skanowania" },
 	{ to: "/app/export", icon: Download, label: "Eksport CSV" },
 	{ to: "/app/settings", icon: Settings, label: "Ustawienia" },
 	{
