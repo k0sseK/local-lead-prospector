@@ -5,12 +5,9 @@ import api from "@/services/api";
 import { formatDate } from "@/utils/format.js";
 import {
 	Users,
-	Activity,
 	Zap,
 	CheckCircle,
-	Gauge,
 	Database,
-	Server,
 	TrendingUp,
 	Search,
 	Shield,
@@ -28,6 +25,21 @@ const loading = ref(true);
 const searchQuery = ref("");
 const updatingUserId = ref(null);
 
+const stats = ref(null);
+const statsLoading = ref(true);
+
+const fetchStats = async () => {
+	try {
+		statsLoading.value = true;
+		const res = await api.adminGetStats();
+		stats.value = res.data;
+	} catch {
+		// Stats are optional – silently ignore
+	} finally {
+		statsLoading.value = false;
+	}
+};
+
 const fetchUsers = async () => {
 	try {
 		loading.value = true;
@@ -44,7 +56,10 @@ const fetchUsers = async () => {
 	}
 };
 
-onMounted(fetchUsers);
+onMounted(() => {
+	fetchUsers();
+	fetchStats();
+});
 
 const filteredUsers = computed(() => {
 	if (!searchQuery.value) return users.value;
@@ -130,106 +145,128 @@ const freeUsers = computed(
 			</div>
 		</div>
 
-		<!-- System Health Cards -->
+		<!-- System Stats Cards -->
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+			<!-- Leady -->
 			<div
 				class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
 			>
-				<div class="flex items-center justify-between mb-4">
-					<div class="flex items-center gap-3">
-						<div
-							class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center"
-						>
-							<Gauge class="w-5 h-5 text-green-600" />
-						</div>
-						<div>
-							<p
-								class="text-xs font-medium text-slate-500 uppercase"
-							>
-								Wydajność
-							</p>
-							<p class="text-lg font-bold text-slate-900">94%</p>
-						</div>
+				<div class="flex items-center gap-3 mb-3">
+					<div
+						class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center"
+					>
+						<Database class="w-5 h-5 text-green-600" />
 					</div>
-					<div class="relative w-12 h-12">
-						<svg
-							class="w-12 h-12 transform -rotate-90"
-							viewBox="0 0 36 36"
-						>
-							<path
-								class="text-slate-100"
-								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="3"
-							/>
-							<path
-								class="text-green-500"
-								stroke-dasharray="94, 100"
-								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="3"
-								stroke-linecap="round"
-							/>
-						</svg>
+					<div>
+						<p class="text-xs font-medium text-slate-500 uppercase">
+							Leady łącznie
+						</p>
+						<p class="text-lg font-bold text-slate-900">
+							<span
+								v-if="statsLoading"
+								class="inline-block w-12 h-5 bg-slate-100 rounded animate-pulse"
+							></span>
+							<span v-else>{{ stats?.total_leads ?? "–" }}</span>
+						</p>
 					</div>
 				</div>
 				<div class="flex items-center gap-1.5 text-xs text-green-600">
 					<TrendingUp class="w-3.5 h-3.5" />
-					<span>Doskonała</span>
+					<span>Wszystkie firmy w bazie</span>
 				</div>
 			</div>
 
+			<!-- Skany ten miesiąc -->
 			<div
 				class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
 			>
-				<div class="flex items-center justify-between mb-4">
-					<div class="flex items-center gap-3">
-						<div
-							class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center"
-						>
-							<Database class="w-5 h-5 text-green-600" />
-						</div>
-						<div>
-							<p
-								class="text-xs font-medium text-slate-500 uppercase"
-							>
-								Baza danych
-							</p>
-							<p class="text-lg font-bold text-slate-900">87%</p>
-						</div>
+				<div class="flex items-center gap-3 mb-3">
+					<div
+						class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center"
+					>
+						<Search class="w-5 h-5 text-blue-600" />
 					</div>
-					<div class="relative w-12 h-12">
-						<svg
-							class="w-12 h-12 transform -rotate-90"
-							viewBox="0 0 36 36"
-						>
-							<path
-								class="text-slate-100"
-								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="3"
-							/>
-							<path
-								class="text-green-500"
-								stroke-dasharray="87, 100"
-								d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="3"
-								stroke-linecap="round"
-							/>
-						</svg>
+					<div>
+						<p class="text-xs font-medium text-slate-500 uppercase">
+							Skany (mies.)
+						</p>
+						<p class="text-lg font-bold text-slate-900">
+							<span
+								v-if="statsLoading"
+								class="inline-block w-12 h-5 bg-slate-100 rounded animate-pulse"
+							></span>
+							<span v-else>{{
+								stats?.scans_this_month ?? "–"
+							}}</span>
+						</p>
 					</div>
 				</div>
-				<div class="flex items-center gap-1.5 text-xs text-green-600">
-					<CheckCircle class="w-3.5 h-3.5" />
-					<span>Stabilna</span>
+				<div class="text-xs text-slate-400">
+					{{ stats?.month ?? "" }}
 				</div>
 			</div>
 
+			<!-- Audyty AI ten miesiąc -->
+			<div
+				class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
+			>
+				<div class="flex items-center gap-3 mb-3">
+					<div
+						class="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center"
+					>
+						<Zap class="w-5 h-5 text-purple-600" />
+					</div>
+					<div>
+						<p class="text-xs font-medium text-slate-500 uppercase">
+							Audyty AI (mies.)
+						</p>
+						<p class="text-lg font-bold text-slate-900">
+							<span
+								v-if="statsLoading"
+								class="inline-block w-12 h-5 bg-slate-100 rounded animate-pulse"
+							></span>
+							<span v-else>{{
+								stats?.ai_audits_this_month ?? "–"
+							}}</span>
+						</p>
+					</div>
+				</div>
+				<div class="text-xs text-slate-400">
+					{{ stats?.month ?? "" }}
+				</div>
+			</div>
+
+			<!-- Użytkownicy -->
+			<div
+				class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
+			>
+				<div class="flex items-center gap-3 mb-3">
+					<div
+						class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center"
+					>
+						<Users class="w-5 h-5 text-blue-600" />
+					</div>
+					<div>
+						<p class="text-xs font-medium text-slate-500 uppercase">
+							Użytkownicy
+						</p>
+						<p class="text-lg font-bold text-slate-900">
+							{{ totalUsers }}
+						</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-3 text-xs">
+					<span class="text-brand-teal font-medium"
+						>{{ proUsers }} Pro</span
+					>
+					<span class="text-slate-300">•</span>
+					<span class="text-slate-500">{{ freeUsers }} Darmowy</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- STARY blok (usunięty) placeholder - kontynuacja poniżej -->
+		<div class="hidden">
 			<div
 				class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
 			>
@@ -563,6 +600,48 @@ const freeUsers = computed(
 									? Math.round((proUsers / totalUsers) * 100)
 									: 0
 							}}%
+						</span>
+					</div>
+					<div class="flex items-center justify-between py-2">
+						<span class="text-slate-600"
+							>Nowi użytkownicy (mies.)</span
+						>
+						<span class="font-semibold text-slate-900">
+							<span
+								v-if="statsLoading"
+								class="inline-block w-8 h-4 bg-slate-100 rounded animate-pulse"
+							></span>
+							<span v-else>{{
+								stats?.new_users_this_month ?? "–"
+							}}</span>
+						</span>
+					</div>
+					<div class="flex items-center justify-between py-2">
+						<span class="text-slate-600"
+							>Maile wysłane (mies.)</span
+						>
+						<span class="font-semibold text-slate-900">
+							<span
+								v-if="statsLoading"
+								class="inline-block w-8 h-4 bg-slate-100 rounded animate-pulse"
+							></span>
+							<span v-else>{{
+								stats?.emails_sent_this_month ?? "–"
+							}}</span>
+						</span>
+					</div>
+					<div class="flex items-center justify-between py-2">
+						<span class="text-slate-600">Koszt AI (mies.)</span>
+						<span class="font-semibold text-slate-900">
+							<span
+								v-if="statsLoading"
+								class="inline-block w-12 h-4 bg-slate-100 rounded animate-pulse"
+							></span>
+							<span v-else
+								>${{
+									stats?.cost_usd_this_month ?? "0.0000"
+								}}</span
+							>
 						</span>
 					</div>
 				</div>

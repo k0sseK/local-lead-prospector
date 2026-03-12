@@ -260,6 +260,9 @@ export default {
 	adminGetUsers(): Promise<AxiosResponse> {
 		return api.get("/admin/users");
 	},
+	adminGetStats(): Promise<AxiosResponse> {
+		return api.get("/admin/stats");
+	},
 	adminSetPlan(userId: number, plan: string): Promise<AxiosResponse> {
 		return api.post("/admin/set-plan", { user_id: userId, plan });
 	},
