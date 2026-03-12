@@ -179,8 +179,17 @@ export default {
 	},
 
 	// Leads
-	getLeads(): Promise<AxiosResponse> {
-		return api.get("/leads");
+	getLeads(params?: {
+		page?: number;
+		page_size?: number;
+		search?: string;
+		sort_by?: string;
+		has_email?: boolean;
+		has_phone?: boolean;
+		has_website?: boolean;
+		min_rating?: number;
+	}): Promise<AxiosResponse> {
+		return api.get("/leads", { params });
 	},
 	updateLeadStatus(id: number, status: string): Promise<AxiosResponse> {
 		return api.patch(`/leads/${id}`, { status });

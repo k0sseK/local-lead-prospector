@@ -56,7 +56,7 @@ export function useLeads() {
 		loading.value = true;
 		try {
 			const response = await api.getLeads();
-			leads.value = response.data as Lead[];
+			leads.value = response.data.items as Lead[];
 			_fetchedAt.value = Date.now();
 		} catch (err) {
 			console.error("[useLeads] fetchLeads failed:", err);

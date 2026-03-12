@@ -46,53 +46,20 @@ onMounted(() => {
 	fetchLeads(); // no-op if data is already fresh from another page
 });
 
-const filteredLeads = computed(() => {
-	let result = [...leads.value];
-
-	if (searchQuery.value) {
-		const q = searchQuery.value.toLowerCase();
-		result = result.filter(
-			(l) =>
-				l.company_name?.toLowerCase().includes(q) ||
-				l.address?.toLowerCase().includes(q),
-		);
-	}
-
-	if (filterHasEmail.value) result = result.filter((l) => l.email);
-	if (filterHasPhone.value) result = result.filter((l) => l.phone);
-	if (filterHasWebsite.value) result = result.filter((l) => l.website);
-	if (filterMinRating.value > 0)
-		result = result.filter((l) => (l.rating || 0) >= filterMinRating.value);
-
-	result.sort((a, b) => {
-		if (sortBy.value === "rating") return (b.rating || 0) - (a.rating || 0);
-		if (sortBy.value === "name")
-			return a.company_name?.localeCompare(b.company_name);
-		return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-	});
-
-	return result;
-});
-
 const totalPages = computed(() =>
-	Math.max(1, Math.ceil(filteredLeads.value.length / pageSize)),
+	Math.max(1, Math.ceil(total.value / pageSize)),
 );
-
-const pagedLeads = computed(() => {
-	const start = (page.value - 1) * pageSize;
-	return filteredLeads.value.slice(start, start + pageSize);
-});
 
 const allSelected = computed(
 	() =>
-		pagedLeads.value.length > 0 &&
-		pagedLeads.value.every((l) => selectedIds.value.has(l.id)),
+		leads.value.length > 0 &&
+		leads.value.every((l) => selectedIds.value.has(l.id)),
 );
 
 const selectedCount = computed(() => selectedIds.value.size);
 
 const statusBadgeMap = computed(() =>
-	Object.fromEntries(pagedLeads.value.map((l) => [l.id, statusBadge(l)])),
+	Object.fromEntries(leads.value.map((l) => [l.id, statusBadge(l)])),
 );
 
 const visiblePages = computed(() => {
@@ -119,7 +86,7 @@ function toggleSelectAll() {
 	if (allSelected.value) {
 		selectedIds.value = new Set();
 	} else {
-		selectedIds.value = new Set(pagedLeads.value.map((l) => l.id));
+		selectedIds.value = new Set(leads.value.map((l) => l.id));
 	}
 }
 
@@ -140,16 +107,17 @@ async function bulkDelete() {
 	if (!confirm(`Usunąć ${ids.length} leadów?`)) return;
 	try {
 		await api.bulkDeleteLeads(ids);
-		leads.value = leads.value.filter((l) => !ids.includes(l.id));
 		selectedIds.value = new Set();
 		toast.success(`Usunięto ${ids.length} leadów.`);
+		invalidateLeads(); // odśwież kanban/export
+		fetchResults();
 	} catch {
 		toast.error("Błąd podczas usuwania.");
 	}
 }
 
 function statusBadge(lead) {
-	if (!lead.has_ssl && lead.website)
+	if (!lead.has_ssl && lead.website_uri)
 		return {
 			text: "Brak SSL!",
 			cls: "bg-red-100 text-red-700 border-red-200",
@@ -174,8 +142,7 @@ function statusBadge(lead) {
 					Wyniki Skanowania
 				</h1>
 				<p class="text-slate-500 mt-2">
-					Znaleziono <strong>{{ filteredLeads.length }}</strong> firm
-					w bazie danych.
+					Znaleziono <strong>{{ total }}</strong> firm w bazie danych.
 				</p>
 			</div>
 
@@ -184,7 +151,7 @@ function statusBadge(lead) {
 					class="inline-flex items-center gap-1.5 rounded-full border border-green-300 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700"
 				>
 					<CheckCircle class="w-4 h-4" />
-					{{ filteredLeads.length }} wyników
+					{{ total }} wyników
 				</span>
 
 				<select
@@ -315,7 +282,7 @@ function statusBadge(lead) {
 
 			<!-- Empty -->
 			<div
-				v-else-if="pagedLeads.length === 0"
+				v-else-if="leads.length === 0"
 				class="text-center py-16 text-slate-500"
 			>
 				<Search class="w-12 h-12 mx-auto mb-4 text-slate-300" />
@@ -338,7 +305,7 @@ function statusBadge(lead) {
 				class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
 			>
 				<div
-					v-for="lead in pagedLeads"
+					v-for="lead in leads"
 					:key="lead.id"
 					class="bg-white p-4 rounded-xl shadow-sm border transition-shadow cursor-pointer group"
 					:class="
@@ -398,11 +365,11 @@ function statusBadge(lead) {
 							{{ lead.email }}
 						</p>
 						<p
-							v-if="lead.website"
+							v-if="lead.website_uri"
 							class="flex items-center gap-1 truncate"
 						>
 							<Globe class="w-3 h-3 flex-shrink-0" />
-							{{ lead.website }}
+							{{ lead.website_uri }}
 						</p>
 					</div>
 
@@ -446,9 +413,9 @@ function statusBadge(lead) {
 		>
 			<p class="text-sm text-slate-500">
 				Pokazano {{ (page - 1) * pageSize + 1 }}–{{
-					Math.min(page * pageSize, filteredLeads.length)
+					Math.min(page * pageSize, total)
 				}}
-				z {{ filteredLeads.length }} wyników
+				z {{ total }} wyników
 			</p>
 			<div class="flex items-center gap-2">
 				<button

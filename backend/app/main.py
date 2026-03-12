@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import io
 import logging
+import math
 import os
 import time
 from collections import defaultdict
@@ -13,7 +14,7 @@ import resend
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -133,21 +134,56 @@ async def rate_limit_middleware(request: Request, call_next):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-@app.get("/api/leads", response_model=List[schemas.Lead])
+@app.get("/api/leads")
 def read_leads(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    page_size: int = 2000,
+    search: str = "",
+    sort_by: str = "newest",
+    has_email: bool = False,
+    has_phone: bool = False,
+    has_website: bool = False,
+    min_rating: float = 0,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    leads = (
-        db.query(models.Lead)
-        .filter(models.Lead.user_id == current_user.id)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-    return leads
+    """Zwraca stronicę leadów z opcjonalnym filtrowaniem/sortowaniem.
+    Domyślnie page_size=2000 (pobiera wszystko) dla wstecznej zgodności.
+    """
+    query = db.query(models.Lead).filter(models.Lead.user_id == current_user.id)
+
+    if search:
+        query = query.filter(
+            or_(
+                models.Lead.company_name.ilike(f"%{search}%"),
+                models.Lead.address.ilike(f"%{search}%"),
+            )
+        )
+    if has_email:
+        query = query.filter(models.Lead.email.isnot(None), models.Lead.email != "")
+    if has_phone:
+        query = query.filter(models.Lead.phone.isnot(None), models.Lead.phone != "")
+    if has_website:
+        query = query.filter(models.Lead.website_uri.isnot(None), models.Lead.website_uri != "")
+    if min_rating > 0:
+        query = query.filter(models.Lead.rating >= min_rating)
+
+    if sort_by == "rating":
+        query = query.order_by(models.Lead.rating.desc())
+    elif sort_by == "name":
+        query = query.order_by(models.Lead.company_name.asc())
+    else:
+        query = query.order_by(models.Lead.created_at.desc())
+
+    total = query.count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "pages": max(1, math.ceil(total / page_size)),
+    }
 
 
 @app.patch("/api/leads/bulk-update-status", response_model=schemas.BulkOperationResult)
