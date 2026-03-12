@@ -1,7 +1,8 @@
 """
 quota_service.py
 
-Zarządza limitami zużycia per użytkownik (plan free/pro/admin).
+Zarządza limitami zużycia per użytkownik (plan free/pro).
+Admini (role='admin') mają zawsze nieograniczone limity, niezależnie od planu.
 Każdy audyt AI, skan Google Maps i wysyłka e-mail jest zliczana
 w tabeli monthly_usage. Limity są resetowane automatycznie każdego
 miesiąca (nowy rekord per miesiąc).
@@ -15,7 +16,7 @@ from . import models
 
 logger = logging.getLogger(__name__)
 
-# Limity miesięczne per plan
+# Limity miesięczne per plan (role='admin' → zawsze nieograniczone, patrz check_quota/get_quota_info)
 PLAN_LIMITS: dict[str, dict[str, int]] = {
     "free": {
         "ai_audits": 10,
@@ -27,11 +28,12 @@ PLAN_LIMITS: dict[str, dict[str, int]] = {
         "scans": 50,
         "emails_sent": 500,
     },
-    "admin": {
-        "ai_audits": 999_999,
-        "scans": 999_999,
-        "emails_sent": 999_999,
-    },
+}
+
+_UNLIMITED: dict[str, int] = {
+    "ai_audits": 999_999,
+    "scans": 999_999,
+    "emails_sent": 999_999,
 }
 
 # Szacunkowy koszt per akcja (USD) — Gemini 2.5 Flash
@@ -62,6 +64,8 @@ def _get_or_create_usage(db: Session, user_id: int) -> models.MonthlyUsage:
 
 def check_quota(db: Session, user: models.User, action: str) -> bool:
     """Zwraca True jeśli użytkownik może wykonać akcję (w ramach limitu)."""
+    if user.role == "admin":
+        return True  # admini mają zawsze nieograniczone limity
     plan = user.plan or "free"
     limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
     limit = limits.get(action, 0)
@@ -82,7 +86,11 @@ def check_quota(db: Session, user: models.User, action: str) -> bool:
 def get_quota_info(db: Session, user: models.User) -> dict:
     """Zwraca bieżące zużycie i limity użytkownika."""
     plan = user.plan or "free"
-    limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+    if user.role == "admin":
+        limits = _UNLIMITED
+        plan = "admin"  # wyświetlamy 'admin' w UI dla roli admin
+    else:
+        limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
     month = _current_month()
     usage = (
         db.query(models.MonthlyUsage)

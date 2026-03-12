@@ -10,7 +10,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="user")  # 'user' | 'admin'
-    plan = Column(String, default="free")  # 'free' | 'pro' | 'admin'
+    plan = Column(String, default="free")  # 'free' | 'pro'  (admin → rola, nie plan)
     plan_expires_at = Column(DateTime, nullable=True)
     lemon_subscription_id = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
