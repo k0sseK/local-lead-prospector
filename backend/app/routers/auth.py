@@ -31,6 +31,10 @@ def send_verification_email(email: str, token: str):
 
 
 def verify_turnstile(token: str | None):
+    # Explicit local/CI escape hatch for deterministic E2E runs.
+    if os.getenv("DISABLE_TURNSTILE", "").lower() in {"1", "true", "yes", "on"}:
+        return
+
     secret = os.getenv("TURNSTILE_SECRET_KEY")
     if not secret:
         return
