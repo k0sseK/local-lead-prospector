@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useToast } from "vue-toastification";
+import { toast } from "vue-sonner";
 import api from "@/services/api";
 import { formatDate } from "@/utils/format.js";
 import {
@@ -17,8 +17,6 @@ definePageMeta({
 	layout: "dashboard",
 	middleware: ["auth"],
 });
-
-const toast = useToast();
 
 const users = ref([]);
 const loading = ref(true);

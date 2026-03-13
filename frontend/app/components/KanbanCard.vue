@@ -1,10 +1,9 @@
 <script setup>
 import { computed, ref } from "vue";
-import { useToast } from "vue-toastification";
+import { toast } from "vue-sonner";
 import api from "@/services/api";
 import { CheckCircle, FileText } from "lucide-vue-next";
 
-const toast = useToast();
 
 const props = defineProps({
 	lead: {

@@ -11,12 +11,11 @@
  *   - handleKanbanStatusUpdate() → widok Kanban
  */
 import type { Ref } from "vue";
-import { useToast } from "vue-toastification";
-import api from "../services/api";
+import { toast } from "vue-sonner";
+import api from "@/services/api";
 import type { Lead } from "./useLeads";
 
 export function useLeadStatus(leads: Ref<Lead[]>) {
-	const toast = useToast();
 
 	/**
 	 * Aktualizuje status leada z optimistic update i revert na błąd.

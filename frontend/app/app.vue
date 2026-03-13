@@ -1,5 +1,6 @@
 <script setup>
 import { useAuth } from "@/composables/useAuth";
+import { Toaster } from "@/components/ui/sonner";
 
 const { init } = useAuth();
 await init();
@@ -9,4 +10,5 @@ await init();
 	<NuxtLayout>
 		<NuxtPage />
 	</NuxtLayout>
+	<Toaster />
 </template>

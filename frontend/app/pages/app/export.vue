@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "#imports";
-import { useToast } from "vue-toastification";
+import { toast } from "vue-sonner";
 import {
 	ArrowLeft,
 	Download,
@@ -17,7 +17,6 @@ definePageMeta({ layout: "dashboard", middleware: ["auth"] });
 
 const router = useRouter();
 const route = useRoute();
-const toast = useToast();
 
 // ─── Global cached state (shared with index/scan-results) ────────────────────
 const { leads, loading, fetchLeads } = useLeads();

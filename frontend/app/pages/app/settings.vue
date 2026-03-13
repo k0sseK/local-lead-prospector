@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { useToast } from "vue-toastification";
+import { toast } from "vue-sonner";
 import api from "@/services/api";
 import {
 	User,
@@ -23,8 +23,6 @@ import {
 } from "lucide-vue-next";
 
 definePageMeta({ middleware: "auth", layout: "dashboard" });
-
-const toast = useToast();
 
 const activeTab = ref("ai");
 

@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useRoute, useRouter } from "#imports";
-import { useToast } from "vue-toastification";
+import { ref, onMounted, nextTick } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { toast } from "vue-sonner";
 import api from "@/services/api";
 import { formatDate, initials } from "@/utils/format.js";
 import {
@@ -31,8 +31,8 @@ definePageMeta({ layout: "dashboard", middleware: ["auth"] });
 
 const route = useRoute();
 const router = useRouter();
-const toast = useToast();
 
+const leadId = Number(route.params.id);
 const lead = ref(null);
 const loading = ref(true);
 const error = ref(null);

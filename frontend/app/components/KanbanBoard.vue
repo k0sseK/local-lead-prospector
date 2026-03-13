@@ -2,7 +2,7 @@
 import { ref, watch, computed } from "vue";
 import draggable from "vuedraggable";
 import KanbanCard from "@/components/KanbanCard.vue";
-import { useToast } from "vue-toastification";
+import { toast } from "vue-sonner";
 import api from "@/services/api";
 
 const props = defineProps({
@@ -13,7 +13,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update-status", "lead-deleted", "audit-all-done"]);
-const toast = useToast();
 
 const auditingIds = ref(new Set());
 

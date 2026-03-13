@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "#imports";
-import { useToast } from "vue-toastification";
+import { toast } from "vue-sonner";
 import api from "@/services/api";
 import {
 	ArrowLeft,
@@ -27,7 +27,6 @@ import { formatDate } from "@/utils/format.js";
 definePageMeta({ layout: "dashboard", middleware: ["auth"] });
 
 const router = useRouter();
-const toast = useToast();
 
 // Server-side paginated local state (niezależny od useLeads)
 const leads = ref([]);

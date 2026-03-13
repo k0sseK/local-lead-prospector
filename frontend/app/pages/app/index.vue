@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import api from "@/services/api";
+import { toast } from "vue-sonner";
 import {
 	GoogleMap,
 	CustomMarker,
@@ -8,7 +9,6 @@ import {
 } from "vue3-google-map";
 import { useRuntimeConfig } from "#app";
 import KanbanBoard from "@/components/KanbanBoard.vue";
-import { useToast } from "vue-toastification";
 import { useLeadStatus } from "@/composables/useLeadStatus";
 import { useRouter } from "#imports";
 import { formatDate } from "@/utils/format.js";
@@ -29,8 +29,9 @@ definePageMeta({
 });
 
 const router = useRouter();
-const toast = useToast();
+
 const error = ref(null);
+const currentTab = ref("list");
 const viewMode = ref("kanban");
 
 // ─── Global leads cache (shared across pages, TTL 1 min) ─────────────────────

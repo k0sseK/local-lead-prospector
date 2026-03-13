@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "#imports";
-import { useToast } from "vue-toastification";
+import { toast } from "vue-sonner";
 import api from "@/services/api";
 import {
 	ArrowLeft,
@@ -31,7 +31,6 @@ definePageMeta({ layout: "dashboard", middleware: ["auth"] });
 
 const route = useRoute();
 const router = useRouter();
-const toast = useToast();
 
 const lead = ref(null);
 const loading = ref(true);
