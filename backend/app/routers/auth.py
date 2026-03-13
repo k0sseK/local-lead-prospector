@@ -48,7 +48,7 @@ def verify_turnstile(token: str | None):
         raise HTTPException(status_code=403, detail="Błąd połączenia z serwerem weryfikacji.")
 
 
-@router.post("/register", response_model=schemas.Token, status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 @limiter.limit("3/day")
 def register(request: Request, user_in: schemas.UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     verify_turnstile(user_in.cf_turnstile_response)
@@ -71,8 +71,7 @@ def register(request: Request, user_in: schemas.UserCreate, background_tasks: Ba
 
     background_tasks.add_task(send_verification_email, user.email, token_str)
 
-    token = create_access_token({"sub": str(user.id)})
-    return {"access_token": token, "token_type": "bearer", "user": user}
+    return {"message": "Konto utworzone. Sprawdź e-mail i odbierz link weryfikacyjny."}
 
 
 @router.get("/verify-email")

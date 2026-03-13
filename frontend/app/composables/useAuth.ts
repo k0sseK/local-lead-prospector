@@ -49,17 +49,22 @@ export function useAuth() {
 		password: string,
 		cf_turnstile_response?: string,
 	): Promise<void> {
-		const response = await api.register({
+		await api.register({
 			email,
 			password,
 			cf_turnstile_response,
 		});
-		const data = response.data as AuthResponse;
-		token.value = data.access_token;
-		user.value = data.user;
-		quota.value = null;
-		invalidateQuota();
-		await navigateTo("/app");
+
+		try {
+			if (import.meta.client) {
+				const { toast } = await import("vue-sonner");
+				toast.success("Konto utworzone pomyślnie! Sprawdź swoją skrzynkę e-mail, aby potwierdzić adres przed logowaniem.", { duration: 8000 });
+			}
+		} catch (e) {
+			// fallback
+		}
+
+		await navigateTo("/login");
 	}
 
 	async function init(): Promise<void> {

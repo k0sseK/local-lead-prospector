@@ -3,7 +3,7 @@ import axios, {
 	type AxiosResponse,
 	type InternalAxiosRequestConfig,
 } from "axios";
-import { useToast } from "vue-toastification";
+import { toast } from "vue-sonner";
 
 // Allow the retry counter to be attached to Axios request configs
 declare module "axios" {
@@ -126,15 +126,10 @@ api.interceptors.response.use(
 
 				if (config._retryCount === 1) {
 					// Show toast only on the first hit to avoid spamming
-					try {
-						const toast = useToast();
-						toast.warning(
-							"Zbyt wiele zapytań — zwolnij na chwilę. Ponawiam automatycznie…",
-							{ timeout: Math.min(delay + 2_000, 10_000) },
-						);
-					} catch {
-						// useToast may not be available outside component context
-					}
+					toast.warning(
+						"Zbyt wiele zapytań — zwolnij na chwilę. Ponawiam automatycznie…",
+						{ duration: Math.min(delay + 2_000, 10_000) },
+					);
 				}
 
 				await _sleep(delay);
@@ -142,14 +137,9 @@ api.interceptors.response.use(
 			}
 
 			// Exhausted all retries — inform the user
-			try {
-				const toast = useToast();
-				toast.error(
-					"Zbyt wiele zapytań do serwera. Odczekaj chwilę przed kolejną akcją.",
-				);
-			} catch {
-				// useToast may not be available outside component context
-			}
+			toast.error(
+				"Zbyt wiele zapytań do serwera. Odczekaj chwilę przed kolejną akcją.",
+			);
 		}
 
 		return Promise.reject(error);
@@ -172,6 +162,9 @@ export default {
 	},
 	register(credentials: LoginCredentials): Promise<AxiosResponse> {
 		return api.post("/auth/register", credentials);
+	},
+	verifyEmail(token: string): Promise<AxiosResponse> {
+		return api.get(`/auth/verify-email?token=${token}`);
 	},
 	me(): Promise<AxiosResponse> {
 		return api.get("/auth/me");
