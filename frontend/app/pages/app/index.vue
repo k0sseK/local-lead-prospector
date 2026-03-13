@@ -849,8 +849,8 @@ onMounted(() => {
 											@click="filterWebsite = 'all'"
 											:class="
 												filterWebsite === 'all'
-													? 'bg-brand-green text-white border-brand-green'
-													: 'bg-white text-slate-600 border-slate-200 hover:border-brand-green'
+													? 'bg-brand-teal text-white border-brand-teal'
+													: 'bg-white text-slate-600 border-slate-200 hover:border-brand-teal/50'
 											"
 											class="flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-all"
 										>

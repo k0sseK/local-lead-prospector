@@ -32,8 +32,13 @@ export default defineNuxtConfig({
 	components: {
 		dirs: [
 			{
-				path: "~/components",
+				path: "~/components/ui",
 				ignore: ["**/*.ts"],
+				pathPrefix: false,
+			},
+			{
+				path: "~/components",
+				ignore: ["ui/**", "**/*.ts"],
 			},
 		],
 	},
