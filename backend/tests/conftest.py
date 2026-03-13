@@ -67,6 +67,7 @@ def _make_user(
         hashed_password="$2b$12$fakehashforthisunittest0000000000000000000000",
         role=role,
         plan=plan,
+        is_verified=True,
     )
     db.add(user)
     db.flush()  # get auto-assigned id without committing
