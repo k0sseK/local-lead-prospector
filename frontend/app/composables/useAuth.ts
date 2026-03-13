@@ -64,7 +64,10 @@ export function useAuth() {
 			// fallback
 		}
 
-		await navigateTo("/auth/verify?sent=1");
+		await navigateTo({
+			path: "/auth/verify",
+			query: { sent: "1", email },
+		});
 	}
 
 	async function init(): Promise<void> {

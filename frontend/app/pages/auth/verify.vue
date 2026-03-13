@@ -15,10 +15,17 @@ const router = useRouter();
 
 const status = ref<"loading" | "pending" | "success" | "error">("loading");
 const errorMessage = ref("");
+const resendEmail = ref("");
+const resendLoading = ref(false);
+const resendMessage = ref("");
 
 onMounted(async () => {
 	const token = route.query.token as string | undefined;
 	const sent = route.query.sent as string | undefined;
+	const email = route.query.email as string | undefined;
+	if (email) {
+		resendEmail.value = email;
+	}
 
 	if (!token && sent === "1") {
 		status.value = "pending";
@@ -45,6 +52,34 @@ onMounted(async () => {
 
 function continueToApp() {
 	router.push("/login");
+}
+
+async function handleResendVerification() {
+	if (!resendEmail.value.trim()) {
+		errorMessage.value =
+			"Wpisz adres e-mail, na który mamy wysłać nowy link aktywacyjny.";
+		status.value = "error";
+		return;
+	}
+
+	resendLoading.value = true;
+	resendMessage.value = "";
+	try {
+		const response = await api.resendVerification({
+			email: resendEmail.value.trim(),
+		});
+		resendMessage.value =
+			response.data?.message ||
+			"Jeśli konto istnieje i nie zostało jeszcze zweryfikowane, wysłaliśmy nowy link aktywacyjny.";
+		status.value = "pending";
+	} catch (err: any) {
+		status.value = "error";
+		errorMessage.value =
+			err.response?.data?.detail ||
+			"Nie udało się wysłać nowego linku. Spróbuj ponownie za chwilę.";
+	} finally {
+		resendLoading.value = false;
+	}
 }
 </script>
 
@@ -111,6 +146,41 @@ function continueToApp() {
 						</p>
 					</div>
 
+					<div class="w-full space-y-3 text-left">
+						<label
+							for="resend-email"
+							class="text-xs font-bold tracking-wider text-slate-500 ml-1 block"
+						>
+							E-mail do ponownej wysyłki
+						</label>
+						<input
+							id="resend-email"
+							v-model="resendEmail"
+							type="email"
+							placeholder="ty@firma.pl"
+							class="w-full h-12 px-4 rounded-xl text-sm bg-brand-dark/50 border border-brand-teal/20 text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-green/50 focus:ring-4 focus:ring-brand-green/5 transition-all"
+						/>
+						<button
+							@click="handleResendVerification"
+							:disabled="resendLoading"
+							class="w-full h-11 flex items-center justify-center gap-2 rounded-xl font-semibold text-sm text-white border border-brand-teal/30 bg-brand-dark/40 hover:border-brand-green/40 hover:bg-brand-dark/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							<template v-if="resendLoading">
+								<Loader2 class="w-4 h-4 animate-spin" />
+								Wysyłanie linku...
+							</template>
+							<template v-else>
+								Wyślij ponownie link weryfikacyjny
+							</template>
+						</button>
+						<p
+							v-if="resendMessage"
+							class="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3"
+						>
+							{{ resendMessage }}
+						</p>
+					</div>
+
 					<div class="pt-2">
 						<NuxtLink
 							to="/login"
@@ -164,6 +234,41 @@ function continueToApp() {
 						</h3>
 						<p class="text-slate-400 text-sm leading-relaxed">
 							{{ errorMessage }}
+						</p>
+					</div>
+
+					<div class="w-full space-y-3 text-left">
+						<label
+							for="resend-email-error"
+							class="text-xs font-bold tracking-wider text-slate-500 ml-1 block"
+						>
+							Wyślij nowy link na adres e-mail
+						</label>
+						<input
+							id="resend-email-error"
+							v-model="resendEmail"
+							type="email"
+							placeholder="ty@firma.pl"
+							class="w-full h-12 px-4 rounded-xl text-sm bg-brand-dark/50 border border-brand-teal/20 text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-green/50 focus:ring-4 focus:ring-brand-green/5 transition-all"
+						/>
+						<button
+							@click="handleResendVerification"
+							:disabled="resendLoading"
+							class="w-full h-11 flex items-center justify-center gap-2 rounded-xl font-semibold text-sm text-white border border-brand-teal/30 bg-brand-dark/40 hover:border-brand-green/40 hover:bg-brand-dark/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							<template v-if="resendLoading">
+								<Loader2 class="w-4 h-4 animate-spin" />
+								Wysyłanie linku...
+							</template>
+							<template v-else>
+								Wyślij ponownie link weryfikacyjny
+							</template>
+						</button>
+						<p
+							v-if="resendMessage"
+							class="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3"
+						>
+							{{ resendMessage }}
 						</p>
 					</div>
 

@@ -15,6 +15,12 @@ const password = ref("");
 const error = ref("");
 const loading = ref(false);
 const turnstileToken = ref("");
+const turnstile = ref<{ reset: () => void } | null>(null);
+
+function resetTurnstile() {
+	turnstile.value?.reset();
+	turnstileToken.value = "";
+}
 
 async function handleSubmit() {
 	error.value = "";
@@ -26,6 +32,7 @@ async function handleSubmit() {
 			err.response?.data?.detail ||
 			"Rejestracja nie powiodła się. Spróbuj ponownie.";
 	} finally {
+		resetTurnstile();
 		loading.value = false;
 	}
 }
@@ -108,7 +115,7 @@ async function handleSubmit() {
 				</div>
 
 				<div class="flex justify-center py-2">
-					<NuxtTurnstile v-model="turnstileToken" />
+					<NuxtTurnstile ref="turnstile" v-model="turnstileToken" />
 				</div>
 
 				<p

@@ -113,6 +113,31 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     return {"message": "Konto zweryfikowane pomyślnie"}
 
 
+@router.post("/resend-verification")
+@limiter.limit("3/hour")
+def resend_verification_email(
+    request: Request,
+    payload: schemas.ResendVerificationRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    success_msg = {
+        "message": "Jeśli konto istnieje i nie zostało jeszcze zweryfikowane, wysłaliśmy nowy link aktywacyjny."
+    }
+
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user or user.is_verified:
+        return success_msg
+
+    token_str = secrets.token_urlsafe(32)
+    user_email = user.email
+    user.verification_token = token_str
+    db.commit()
+
+    background_tasks.add_task(send_verification_email, user_email, token_str)
+    return success_msg
+
+
 @router.post("/login", response_model=schemas.Token)
 def login(request: Request, user_in: schemas.UserLogin, db: Session = Depends(get_db)):
     verify_turnstile(user_in.cf_turnstile_response)

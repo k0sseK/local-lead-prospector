@@ -20,6 +20,10 @@ export interface LoginCredentials {
 	cf_turnstile_response?: string;
 }
 
+export interface ResendVerificationPayload {
+	email: string;
+}
+
 export interface ScanPayload {
 	keyword: string;
 	location: string;
@@ -165,6 +169,11 @@ export default {
 	},
 	verifyEmail(token: string): Promise<AxiosResponse> {
 		return api.get(`/auth/verify-email?token=${token}`);
+	},
+	resendVerification(
+		payload: ResendVerificationPayload,
+	): Promise<AxiosResponse> {
+		return api.post("/auth/resend-verification", payload);
 	},
 	me(): Promise<AxiosResponse> {
 		return api.get("/auth/me");

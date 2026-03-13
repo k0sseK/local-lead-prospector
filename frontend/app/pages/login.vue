@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuth } from "@/composables/useAuth";
+import api from "@/services/api";
 import { ArrowRight, LogIn, Mail, Lock, Loader2 } from "lucide-vue-next";
 
 definePageMeta({ layout: "default" });
@@ -13,11 +14,25 @@ if (isAuthenticated.value) {
 const email = ref("");
 const password = ref("");
 const error = ref("");
+const infoMessage = ref("");
 const loading = ref(false);
 const turnstileToken = ref("");
+const resendLoading = ref(false);
+const turnstile = ref<{ reset: () => void } | null>(null);
+
+const canResendVerification = computed(
+	() =>
+		!!email.value.trim() && error.value.toLowerCase().includes("zweryfik"),
+);
+
+function resetTurnstile() {
+	turnstile.value?.reset();
+	turnstileToken.value = "";
+}
 
 async function handleSubmit() {
 	error.value = "";
+	infoMessage.value = "";
 	loading.value = true;
 	try {
 		await login(email.value, password.value, turnstileToken.value);
@@ -25,7 +40,34 @@ async function handleSubmit() {
 		error.value =
 			err.response?.data?.detail || "Nieprawidłowy email lub hasło.";
 	} finally {
+		resetTurnstile();
 		loading.value = false;
+	}
+}
+
+async function handleResendVerification() {
+	if (!email.value.trim()) {
+		error.value =
+			"Wpisz adres e-mail, na który mamy wysłać nowy link weryfikacyjny.";
+		return;
+	}
+
+	error.value = "";
+	infoMessage.value = "";
+	resendLoading.value = true;
+	try {
+		const response = await api.resendVerification({
+			email: email.value.trim(),
+		});
+		infoMessage.value =
+			response.data?.message ||
+			"Jeśli konto istnieje i nie zostało jeszcze zweryfikowane, wysłaliśmy nowy link aktywacyjny.";
+	} catch (err: any) {
+		error.value =
+			err.response?.data?.detail ||
+			"Nie udało się wysłać nowego linku. Spróbuj ponownie za chwilę.";
+	} finally {
+		resendLoading.value = false;
 	}
 }
 </script>
@@ -115,7 +157,7 @@ async function handleSubmit() {
 				</div>
 
 				<div class="flex justify-center py-2">
-					<NuxtTurnstile v-model="turnstileToken" />
+					<NuxtTurnstile ref="turnstile" v-model="turnstileToken" />
 				</div>
 
 				<p
@@ -124,6 +166,28 @@ async function handleSubmit() {
 				>
 					{{ error }}
 				</p>
+
+				<p
+					v-if="infoMessage"
+					class="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3"
+				>
+					{{ infoMessage }}
+				</p>
+
+				<button
+					v-if="canResendVerification"
+					@click="handleResendVerification"
+					:disabled="resendLoading"
+					class="w-full h-11 flex items-center justify-center gap-2 rounded-xl font-semibold text-sm text-white border border-brand-teal/30 bg-brand-dark/40 hover:border-brand-green/40 hover:bg-brand-dark/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					<template v-if="resendLoading">
+						<Loader2 class="w-4 h-4 animate-spin" />
+						Wysyłanie linku...
+					</template>
+					<template v-else>
+						Wyślij ponownie link weryfikacyjny
+					</template>
+				</button>
 
 				<button
 					@click="handleSubmit"

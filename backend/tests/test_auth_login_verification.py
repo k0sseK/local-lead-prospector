@@ -29,6 +29,7 @@ def _create_user(db, *, email: str, password: str, is_verified: bool):
         role="user",
         plan="free",
         is_verified=is_verified,
+        verification_token="existing-token" if not is_verified else None,
     )
     db.add(user)
     db.commit()
@@ -91,3 +92,58 @@ def test_verification_email_template_includes_safety_and_branding_copy():
     assert "znajdzfirmy" in html
     assert "Bez aktywacji" in html
     assert "Przycisk nie działa?" in html
+
+
+def test_resend_verification_generates_new_token_and_succeeds(client, db, monkeypatch):
+    sent_messages: list[tuple[str, str]] = []
+
+    def fake_send(email: str, token: str):
+        sent_messages.append((email, token))
+
+    monkeypatch.setattr("app.routers.auth.send_verification_email", fake_send)
+
+    user = _create_user(
+        db,
+        email="pending-resend@test.local",
+        password="SuperSecretPass123",
+        is_verified=False,
+    )
+    user_email = user.email
+    old_token = user.verification_token
+
+    response = client.post(
+        "/api/auth/resend-verification",
+        json={"email": user_email},
+    )
+
+    assert response.status_code == 200
+    assert "wysłaliśmy nowy link" in response.json()["message"].lower()
+
+    refreshed_user = db.query(models.User).filter(models.User.email == user_email).first()
+    assert refreshed_user is not None
+    assert refreshed_user.verification_token
+    assert refreshed_user.verification_token != old_token
+    assert sent_messages == [(user_email, refreshed_user.verification_token)]
+
+
+def test_resend_verification_is_generic_for_missing_or_verified_accounts(client, db, monkeypatch):
+    monkeypatch.setattr("app.routers.auth.send_verification_email", lambda *args: None)
+    _create_user(
+        db,
+        email="verified-resend@test.local",
+        password="SuperSecretPass123",
+        is_verified=True,
+    )
+
+    missing_response = client.post(
+        "/api/auth/resend-verification",
+        json={"email": "missing@test.local"},
+    )
+    verified_response = client.post(
+        "/api/auth/resend-verification",
+        json={"email": "verified-resend@test.local"},
+    )
+
+    assert missing_response.status_code == 200
+    assert verified_response.status_code == 200
+    assert missing_response.json() == verified_response.json()
