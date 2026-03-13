@@ -1,4 +1,7 @@
 def get_forgot_password_email_html(reset_link: str) -> str:
+    from datetime import datetime
+    current_year = datetime.now().year
+    
     return f"""
 <!DOCTYPE html>
 <html>
@@ -26,8 +29,8 @@ def get_forgot_password_email_html(reset_link: str) -> str:
                     <!-- Header with Logo/Name -->
                     <tr>
                         <td align="center" style="padding: 40px 40px 10px 40px;">
-                            <div style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #38ef7d; text-decoration: none;">
-                                <span style="color: #ffffff;">znajdz</span><span style="color: #38ef7d;">firmy.pl</span>
+                            <div style="font-size: 24px; font-weight: 600; letter-spacing: -0.5px; color: #38ef7d; text-decoration: none;">
+                                <span style="color: #ffffff;">znajdz</span><span style="color: #38ef7d;">firmy&#8203;.&#8203;pl</span>
                             </div>
                         </td>
                     </tr>
@@ -54,7 +57,7 @@ def get_forgot_password_email_html(reset_link: str) -> str:
                             <div style="padding-top: 30px; border-top: 1px solid rgba(148, 163, 184, 0.1);">
                                 <p style="margin: 0 0 10px 0; font-size: 14px; line-height: 1.5; color: #64748b; text-align: center;">
                                     Link wygaśnie za 15 minut ze względów bezpieczeństwa.<br>
-                                    Jeśli to nie Ty prosiłeś o reset, zignoruj tę wiadomość.
+                                    Jeśli to nie Ty prosiłeś o reset, zignoruj tę wiadomość.<br>
                                 </p>
                             </div>
                             
@@ -70,7 +73,7 @@ def get_forgot_password_email_html(reset_link: str) -> str:
                     <tr>
                         <td style="padding: 30px 40px; background-color: rgba(0, 0, 0, 0.2); text-align: center;">
                             <p style="margin: 0; font-size: 12px; color: #475569;">
-                                &copy; 2024 znajdzfirmy.pl &bull; Narzędzia dla nowoczesnego biznesu
+                                &copy; {current_year} znajdzfirmy&#8203;.&#8203;pl
                             </p>
                         </td>
                     </tr>

@@ -66,7 +66,7 @@ onMounted(() => fetchQuota());
 						class="font-bold text-sm tracking-tight leading-none truncate"
 					>
 						<span class="text-brand-green">znajdz</span
-						><span class="text-white">firmy.pl</span>
+						><span class="text-white">firmy&#8203;.&#8203;pl</span>
 					</span>
 				</NuxtLink>
 			</div>
@@ -156,7 +156,7 @@ onMounted(() => fetchQuota());
 					/>
 					<span class="font-bold text-sm tracking-tight leading-none">
 						<span class="text-brand-green">znajdz</span
-						><span class="text-white">firmy.pl</span>
+						><span class="text-white">firmy&#8203;.&#8203;pl</span>
 					</span>
 				</NuxtLink>
 				<span class="font-bold text-sm text-white">Prospector CRM</span>
@@ -202,7 +202,7 @@ onMounted(() => fetchQuota());
 							class="font-bold text-sm tracking-tight leading-none"
 						>
 							<span class="text-brand-green">znajdz</span
-							><span class="text-white">firmy.pl</span>
+							><span class="text-white">firmy&#8203;.&#8203;pl</span>
 						</span>
 					</NuxtLink>
 					<button

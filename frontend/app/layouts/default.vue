@@ -17,7 +17,7 @@ const { isAuthenticated } = useAuth();
 					<img src="/logo.png" alt="" class="h-8 w-auto" />
 					<span class="font-bold text-xl tracking-tight leading-none">
 						<span class="text-brand-green">znajdz</span
-						><span class="text-white">firmy.pl</span>
+						><span class="text-white">firmy&#8203;.&#8203;pl</span>
 					</span>
 				</NuxtLink>
 				<nav class="flex items-center gap-6">
@@ -73,7 +73,7 @@ const { isAuthenticated } = useAuth();
 						class="font-bold text-base tracking-tight leading-none opacity-60 group-hover:opacity-100 transition-opacity"
 					>
 						<span class="text-brand-green">znajdz</span
-						><span class="text-white">firmy.pl</span>
+						><span class="text-white">firmy&#8203;.&#8203;pl</span>
 					</span>
 				</NuxtLink>
 				<!-- <div class="flex gap-12 text-sm text-emerald-100/30">
@@ -88,7 +88,7 @@ const { isAuthenticated } = useAuth();
 					>
 				</div> -->
 				<p class="text-sm text-emerald-100/30">
-					&copy; 2026 znajdzfirmy.pl. Built for velocity.
+					&copy; {{ new Date().getFullYear() }} znajdzfirmy&#8203;.&#8203;pl. Built for velocity.
 				</p>
 			</div>
 		</footer>
