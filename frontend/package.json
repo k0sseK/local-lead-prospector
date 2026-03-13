@@ -8,9 +8,10 @@
 		"generate": "nuxt generate",
 		"preview": "nuxt preview",
 		"postinstall": "nuxt prepare",
-		"test:e2e": "playwright test",
-		"test:e2e:ui": "playwright test --ui",
-		"test:e2e:debug": "playwright test --debug"
+		"e2e:precheck": "node scripts/e2e-precheck.mjs",
+		"test:e2e": "pnpm run e2e:precheck && playwright test",
+		"test:e2e:ui": "pnpm run e2e:precheck && playwright test --ui",
+		"test:e2e:debug": "pnpm run e2e:precheck && playwright test --debug"
 	},
 	"dependencies": {
 		"@radix-icons/vue": "^1.0.0",

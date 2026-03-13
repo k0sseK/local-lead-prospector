@@ -183,6 +183,24 @@ export E2E_TEST_EMAIL="tester@example.com"
 export E2E_TEST_PASSWORD="YourPassword123"
 ```
 
+Optional (useful in CI):
+
+```bash
+# Explicit API base used by E2E auth precheck
+export E2E_API_BASE_URL="http://localhost:8000/api"
+
+# Explicit backend health endpoint used before tests start
+export E2E_BACKEND_HEALTH_URL="http://localhost:8000/health"
+```
+
+Playwright auth tests now run a precheck before UI interactions:
+
+- verify frontend URL is reachable,
+- verify backend health endpoint is reachable,
+- verify login credentials are valid and account is already verified.
+
+If any of these checks fail, tests stop early with a clear diagnostic instead of timing out on redirect to `/app`.
+
 **Run tests** (start both servers first — `start_dev.bat` or manually):
 
 ```bash
@@ -190,6 +208,14 @@ pnpm test:e2e:ui      # interactive UI mode — recommended, shows every click l
 pnpm test:e2e         # headless, results in terminal
 pnpm test:e2e:debug   # headed + Playwright Inspector for debugging
 ```
+
+Each `test:e2e*` command now runs an automatic precheck first (`frontend/scripts/e2e-precheck.mjs`):
+
+- waits for frontend URL,
+- waits for backend `/health`,
+- validates E2E login credentials.
+
+This prevents flaky "waitForURL(/app) timeout" failures by failing early with a specific reason.
 
 > Playwright is a `devDependency`. The frontend Docker image (`nginx:alpine`) is built from static files only — Playwright never ends up in the production image.
 

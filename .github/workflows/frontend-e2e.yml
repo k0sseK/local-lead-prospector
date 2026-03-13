@@ -139,6 +139,35 @@ jobs:
                     -d '{"email":"${{ secrets.E2E_TEST_EMAIL }}","password":"${{ secrets.E2E_TEST_PASSWORD }}"}' \
                     || echo "User may already exist – continuing"
 
+            # 11b. Ensure seeded account is verified (login endpoint requires is_verified=true)
+            - name: Verify E2E test account in CI DB
+              working-directory: backend
+              env:
+                  E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+              run: |
+                  python - <<'PY'
+                  import sqlite3
+                  import os
+
+                  email = os.environ["E2E_TEST_EMAIL"]
+                  conn = sqlite3.connect("ci_test.db")
+                  cur = conn.cursor()
+                  cur.execute(
+                    """
+                    UPDATE users
+                    SET is_verified = 1,
+                      verification_token = NULL
+                    WHERE email = ?
+                    """,
+                    (email,),
+                  )
+                  if cur.rowcount == 0:
+                    raise SystemExit(f"E2E user not found in DB: {email}")
+                  conn.commit()
+                  conn.close()
+                  print(f"Verified E2E user: {email}")
+                  PY
+
             # 12. Run Playwright tests
             - name: Run Playwright E2E tests
               working-directory: frontend

@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { test, expect, type Page } from "@playwright/test";
 
 /**
@@ -18,6 +20,42 @@ import { test, expect, type Page } from "@playwright/test";
 
 const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? "tester@example.com";
 const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? "SuperSecretPass123";
+
+async function loginAndWaitForApp(
+	page: Page,
+	loginPage: LoginPage,
+	email: string,
+	password: string,
+) {
+	const loginResponsePromise = page.waitForResponse(
+		(response) =>
+			response.url().includes("/api/auth/login") &&
+			response.request().method() === "POST",
+		{ timeout: 20_000 },
+	);
+
+	await loginPage.fillAndSubmit(email, password);
+
+	const loginResponse = await loginResponsePromise;
+	if (loginResponse.status() !== 200) {
+		let detail = "";
+		try {
+			const body = (await loginResponse.json()) as { detail?: string };
+			detail = body?.detail ?? "";
+		} catch {
+			detail = "";
+		}
+
+		throw new Error(
+			`/api/auth/login returned ${loginResponse.status()}${
+				detail ? ` (${detail})` : ""
+			}. ` +
+				"Check E2E_TEST_EMAIL/E2E_TEST_PASSWORD and ensure the account is verified.",
+		);
+	}
+
+	await page.waitForURL("**/app", { timeout: 30_000 });
+}
 
 // ── Page Object ────────────────────────────────────────────────────────────────
 // Keeps selectors in one place; when the template changes, update here only.
@@ -84,10 +122,7 @@ test.describe("Login page", () => {
 	test("valid credentials redirect to /app and render the dashboard", async ({
 		page,
 	}) => {
-		await loginPage.fillAndSubmit(TEST_EMAIL, TEST_PASSWORD);
-
-		// Wait for navigation – the app redirects to /app after successful login.
-		await page.waitForURL("**/app", { timeout: 15_000 });
+		await loginAndWaitForApp(page, loginPage, TEST_EMAIL, TEST_PASSWORD);
 
 		// Confirm we actually landed on the dashboard, not a redirect loop.
 		expect(page.url()).toContain("/app");
@@ -138,8 +173,7 @@ test.describe("Login page", () => {
 		page,
 	}) => {
 		// Log in first to get the auth cookie.
-		await loginPage.fillAndSubmit(TEST_EMAIL, TEST_PASSWORD);
-		await page.waitForURL("**/app", { timeout: 15_000 });
+		await loginAndWaitForApp(page, loginPage, TEST_EMAIL, TEST_PASSWORD);
 
 		// Now navigate back to /login directly.
 		await page.goto("/login");
@@ -153,11 +187,21 @@ test.describe("Login page", () => {
 	test("pressing Enter in the password field submits the form", async ({
 		page,
 	}) => {
+		const loginResponsePromise = page.waitForResponse(
+			(response) =>
+				response.url().includes("/api/auth/login") &&
+				response.request().method() === "POST",
+			{ timeout: 20_000 },
+		);
+
 		await loginPage.emailInput.fill(TEST_EMAIL);
 		await loginPage.passwordInput.fill(TEST_PASSWORD);
 		await loginPage.passwordInput.press("Enter");
 
-		await page.waitForURL("**/app", { timeout: 15_000 });
+		const loginResponse = await loginResponsePromise;
+		expect(loginResponse.status()).toBe(200);
+
+		await page.waitForURL("**/app", { timeout: 30_000 });
 		expect(page.url()).toContain("/app");
 	});
 });
