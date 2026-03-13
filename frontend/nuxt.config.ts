@@ -11,7 +11,6 @@ export default defineNuxtConfig({
 
 	modules: [
 		"@nuxtjs/tailwindcss",
-		"shadcn-nuxt",
 		"@vueuse/motion/nuxt",
 		"@nuxt/scripts",
 		"@nuxtjs/turnstile",
@@ -30,19 +29,12 @@ export default defineNuxtConfig({
 	},
 	css: ["~/assets/css/tailwind.css"],
 
-	shadcn: {
-		prefix: "",
-		componentDir: "./app/components/ui",
-	},
-
 	components: {
 		dirs: [
 			{
-				path: "~/components/ui",
+				path: "~/components",
 				ignore: ["**/*.ts"],
-				pathPrefix: false,
 			},
-			"~/components",
 		],
 	},
 

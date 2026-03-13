@@ -13,6 +13,7 @@
 		"test:e2e:debug": "playwright test --debug"
 	},
 	"dependencies": {
+		"@radix-icons/vue": "^1.0.0",
 		"@vueuse/core": "^14.2.1",
 		"@vueuse/motion": "^3.0.3",
 		"axios": "^1.6.8",
