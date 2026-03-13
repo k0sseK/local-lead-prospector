@@ -14,12 +14,13 @@ const email = ref("");
 const password = ref("");
 const error = ref("");
 const loading = ref(false);
+const turnstileToken = ref("");
 
 async function handleSubmit() {
 	error.value = "";
 	loading.value = true;
 	try {
-		await register(email.value, password.value);
+		await register(email.value, password.value, turnstileToken.value);
 	} catch (err: any) {
 		error.value =
 			err.response?.data?.detail ||
@@ -74,6 +75,10 @@ async function handleSubmit() {
 						@keyup.enter="handleSubmit"
 						class="w-full h-10 px-3 rounded-lg text-sm bg-brand-dark border border-brand-teal/20 text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30 transition-colors"
 					/>
+				</div>
+
+				<div class="flex justify-center">
+					<NuxtTurnstile v-model="turnstileToken" />
 				</div>
 
 				<p

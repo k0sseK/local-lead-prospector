@@ -25,8 +25,16 @@ export function useAuth() {
 
 	const isAuthenticated = computed(() => !!token.value);
 
-	async function login(email: string, password: string): Promise<void> {
-		const response = await api.login({ email, password });
+	async function login(
+		email: string,
+		password: string,
+		cf_turnstile_response?: string,
+	): Promise<void> {
+		const response = await api.login({
+			email,
+			password,
+			cf_turnstile_response,
+		});
 		const data = response.data as AuthResponse;
 		token.value = data.access_token;
 		user.value = data.user;
@@ -36,8 +44,16 @@ export function useAuth() {
 		await navigateTo("/app");
 	}
 
-	async function register(email: string, password: string): Promise<void> {
-		const response = await api.register({ email, password });
+	async function register(
+		email: string,
+		password: string,
+		cf_turnstile_response?: string,
+	): Promise<void> {
+		const response = await api.register({
+			email,
+			password,
+			cf_turnstile_response,
+		});
 		const data = response.data as AuthResponse;
 		token.value = data.access_token;
 		user.value = data.user;

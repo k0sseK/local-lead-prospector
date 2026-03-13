@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 import os
 import resend
+import httpx
 from jose import JWTError, jwt
 
 from .. import models, schemas
@@ -19,9 +20,27 @@ from ..dependencies import (
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+def verify_turnstile(token: str | None):
+    secret = os.getenv("TURNSTILE_SECRET_KEY")
+    if not secret:
+        return
+    if not token:
+        raise HTTPException(status_code=403, detail="Brak tokenu weryfikacji.")
+    try:
+        res = httpx.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data={"secret": secret, "response": token},
+            timeout=10.0
+        )
+        if not res.json().get("success"):
+            raise HTTPException(status_code=403, detail="Weryfikacja Cloudflare Turnstile nie powiodła się.")
+    except httpx.RequestError:
+        raise HTTPException(status_code=403, detail="Błąd połączenia z serwerem weryfikacji.")
+
 
 @router.post("/register", response_model=schemas.Token, status_code=status.HTTP_201_CREATED)
 def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+    verify_turnstile(user_in.cf_turnstile_response)
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -41,6 +60,7 @@ def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=schemas.Token)
 def login(user_in: schemas.UserLogin, db: Session = Depends(get_db)):
+    verify_turnstile(user_in.cf_turnstile_response)
     user = db.query(models.User).filter(models.User.email == user_in.email).first()
     if not user or not verify_password(user_in.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")

@@ -6,11 +6,13 @@ from typing import List, Optional
 class UserCreate(BaseModel):
     email: str
     password: str
+    cf_turnstile_response: str | None = None
 
 
 class UserLogin(BaseModel):
     email: str
     password: str
+    cf_turnstile_response: str | None = None
 
 
 class ForgotPasswordRequest(BaseModel):

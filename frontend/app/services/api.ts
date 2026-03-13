@@ -17,6 +17,7 @@ declare module "axios" {
 export interface LoginCredentials {
 	email: string;
 	password: string;
+	cf_turnstile_response?: string;
 }
 
 export interface ScanPayload {

@@ -14,7 +14,12 @@ export default defineNuxtConfig({
 		"shadcn-nuxt",
 		"@vueuse/motion/nuxt",
 		"@nuxt/scripts",
+		"@nuxtjs/turnstile",
 	],
+
+	turnstile: {
+		siteKey: process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY || "",
+	},
 
 	scripts: {
 		registry: {
