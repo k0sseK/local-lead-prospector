@@ -37,6 +37,16 @@ const navItems = [
 // Quota state — shared global cache; no duplicate API call if already fetched
 const { quota, fetchQuota } = useQuota();
 const userPlan = computed(() => quota.value?.plan ?? "free");
+const planLabel = computed(() => {
+	if (userPlan.value === "admin") return "Admin";
+	if (userPlan.value === "pro") return "Pro";
+	return "Darmowy";
+});
+const planBadgeClass = computed(() => {
+	if (userPlan.value === "admin") return "text-amber-300 font-semibold";
+	if (userPlan.value === "pro") return "text-brand-green font-semibold";
+	return "text-slate-500";
+});
 const isMobileMenuOpen = ref(false);
 
 onMounted(() => fetchQuota());
@@ -117,15 +127,8 @@ onMounted(() => fetchQuota());
 						<span class="text-sm font-medium text-white truncate">{{
 							user?.email ?? "..."
 						}}</span>
-						<span
-							class="text-xs"
-							:class="
-								userPlan === 'pro'
-									? 'text-brand-green font-semibold'
-									: 'text-slate-500'
-							"
-						>
-							{{ userPlan === "pro" ? "Pro" : "Darmowy" }}
+						<span class="text-xs" :class="planBadgeClass">
+							{{ planLabel }}
 						</span>
 					</div>
 					<button
@@ -202,7 +205,9 @@ onMounted(() => fetchQuota());
 							class="font-bold text-sm tracking-tight leading-none"
 						>
 							<span class="text-brand-green">znajdz</span
-							><span class="text-white">firmy&#8203;.&#8203;pl</span>
+							><span class="text-white"
+								>firmy&#8203;.&#8203;pl</span
+							>
 						</span>
 					</NuxtLink>
 					<button
@@ -271,15 +276,8 @@ onMounted(() => fetchQuota());
 								class="text-sm font-medium text-white truncate"
 								>{{ user?.email ?? "..." }}</span
 							>
-							<span
-								class="text-xs"
-								:class="
-									userPlan === 'pro'
-										? 'text-brand-green font-semibold'
-										: 'text-slate-500'
-								"
-							>
-								{{ userPlan === "pro" ? "Pro" : "Darmowy" }}
+							<span class="text-xs" :class="planBadgeClass">
+								{{ planLabel }}
 							</span>
 						</div>
 						<button

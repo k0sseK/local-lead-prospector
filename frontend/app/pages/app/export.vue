@@ -70,6 +70,12 @@ onMounted(async () => {
 	applyPreselect();
 });
 
+const usagePlanLabel = computed(() => {
+	if (usage.value?.plan === "admin") return "Admin";
+	if (usage.value?.plan === "pro") return "Pro";
+	return "Darmowy";
+});
+
 const selectedLeads = computed(() =>
 	leads.value.filter((l) => selectedIds.value.has(l.id)),
 );
@@ -236,9 +242,16 @@ const estimatedSize = computed(() => {
 					Skany: {{ usage.usage.scans }}/{{ usage.limits.scans }}
 				</span>
 				<span
-					class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-500"
+					class="inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-sm font-medium"
+					:class="
+						usage.plan === 'admin'
+							? 'border-amber-300 text-amber-700 bg-amber-50'
+							: usage.plan === 'pro'
+								? 'border-brand-green/30 text-brand-teal bg-brand-green/5'
+								: 'border-slate-200 text-slate-500'
+					"
 				>
-					{{ usage.plan === "pro" ? "Pro" : "Darmowy" }}
+					{{ usagePlanLabel }}
 				</span>
 			</div>
 		</div>

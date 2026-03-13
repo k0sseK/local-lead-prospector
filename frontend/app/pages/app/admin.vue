@@ -65,15 +65,29 @@ const filteredUsers = computed(() => {
 	return users.value.filter((u) => u.email?.toLowerCase().includes(q));
 });
 
+function getPlanLabel(plan) {
+	if (plan === "admin") return "Admin";
+	if (plan === "pro") return "Pro";
+	return "Darmowy";
+}
+
+function getPlanBadgeClass(plan) {
+	if (plan === "admin") {
+		return "bg-amber-50 text-amber-700 border-amber-300";
+	}
+	if (plan === "pro") {
+		return "bg-brand-green/10 text-brand-teal border-brand-green/20";
+	}
+	return "bg-slate-100 text-slate-600 border-slate-200";
+}
+
 const setPlan = async (userId, plan) => {
 	updatingUserId.value = userId;
 	try {
 		await api.adminSetPlan(userId, plan);
 		const user = users.value.find((u) => u.id === userId);
 		if (user) user.plan = plan;
-		toast.success(
-			`Plan zmieniony na "${plan === "pro" ? "Pro" : "Darmowy"}".`,
-		);
+		toast.success(`Plan zmieniony na "${getPlanLabel(plan)}".`);
 	} catch (err) {
 		toast.error(
 			err.response?.data?.detail || "Nie udało się zmienić planu.",
@@ -449,14 +463,8 @@ const freeUsers = computed(
 							<td class="px-5 py-4">
 								<span
 									class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold border"
-									:class="
-										user.plan === 'pro'
-											? 'bg-brand-green/10 text-brand-teal border-brand-green/20'
-											: 'bg-slate-100 text-slate-600 border-slate-200'
-									"
-									>{{
-										user.plan === "pro" ? "Pro" : "Darmowy"
-									}}</span
+									:class="getPlanBadgeClass(user.plan)"
+									>{{ getPlanLabel(user.plan) }}</span
 								>
 							</td>
 							<td class="px-5 py-4">

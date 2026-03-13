@@ -429,6 +429,12 @@ const exportCsv = async () => {
 // Use refreshQuota() after mutating actions (scan, audit).
 const { quota: usage, fetchQuota, refreshQuota } = useQuota();
 
+const usagePlanLabel = computed(() => {
+	if (usage.value?.plan === "admin") return "Admin";
+	if (usage.value?.plan === "pro") return "Pro";
+	return "Darmowy";
+});
+
 const scanLimitReached = computed(
 	() => usage.value && usage.value.usage.scans >= usage.value.limits.scans,
 );
@@ -581,12 +587,14 @@ onMounted(() => {
 				<span
 					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium capitalize"
 					:class="
-						usage.plan === 'pro'
-							? 'border-brand-green/30 bg-brand-green/10 text-brand-teal'
-							: 'border-slate-200 bg-white text-slate-500'
+						usage.plan === 'admin'
+							? 'border-amber-300 bg-amber-50 text-amber-700'
+							: usage.plan === 'pro'
+								? 'border-brand-green/30 bg-brand-green/10 text-brand-teal'
+								: 'border-slate-200 bg-white text-slate-500'
 					"
 				>
-					{{ usage.plan === "pro" ? "Pro" : "Darmowy" }}
+					{{ usagePlanLabel }}
 				</span>
 			</div>
 		</div>

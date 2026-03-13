@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { toast } from "vue-sonner";
 import api from "@/services/api";
 import {
@@ -63,6 +63,17 @@ const languageOptions = [
 ];
 
 const usage = ref(null);
+
+const usagePlanLabel = computed(() => {
+	if (usage.value?.plan === "admin") return "Admin";
+	if (usage.value?.plan === "pro") return "Pro";
+	return "Darmowy";
+});
+
+const usagePlanPrice = computed(() => {
+	if (usage.value?.plan === "admin") return "--";
+	return usage.value?.plan === "pro" ? "49" : "0";
+});
 
 onMounted(async () => {
 	await Promise.all([
@@ -757,23 +768,23 @@ const TABS = [
 										Twój plan
 									</p>
 									<h3 class="text-2xl font-bold mt-1">
-										{{
-											usage.plan === "pro"
-												? "Pro"
-												: "Darmowy"
-										}}
+										{{ usagePlanLabel }}
 									</h3>
 								</div>
 								<div class="text-right">
 									<p class="text-3xl font-bold">
-										{{ usage.plan === "pro" ? "49" : "0" }}
+										{{ usagePlanPrice }}
 										<span
 											class="text-sm font-normal text-slate-400"
 											>PLN</span
 										>
 									</p>
 									<p class="text-xs text-slate-400">
-										miesięcznie
+										{{
+											usage.plan === "admin"
+												? "konto administracyjne"
+												: "miesięcznie"
+										}}
 									</p>
 								</div>
 							</div>
@@ -828,7 +839,7 @@ const TABS = [
 						</div>
 
 						<a
-							v-if="usage.plan !== 'pro'"
+							v-if="usage.plan === 'free'"
 							href="/pricing"
 							class="flex items-center justify-center gap-2 w-full py-3 bg-brand-teal hover:bg-brand-teal/90 text-white rounded-lg font-semibold text-sm transition-all"
 						>
