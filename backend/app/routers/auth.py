@@ -17,6 +17,7 @@ from ..dependencies import (
     SECRET_KEY,
     ALGORITHM
 )
+from ..templates.forgot_password_email import get_forgot_password_email_html
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -92,8 +93,8 @@ def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(ge
         params = {
             "from": os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev"),
             "to": [req.email],
-            "subject": "Reset hasła - Local Lead Prospector",
-            "html": f"<p>Kliknij poniższy link, aby zresetować hasło:</p><p><a href='{reset_link}'>{reset_link}</a></p><p>Link straci ważność za 15 minut.</p>"
+            "subject": "Reset hasła w znajdzfirmy.pl",
+            "html": get_forgot_password_email_html(reset_link)
         }
         resend.Emails.send(params)
     except Exception as e:
