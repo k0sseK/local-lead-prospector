@@ -36,6 +36,12 @@ _UNLIMITED: dict[str, int] = {
     "emails_sent": 999_999,
 }
 
+_UNVERIFIED_FREE_LIMITS: dict[str, int] = {
+    "ai_audits": 0,
+    "scans": 0,
+    "emails_sent": 0,
+}
+
 # Szacunkowy koszt per akcja (USD) — Gemini 2.5 Flash
 ACTION_COST_USD: dict[str, float] = {
     "ai_audits": 0.000218,
@@ -93,6 +99,8 @@ def get_quota_info(db: Session, user: models.User) -> dict:
     if user.role == "admin":
         limits = _UNLIMITED
         plan = "admin"  # wyświetlamy 'admin' w UI dla roli admin
+    elif plan == "free" and not getattr(user, "is_verified", False):
+        limits = _UNVERIFIED_FREE_LIMITS
     else:
         limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
     month = _current_month()
@@ -110,6 +118,7 @@ def get_quota_info(db: Session, user: models.User) -> dict:
             "emails_sent": getattr(usage, "emails_sent", 0) or 0,
         },
         "limits": limits,
+        "is_verified": bool(getattr(user, "is_verified", False)),
     }
 
 

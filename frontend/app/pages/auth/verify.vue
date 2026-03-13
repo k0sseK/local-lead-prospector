@@ -1,110 +1,192 @@
 <script setup lang="ts">
-import { Loader2, CheckCircle2, XCircle, ArrowRight } from 'lucide-vue-next';
-import api from '@/services/api';
+import {
+	Loader2,
+	CheckCircle2,
+	XCircle,
+	ArrowRight,
+	Mail,
+} from "lucide-vue-next";
+import api from "@/services/api";
 
-definePageMeta({ layout: 'default' });
+definePageMeta({ layout: "default" });
 
 const route = useRoute();
 const router = useRouter();
 
-const status = ref<'loading' | 'success' | 'error'>('loading');
-const errorMessage = ref('');
+const status = ref<"loading" | "pending" | "success" | "error">("loading");
+const errorMessage = ref("");
 
 onMounted(async () => {
-    const token = route.query.token as string | undefined;
-    
-    if (!token) {
-        status.value = 'error';
-        errorMessage.value = 'Brak tokenu weryfikacji. Upewnij się, że link pochodzi z poprawnie skopiowanego adresu e-mail.';
-        return;
-    }
+	const token = route.query.token as string | undefined;
+	const sent = route.query.sent as string | undefined;
 
-    try {
-        await api.verifyEmail(token);
-        status.value = 'success';
-    } catch (err: any) {
-        status.value = 'error';
-        errorMessage.value = err.response?.data?.detail || 'Wystąpił błąd podczas weryfikacji. Token mógł już wygasnąć lub zostać użyty.';
-    }
+	if (!token && sent === "1") {
+		status.value = "pending";
+		return;
+	}
+
+	if (!token) {
+		status.value = "error";
+		errorMessage.value =
+			"Brak tokenu weryfikacji. Upewnij się, że link pochodzi z poprawnie skopiowanego adresu e-mail.";
+		return;
+	}
+
+	try {
+		await api.verifyEmail(token);
+		status.value = "success";
+	} catch (err: any) {
+		status.value = "error";
+		errorMessage.value =
+			err.response?.data?.detail ||
+			"Wystąpił błąd podczas weryfikacji. Token mógł już wygasnąć lub zostać użyty.";
+	}
 });
 
 function continueToApp() {
-    router.push('/login');
+	router.push("/login");
 }
 </script>
 
 <template>
-    <div class="flex-1 flex items-center justify-center py-16 px-4 relative overflow-hidden min-h-[calc(100vh-80px)]">
-        <!-- Background Glow -->
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-green/5 rounded-full blur-[140px] -z-10 animate-pulse"></div>
+	<div
+		class="flex-1 flex items-center justify-center py-16 px-4 relative overflow-hidden min-h-[calc(100vh-80px)]"
+	>
+		<!-- Background Glow -->
+		<div
+			class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-green/5 rounded-full blur-[140px] -z-10 animate-pulse"
+		></div>
 
-        <div class="w-full max-w-md relative">
-            <div class="text-center mb-10">
-                <h1 class="text-4xl font-black text-white mb-3 tracking-tight">
-                    Weryfikacja
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-green to-brand-teal">E-mail</span>
-                </h1>
-                <p class="text-slate-400 text-sm max-w-[280px] mx-auto leading-relaxed">
-                    Potwierdzanie Twojego adresu e-mail.
-                </p>
-            </div>
+		<div class="w-full max-w-md relative">
+			<div class="text-center mb-10">
+				<h1 class="text-4xl font-black text-white mb-3 tracking-tight">
+					Weryfikacja
+					<span
+						class="text-transparent bg-clip-text bg-gradient-to-r from-brand-green to-brand-teal"
+						>E-mail</span
+					>
+				</h1>
+				<p
+					class="text-slate-400 text-sm max-w-[280px] mx-auto leading-relaxed"
+				>
+					Potwierdzanie Twojego adresu e-mail.
+				</p>
+			</div>
 
-            <div class="bg-brand-card/80 backdrop-blur-xl border border-brand-teal/20 rounded-3xl p-8 space-y-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] relative overflow-hidden text-center">
-                <!-- Subtle internal glow -->
-                <div class="absolute -top-10 -right-10 w-32 h-32 bg-brand-teal/10 rounded-full blur-3xl"></div>
+			<div
+				class="bg-brand-card/80 backdrop-blur-xl border border-brand-teal/20 rounded-3xl p-8 space-y-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] relative overflow-hidden text-center"
+			>
+				<!-- Subtle internal glow -->
+				<div
+					class="absolute -top-10 -right-10 w-32 h-32 bg-brand-teal/10 rounded-full blur-3xl"
+				></div>
 
-                <div v-if="status === 'loading'" class="flex flex-col items-center justify-center py-8 space-y-4">
-                    <Loader2 class="w-12 h-12 text-brand-green animate-spin" />
-                    <p class="text-slate-300 font-medium">Weryfikacja konta...</p>
-                </div>
+				<div
+					v-if="status === 'loading'"
+					class="flex flex-col items-center justify-center py-8 space-y-4"
+				>
+					<Loader2 class="w-12 h-12 text-brand-green animate-spin" />
+					<p class="text-slate-300 font-medium">
+						Weryfikacja konta...
+					</p>
+				</div>
 
-                <div v-else-if="status === 'success'" class="flex flex-col items-center justify-center py-4 space-y-6">
-                    <div class="w-16 h-16 bg-brand-green/20 rounded-full flex items-center justify-center mb-2">
-                        <CheckCircle2 class="w-8 h-8 text-brand-green" />
-                    </div>
-                    
-                    <div class="space-y-2">
-                        <h3 class="text-xl font-bold text-white">Sukces!</h3>
-                        <p class="text-slate-400 text-sm leading-relaxed">
-                            Konto zweryfikowane pomyślnie! Twoje darmowe limity zostały odblokowane.
-                        </p>
-                    </div>
+				<div
+					v-else-if="status === 'pending'"
+					class="flex flex-col items-center justify-center py-4 space-y-6"
+				>
+					<div
+						class="w-16 h-16 bg-brand-teal/20 rounded-full flex items-center justify-center mb-2"
+					>
+						<Mail class="w-8 h-8 text-brand-teal" />
+					</div>
 
-                    <button
-                        @click="continueToApp"
-                        class="w-full h-12 flex items-center justify-center gap-2 rounded-xl font-bold text-sm text-black bg-gradient-to-r from-brand-green to-brand-teal hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_10px_30px_rgba(0,0,0,0.3)] mt-4"
-                    >
-                        Przejdź do aplikacji
-                        <ArrowRight class="w-4 h-4" />
-                    </button>
-                </div>
+					<div class="space-y-2">
+						<h3 class="text-xl font-bold text-white">
+							Sprawdź swoją skrzynkę
+						</h3>
+						<p class="text-slate-400 text-sm leading-relaxed">
+							Wysłaliśmy link aktywacyjny na podany adres e-mail.
+							Kliknij go, aby odblokować logowanie i limity konta.
+						</p>
+					</div>
 
-                <div v-else-if="status === 'error'" class="flex flex-col items-center justify-center py-4 space-y-6">
-                    <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-2">
-                        <XCircle class="w-8 h-8 text-red-500" />
-                    </div>
-                    
-                    <div class="space-y-2">
-                        <h3 class="text-xl font-bold text-white">Weryfikacja nieudana</h3>
-                        <p class="text-slate-400 text-sm leading-relaxed">
-                            {{ errorMessage }}
-                        </p>
-                    </div>
+					<div class="pt-2">
+						<NuxtLink
+							to="/login"
+							class="text-brand-green hover:underline font-medium flex items-center justify-center gap-2 text-sm"
+						>
+							Przejdź do logowania
+						</NuxtLink>
+					</div>
+				</div>
 
-                    <div class="pt-4">
-                        <NuxtLink
-                            to="/login"
-                            class="text-brand-green hover:underline font-medium flex items-center justify-center gap-2 text-sm"
-                        >
-                            Wróć do logowania
-                        </NuxtLink>
-                    </div>
-                </div>
-            </div>
-            
-            <p class="text-center text-sm text-slate-500 mt-8">
-                Skontaktuj się z <a href="mailto:kontakt@znajdzfirmy.pl" class="text-brand-green hover:brightness-110 font-bold transition-colors">pomocą</a> techniczną.
-            </p>
-        </div>
-    </div>
+				<div
+					v-else-if="status === 'success'"
+					class="flex flex-col items-center justify-center py-4 space-y-6"
+				>
+					<div
+						class="w-16 h-16 bg-brand-green/20 rounded-full flex items-center justify-center mb-2"
+					>
+						<CheckCircle2 class="w-8 h-8 text-brand-green" />
+					</div>
+
+					<div class="space-y-2">
+						<h3 class="text-xl font-bold text-white">Sukces!</h3>
+						<p class="text-slate-400 text-sm leading-relaxed">
+							Konto zweryfikowane pomyślnie! Twoje darmowe limity
+							zostały odblokowane.
+						</p>
+					</div>
+
+					<button
+						@click="continueToApp"
+						class="w-full h-12 flex items-center justify-center gap-2 rounded-xl font-bold text-sm text-black bg-gradient-to-r from-brand-green to-brand-teal hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_10px_30px_rgba(0,0,0,0.3)] mt-4"
+					>
+						Przejdź do aplikacji
+						<ArrowRight class="w-4 h-4" />
+					</button>
+				</div>
+
+				<div
+					v-else-if="status === 'error'"
+					class="flex flex-col items-center justify-center py-4 space-y-6"
+				>
+					<div
+						class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-2"
+					>
+						<XCircle class="w-8 h-8 text-red-500" />
+					</div>
+
+					<div class="space-y-2">
+						<h3 class="text-xl font-bold text-white">
+							Weryfikacja nieudana
+						</h3>
+						<p class="text-slate-400 text-sm leading-relaxed">
+							{{ errorMessage }}
+						</p>
+					</div>
+
+					<div class="pt-4">
+						<NuxtLink
+							to="/login"
+							class="text-brand-green hover:underline font-medium flex items-center justify-center gap-2 text-sm"
+						>
+							Wróć do logowania
+						</NuxtLink>
+					</div>
+				</div>
+			</div>
+
+			<p class="text-center text-sm text-slate-500 mt-8">
+				Skontaktuj się z
+				<a
+					href="mailto:kontakt@znajdzfirmy.pl"
+					class="text-brand-green hover:brightness-110 font-bold transition-colors"
+					>pomocą</a
+				>
+				techniczną.
+			</p>
+		</div>
+	</div>
 </template>

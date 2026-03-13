@@ -19,6 +19,7 @@ from ..dependencies import (
     ALGORITHM
 )
 from ..templates.forgot_password_email import get_forgot_password_email_html
+from ..templates.verification_email import get_verification_email_html
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -27,7 +28,29 @@ from ..main import limiter
 def send_verification_email(email: str, token: str):
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"Wysyłam link aktywacyjny na {email}: https://znajdzfirmy.pl/verify?token={token}")
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    verify_link = f"{frontend_url}/auth/verify?token={token}"
+
+    try:
+        resend.api_key = os.getenv("RESEND_API_KEY", "")
+        if not resend.api_key:
+            logger.warning(
+                "Brak RESEND_API_KEY - nie mozna wyslac maila weryfikacyjnego. Link: %s",
+                verify_link,
+            )
+            return
+
+        resend.Emails.send(
+            {
+                "from": os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev"),
+                "to": [email],
+                "subject": "Potwierdz swoj adres e-mail w znajdzfirmy.pl",
+                "html": get_verification_email_html(verify_link),
+            }
+        )
+        logger.info("Mail weryfikacyjny wyslany na %s", email)
+    except Exception as exc:
+        logger.error("Nie udalo sie wyslac maila weryfikacyjnego na %s: %s", email, exc)
 
 
 def verify_turnstile(token: str | None):
@@ -96,6 +119,11 @@ def login(request: Request, user_in: schemas.UserLogin, db: Session = Depends(ge
     user = db.query(models.User).filter(models.User.email == user_in.email).first()
     if not user or not verify_password(user_in.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Konto nie zostalo jeszcze zweryfikowane. Sprawdz swoja skrzynke e-mail.",
+        )
 
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer", "user": user}

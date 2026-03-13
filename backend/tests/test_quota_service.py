@@ -41,7 +41,6 @@ _MONTH = "2026-03"
 _PREV_MONTH = "2026-02"
 _NEXT_MONTH = "2026-04"
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _seed_usage(db, user, *, month=_MONTH, **counters) -> models.MonthlyUsage:
@@ -61,6 +60,12 @@ class TestCheckQuota:
         assert check_quota(db, free_user, "ai_audits") is True
         assert check_quota(db, free_user, "scans") is True
         assert check_quota(db, free_user, "emails_sent") is True
+
+    def test_unverified_free_user_is_denied_even_with_no_usage(self, db, free_user):
+        free_user.is_verified = False
+        assert check_quota(db, free_user, "ai_audits") is False
+        assert check_quota(db, free_user, "scans") is False
+        assert check_quota(db, free_user, "emails_sent") is False
 
     # ── free plan ─────────────────────────────────────────────────────────────
 
@@ -289,6 +294,16 @@ class TestGetQuotaInfo:
         assert info["plan"] == "pro"
         assert info["limits"]["ai_audits"] == PLAN_LIMITS["pro"]["ai_audits"]
         assert info["limits"]["scans"] == PLAN_LIMITS["pro"]["scans"]
+
+    def test_unverified_free_user_gets_zero_limits(self, db, free_user):
+        free_user.is_verified = False
+        info = get_quota_info(db, free_user)
+
+        assert info["plan"] == "free"
+        assert info["is_verified"] is False
+        assert info["limits"]["ai_audits"] == 0
+        assert info["limits"]["scans"] == 0
+        assert info["limits"]["emails_sent"] == 0
 
     def test_admin_gets_unlimited_limits_and_admin_plan_label(self, db, admin_user):
         info = get_quota_info(db, admin_user)

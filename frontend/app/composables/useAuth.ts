@@ -64,7 +64,7 @@ export function useAuth() {
 			// fallback
 		}
 
-		await navigateTo("/login");
+		await navigateTo("/auth/verify?sent=1");
 	}
 
 	async function init(): Promise<void> {
