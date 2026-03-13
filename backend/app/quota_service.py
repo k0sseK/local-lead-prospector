@@ -67,6 +67,10 @@ def check_quota(db: Session, user: models.User, action: str) -> bool:
     if user.role == "admin":
         return True  # admini mają zawsze nieograniczone limity
     plan = user.plan or "free"
+    
+    if plan == "free" and not getattr(user, "is_verified", False):
+        return False
+        
     limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
     limit = limits.get(action, 0)
 

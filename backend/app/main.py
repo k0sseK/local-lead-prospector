@@ -18,6 +18,11 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from typing import List
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
+
 from . import models, schemas, database
 from .dependencies import get_current_user
 from .routers import auth as auth_router
@@ -51,6 +56,8 @@ def apply_migrations():
         ("plan", "VARCHAR DEFAULT 'free'"),
         ("plan_expires_at", "TIMESTAMP"),
         ("lemon_subscription_id", "VARCHAR"),
+        ("is_verified", "BOOLEAN DEFAULT FALSE"),
+        ("verification_token", "VARCHAR"),
     ]
     with database.engine.begin() as conn:
         for col_name, col_type in user_settings_cols:
@@ -92,6 +99,8 @@ app.include_router(auth_router.router)
 app.include_router(settings_router.router)
 app.include_router(ai_router.router)
 
+app.state.limiter = limiter
+app.add_exception_handler(429, _rate_limit_exceeded_handler)
 
 @app.get("/health", tags=["meta"])
 def health_check():

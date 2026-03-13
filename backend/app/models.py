@@ -14,6 +14,8 @@ class User(Base):
     plan_expires_at = Column(DateTime, nullable=True)
     lemon_subscription_id = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    is_verified = Column(Boolean, default=False)
+    verification_token = Column(String, nullable=True, index=True)
 
 
 class UserSettings(Base):

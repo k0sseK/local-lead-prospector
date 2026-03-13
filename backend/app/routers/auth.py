@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 
 import os
+import secrets
 import resend
 import httpx
 from jose import JWTError, jwt
@@ -20,6 +21,14 @@ from ..dependencies import (
 from ..templates.forgot_password_email import get_forgot_password_email_html
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+from ..main import limiter
+
+def send_verification_email(email: str, token: str):
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Wysyłam link aktywacyjny na {email}: https://znajdzfirmy.pl/verify?token={token}")
+
 
 def verify_turnstile(token: str | None):
     secret = os.getenv("TURNSTILE_SECRET_KEY")
@@ -40,27 +49,46 @@ def verify_turnstile(token: str | None):
 
 
 @router.post("/register", response_model=schemas.Token, status_code=status.HTTP_201_CREATED)
-def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("3/day")
+def register(request: Request, user_in: schemas.UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     verify_turnstile(user_in.cf_turnstile_response)
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    token_str = secrets.token_urlsafe(32)
+
     user = models.User(
         email=user_in.email,
         hashed_password=hash_password(user_in.password),
         role="user",
+        is_verified=False,
+        verification_token=token_str,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
+    background_tasks.add_task(send_verification_email, user.email, token_str)
+
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer", "user": user}
 
 
+@router.get("/verify-email")
+def verify_email(token: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.verification_token == token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy lub wygasły token weryfikacji.")
+        
+    user.is_verified = True
+    user.verification_token = None
+    db.commit()
+    return {"message": "Konto zweryfikowane pomyślnie"}
+
+
 @router.post("/login", response_model=schemas.Token)
-def login(user_in: schemas.UserLogin, db: Session = Depends(get_db)):
+def login(request: Request, user_in: schemas.UserLogin, db: Session = Depends(get_db)):
     verify_turnstile(user_in.cf_turnstile_response)
     user = db.query(models.User).filter(models.User.email == user_in.email).first()
     if not user or not verify_password(user_in.password, user.hashed_password):
