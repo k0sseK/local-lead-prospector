@@ -1,9 +1,22 @@
 <script setup>
+import { ref } from "vue";
+import { useIntersectionObserver } from "@vueuse/core";
 import { ArrowRight, PlayCircle } from "lucide-vue-next";
 
 definePageMeta({
 	layout: "default",
 });
+
+const howItWorksRef = ref(null);
+const howItWorksVisible = ref(false);
+
+useIntersectionObserver(
+	howItWorksRef,
+	([{ isIntersecting }]) => {
+		if (isIntersecting) howItWorksVisible.value = true;
+	},
+	{ rootMargin: "0px 0px -80px 0px", threshold: 0 },
+);
 </script>
 
 <template>
@@ -201,14 +214,13 @@ definePageMeta({
 		<section class="py-32 bg-[#0f1a18] border-b border-brand-teal/15">
 			<div class="container mx-auto px-6 lg:px-12 max-w-7xl">
 				<div
-					v-motion
-					:initial="{ opacity: 0, y: 40 }"
-					:visible-once="{
-						opacity: 1,
-						y: 0,
-						transition: { duration: 600 },
-					}"
-					class="text-center mb-20 space-y-4"
+					ref="howItWorksRef"
+					class="text-center mb-20 space-y-4 transition-all duration-[600ms]"
+					:class="
+						howItWorksVisible
+							? 'opacity-100 translate-y-0'
+							: 'opacity-0 translate-y-10'
+					"
 				>
 					<h2 class="text-4xl md:text-5xl font-extrabold text-white">
 						Jak to działa?
@@ -223,14 +235,12 @@ definePageMeta({
 
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-16 lg:gap-24">
 					<div
-						v-motion
-						:initial="{ opacity: 0, y: 50 }"
-						:visible-once="{
-							opacity: 1,
-							y: 0,
-							transition: { duration: 600, delay: 0 },
-						}"
-						class="relative pt-10"
+						class="relative pt-10 transition-all duration-[600ms]"
+						:class="
+							howItWorksVisible
+								? 'opacity-100 translate-y-0'
+								: 'opacity-0 translate-y-12'
+						"
 					>
 						<span
 							class="absolute -top-4 -left-4 text-8xl font-extrabold select-none z-0 leading-none text-brand-green opacity-[0.08]"
@@ -249,14 +259,13 @@ definePageMeta({
 					</div>
 
 					<div
-						v-motion
-						:initial="{ opacity: 0, y: 50 }"
-						:visible-once="{
-							opacity: 1,
-							y: 0,
-							transition: { duration: 600, delay: 160 },
-						}"
-						class="relative pt-10"
+						class="relative pt-10 transition-all duration-[600ms]"
+						style="transition-delay: 160ms"
+						:class="
+							howItWorksVisible
+								? 'opacity-100 translate-y-0'
+								: 'opacity-0 translate-y-12'
+						"
 					>
 						<span
 							class="absolute -top-4 -left-4 text-8xl font-extrabold select-none z-0 leading-none text-brand-green opacity-[0.08]"
@@ -276,14 +285,13 @@ definePageMeta({
 					</div>
 
 					<div
-						v-motion
-						:initial="{ opacity: 0, y: 50 }"
-						:visible-once="{
-							opacity: 1,
-							y: 0,
-							transition: { duration: 600, delay: 320 },
-						}"
-						class="relative pt-10"
+						class="relative pt-10 transition-all duration-[600ms]"
+						style="transition-delay: 320ms"
+						:class="
+							howItWorksVisible
+								? 'opacity-100 translate-y-0'
+								: 'opacity-0 translate-y-12'
+						"
 					>
 						<span
 							class="absolute -top-4 -left-4 text-8xl font-extrabold select-none z-0 leading-none text-brand-green opacity-[0.08]"

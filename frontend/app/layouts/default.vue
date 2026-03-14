@@ -27,6 +27,12 @@ const { isAuthenticated } = useAuth();
 					>
 						Cennik
 					</NuxtLink>
+					<NuxtLink
+						to="/kontakt"
+						class="hidden sm:inline-block text-sm font-semibold text-slate-400 hover:text-brand-green transition-colors"
+					>
+						Kontakt
+					</NuxtLink>
 					<template v-if="isAuthenticated">
 						<NuxtLink
 							to="/app"
@@ -88,7 +94,9 @@ const { isAuthenticated } = useAuth();
 					>
 				</div> -->
 				<p class="text-sm text-emerald-100/30">
-					&copy; {{ new Date().getFullYear() }} znajdzfirmy&#8203;.&#8203;pl. Built for velocity.
+					&copy;
+					{{ new Date().getFullYear() }} znajdzfirmy&#8203;.&#8203;pl.
+					Built for velocity.
 				</p>
 			</div>
 		</footer>

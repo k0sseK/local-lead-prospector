@@ -7,7 +7,7 @@ docker-compose up db -d
 
 echo.
 echo [2/3] Odpalanie Backendu (FastAPI) w nowym oknie...
-start "LLP Backend" cmd /k "cd backend && venv\Scripts\activate && uvicorn app.main:app --reload --port 8000"
+start "LLP Backend" cmd /k "cd backend && (if exist .venv\Scripts\activate.bat (call .venv\Scripts\activate.bat) else (call venv\Scripts\activate.bat)) && python -m pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000"
 
 echo.
 echo [3/3] Odpalanie Frontendu (Nuxt) w nowym oknie...

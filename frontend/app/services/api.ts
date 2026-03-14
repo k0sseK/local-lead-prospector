@@ -42,6 +42,13 @@ export interface EmailPayload {
 	[key: string]: unknown;
 }
 
+export interface ContactFormPayload {
+	name: string;
+	email: string;
+	message: string;
+	cf_turnstile_response?: string;
+}
+
 export interface AuditTemplatePayload {
 	name: string;
 	prompt: string;
@@ -292,5 +299,10 @@ export default {
 	},
 	generateAuditPrompt(description: string): Promise<AxiosResponse> {
 		return api.post("/ai/generate-audit-prompt", { description });
+	},
+
+	// Contact form
+	submitContactForm(data: ContactFormPayload): Promise<AxiosResponse> {
+		return api.post("/contact", data);
 	},
 };
