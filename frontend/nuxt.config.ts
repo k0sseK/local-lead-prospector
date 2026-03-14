@@ -14,6 +14,7 @@ export default defineNuxtConfig({
 		"@vueuse/motion/nuxt",
 		"@nuxt/scripts",
 		"@nuxtjs/turnstile",
+		"@nuxt/content",
 	],
 
 	turnstile: {

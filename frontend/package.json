@@ -14,10 +14,12 @@
 		"test:e2e:debug": "pnpm run e2e:precheck && playwright test --debug"
 	},
 	"dependencies": {
+		"@nuxt/content": "^3.12.0",
 		"@radix-icons/vue": "^1.0.0",
 		"@vueuse/core": "^14.2.1",
 		"@vueuse/motion": "^3.0.3",
 		"axios": "^1.6.8",
+		"better-sqlite3": "^12.8.0",
 		"lucide-vue-next": "^0.344.0",
 		"radix-vue": "^1.9.0",
 		"reka-ui": "^2.9.0",
@@ -25,11 +27,15 @@
 		"vue3-google-map": "^0.27.0",
 		"vuedraggable": "^4.1.0"
 	},
+	"pnpm": {
+		"onlyBuiltDependencies": ["better-sqlite3"]
+	},
 	"devDependencies": {
 		"@nuxt/scripts": "^0.13.2",
 		"@nuxtjs/tailwindcss": "^6.12.0",
 		"@nuxtjs/turnstile": "^1.1.1",
 		"@playwright/test": "^1.58.2",
+		"@tailwindcss/typography": "^0.5.19",
 		"@types/node": "^25.4.0",
 		"autoprefixer": "^10.4.27",
 		"class-variance-authority": "^0.7.0",

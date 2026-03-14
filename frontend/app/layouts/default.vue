@@ -13,26 +13,39 @@ const { isAuthenticated } = useAuth();
 			<div
 				class="container mx-auto px-6 lg:px-12 max-w-7xl flex h-20 items-center justify-between"
 			>
-				<NuxtLink to="/" class="flex items-center gap-2.5 group">
+				<!-- Logo -->
+				<NuxtLink to="/" class="flex items-center gap-2.5 group shrink-0">
 					<img src="/logo.png" alt="" class="h-8 w-auto" />
 					<span class="font-bold text-xl tracking-tight leading-none">
 						<span class="text-brand-green">znajdz</span
 						><span class="text-white">firmy&#8203;.&#8203;pl</span>
 					</span>
 				</NuxtLink>
-				<nav class="flex items-center gap-6">
+
+				<!-- Nav links – center -->
+				<nav class="hidden sm:flex absolute left-1/2 -translate-x-1/2 items-center gap-6">
+					<NuxtLink
+						to="/wiedza"
+						class="text-sm font-semibold text-slate-400 hover:text-brand-green transition-colors"
+					>
+						Wiedza
+					</NuxtLink>
 					<NuxtLink
 						to="/pricing"
-						class="hidden sm:inline-block text-sm font-semibold text-slate-400 hover:text-brand-green transition-colors"
+						class="text-sm font-semibold text-slate-400 hover:text-brand-green transition-colors"
 					>
 						Cennik
 					</NuxtLink>
 					<NuxtLink
 						to="/kontakt"
-						class="hidden sm:inline-block text-sm font-semibold text-slate-400 hover:text-brand-green transition-colors"
+						class="text-sm font-semibold text-slate-400 hover:text-brand-green transition-colors"
 					>
 						Kontakt
 					</NuxtLink>
+				</nav>
+
+				<!-- Auth -->
+				<div class="flex items-center gap-4 shrink-0">
 					<template v-if="isAuthenticated">
 						<NuxtLink
 							to="/app"
@@ -55,7 +68,7 @@ const { isAuthenticated } = useAuth();
 							Zacznij
 						</NuxtLink>
 					</template>
-				</nav>
+				</div>
 			</div>
 		</header>
 
@@ -82,17 +95,6 @@ const { isAuthenticated } = useAuth();
 						><span class="text-white">firmy&#8203;.&#8203;pl</span>
 					</span>
 				</NuxtLink>
-				<!-- <div class="flex gap-12 text-sm text-emerald-100/30">
-					<a href="#" class="hover:text-brand-green transition-colors"
-						>Polityka prywatności</a
-					>
-					<a href="#" class="hover:text-brand-green transition-colors"
-						>Regulamin</a
-					>
-					<a href="#" class="hover:text-brand-green transition-colors"
-						>Kontakt</a
-					>
-				</div> -->
 				<p class="text-sm text-emerald-100/30">
 					&copy;
 					{{ new Date().getFullYear() }} znajdzfirmy&#8203;.&#8203;pl.
