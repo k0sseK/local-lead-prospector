@@ -61,6 +61,10 @@ def apply_migrations():
         ("is_verified", "BOOLEAN DEFAULT FALSE"),
         ("verification_token", "VARCHAR"),
     ]
+    leads_cols = [
+        ("industry", "VARCHAR"),
+        ("lead_score", "INTEGER"),
+    ]
     with database.engine.begin() as conn:
         for col_name, col_type in user_settings_cols:
             conn.execute(text(f"ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
@@ -68,6 +72,9 @@ def apply_migrations():
         for col_name, col_type in users_cols:
             conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
             logger.info(f"Ensured column exists: users.{col_name}")
+        for col_name, col_type in leads_cols:
+            conn.execute(text(f"ALTER TABLE leads ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+            logger.info(f"Ensured column exists: leads.{col_name}")
         # audit_templates — tworzone przez create_all, tu upewniamy się że tabela istnieje
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS audit_templates (
@@ -80,6 +87,23 @@ def apply_migrations():
             )
         """))
         logger.info("Ensured table exists: audit_templates")
+
+        # Naprawia bug: stary globalny unique na place_id zastępujemy composite (user_id, place_id).
+        # Dzięki temu dwóch użytkowników może mieć ten sam Google Place w swoich osobnych CRM-ach.
+        conn.execute(text("ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_place_id_key"))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_leads_user_place "
+            "ON leads (user_id, place_id) WHERE place_id IS NOT NULL AND place_id != ''"
+        ))
+        logger.info("Ensured composite unique index: leads(user_id, place_id)")
+
+        # Indeks GIN z pg_trgm — przyspiesza ILIKE '%...%' na company_name
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_leads_company_trgm "
+            "ON leads USING GIN (company_name gin_trgm_ops)"
+        ))
+        logger.info("Ensured GIN trigram index: leads.company_name")
 
 apply_migrations()
 
@@ -196,6 +220,11 @@ def read_leads(
         query = query.order_by(models.Lead.rating.desc())
     elif sort_by == "name":
         query = query.order_by(models.Lead.company_name.asc())
+    elif sort_by == "score_asc":
+        # Najgorsze strony najpierw (niski score = dużo problemów = najlepszy prospect)
+        query = query.order_by(models.Lead.lead_score.asc().nullsfirst())
+    elif sort_by == "score_desc":
+        query = query.order_by(models.Lead.lead_score.desc().nullslast())
     else:
         query = query.order_by(models.Lead.created_at.desc())
 

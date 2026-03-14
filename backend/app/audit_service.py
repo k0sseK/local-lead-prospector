@@ -15,6 +15,42 @@ from .ai_analyzer import generate_ai_analysis
 logger = logging.getLogger(__name__)
 
 
+def _compute_lead_score(raw_data: dict) -> int:
+    """
+    Oblicza wynik jakości strony leada (0-100).
+    Niższy wynik = więcej problemów technicznych = lepszy prospect dla agencji web/SEO/IT.
+    """
+    if not raw_data.get("has_website"):
+        return 0  # brak strony = maksymalna szansa
+
+    if not raw_data.get("website_reachable"):
+        return 5  # strona niedostępna
+
+    score = 100
+
+    if not raw_data.get("has_ssl"):
+        score -= 25
+    if not raw_data.get("has_viewport"):
+        score -= 20
+
+    load_time = raw_data.get("load_time") or 0
+    if load_time > 3:
+        score -= 15
+    elif load_time > 2:
+        score -= 10
+    elif load_time > 1:
+        score -= 5
+
+    if not raw_data.get("has_h1"):
+        score -= 5
+    if not raw_data.get("has_title"):
+        score -= 5
+    if not raw_data.get("has_meta_description"):
+        score -= 5
+
+    return max(0, score)
+
+
 # Mapowanie kodu kraju (ISO alpha-2) -> nazwa języka w celowniku (pl. gramatyka dla promptów)
 COUNTRY_LANGUAGE_MAP = {
     "PL": "polskim",
@@ -143,6 +179,7 @@ async def run_full_audit(db_lead: models.Lead, db: Session, template_id: int | N
         ai_result = {"selling_points": [], "email_draft": ""}
 
     # --- Krok 3: Zapis wyników do modelu ---
+    db_lead.lead_score = _compute_lead_score(raw_data)
     db_lead.audit_report = {
         "raw_data": raw_data,
         "selling_points": ai_result.get("selling_points", []),

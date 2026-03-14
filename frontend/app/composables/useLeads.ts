@@ -27,6 +27,8 @@ export interface Lead {
 	audit_report: Record<string, unknown> | null;
 	status: string;
 	notes: string | null;
+	industry: string | null;
+	lead_score: number | null;
 	created_at: string;
 }
 

@@ -8,7 +8,13 @@ load_dotenv()
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://llp_user:llp_password@localhost:5432/llp_db")
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,       # automatycznie testuje połączenie przed użyciem
+    pool_recycle=1800,        # recykluje połączenia co 30 min (Railway ubija idle po ~60 min)
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

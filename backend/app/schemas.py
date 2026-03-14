@@ -58,6 +58,8 @@ class LeadBase(BaseModel):
     audit_report: Optional[dict] = None
     status: Optional[str] = "new"
     notes: Optional[str] = None
+    industry: Optional[str] = None
+    lead_score: Optional[int] = None
 
 class LeadCreate(LeadBase):
     pass

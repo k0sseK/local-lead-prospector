@@ -17,7 +17,8 @@ _FIELD_MASK = (
     "places.rating,"
     "places.userRatingCount,"
     "places.websiteUri,"
-    "places.nationalPhoneNumber"
+    "places.nationalPhoneNumber,"
+    "places.primaryType"
 )
 _PLACES_URL = "https://places.googleapis.com/v1/places:searchText"
 
@@ -168,6 +169,7 @@ def _save_lead_if_new(place: dict, db: Session, user_id: int) -> bool:
             rating=place.get("rating", 0.0),
             reviews_count=place.get("userRatingCount", 0),
             website_uri=place.get("websiteUri", ""),
+            industry=place.get("primaryType"),
             user_id=user_id,
             status="new",
         )

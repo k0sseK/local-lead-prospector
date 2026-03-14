@@ -82,7 +82,7 @@ class Lead(Base):
     __tablename__ = "leads"
 
     id = Column(Integer, primary_key=True, index=True)
-    place_id = Column(String, unique=True, index=True, nullable=True) # Google Places ID
+    place_id = Column(String, index=True, nullable=True)  # Google Places ID — unique per user, not globally
     company_name = Column(String, index=True)
     phone = Column(String, nullable=True)
     address = Column(String, nullable=True)
@@ -95,5 +95,8 @@ class Lead(Base):
     audit_report = Column(JSON, nullable=True)
     status = Column(String, default="new") # options: 'new', 'to_contact', 'contacted', 'rejected', 'closed'
     notes = Column(Text, nullable=True)
+    industry = Column(String, nullable=True)  # Google Places primaryType (np. "restaurant", "plumber")
+    lead_score = Column(Integer, nullable=True)  # 0-100: jakość strony, niższy = więcej problemów = lepszy prospect
     user_id = Column(Integer, nullable=True, index=True)  # plain Integer, no FK object (SQLite-safe)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    __table_args__ = (UniqueConstraint("user_id", "place_id", name="uq_leads_user_place"),)

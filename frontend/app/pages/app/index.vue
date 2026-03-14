@@ -310,6 +310,36 @@ const handleKanbanStatusUpdate = ({ leadId, newStatus }) =>
 const listSelectionMode = ref(false);
 const listSelectedIds = ref(new Set());
 const isListBulkProcessing = ref(false);
+const listSortBy = ref("newest");
+
+const displayedLeads = computed(() => {
+	const arr = [...leads.value];
+	if (listSortBy.value === "score_asc") {
+		// Najgorsze strony najpierw (najlepsze prospekty dla agencji)
+		return arr.sort((a, b) => {
+			if (a.lead_score == null && b.lead_score == null) return 0;
+			if (a.lead_score == null) return 1;
+			if (b.lead_score == null) return -1;
+			return a.lead_score - b.lead_score;
+		});
+	}
+	if (listSortBy.value === "score_desc") {
+		return arr.sort((a, b) => {
+			if (a.lead_score == null && b.lead_score == null) return 0;
+			if (a.lead_score == null) return 1;
+			if (b.lead_score == null) return -1;
+			return b.lead_score - a.lead_score;
+		});
+	}
+	if (listSortBy.value === "rating") {
+		return arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+	}
+	if (listSortBy.value === "name") {
+		return arr.sort((a, b) => a.company_name.localeCompare(b.company_name));
+	}
+	// default: newest
+	return arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+});
 
 const handleLeadDeleted = (leadId) => {
 	leads.value = leads.value.filter((l) => l.id !== leadId);
@@ -1616,12 +1646,27 @@ onMounted(() => {
 					</button>
 				</div>
 
+				<!-- Sort selector -->
+				<div class="flex items-center justify-end gap-2 px-1 mt-2">
+					<span class="text-xs text-slate-500">Sortuj:</span>
+					<select
+						v-model="listSortBy"
+						class="text-xs bg-white border border-slate-200 rounded-md px-2 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-teal"
+					>
+						<option value="newest">Najnowsze</option>
+						<option value="score_asc">Najgorsze strony (najlepsze prospekty)</option>
+						<option value="score_desc">Najlepsze strony</option>
+						<option value="rating">Ocena Google</option>
+						<option value="name">Nazwa A–Z</option>
+					</select>
+				</div>
+
 				<!-- List view as Cards Grid -->
 				<div
 					class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4"
 				>
 					<div
-						v-for="lead in leads"
+						v-for="lead in displayedLeads"
 						:key="lead.id"
 						class="bg-white p-4 rounded-xl shadow-sm border transition-shadow cursor-pointer group flex flex-col justify-between"
 						:class="[
