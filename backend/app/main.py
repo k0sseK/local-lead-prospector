@@ -57,6 +57,7 @@ def apply_migrations():
         ("plan", "VARCHAR DEFAULT 'free'"),
         ("plan_expires_at", "TIMESTAMP"),
         ("lemon_subscription_id", "VARCHAR"),
+        ("lemon_subscription_status", "VARCHAR"),
         ("is_verified", "BOOLEAN DEFAULT FALSE"),
         ("verification_token", "VARCHAR"),
     ]
@@ -529,7 +530,14 @@ def get_usage(
     current_user: models.User = Depends(get_current_user),
 ):
     """Zwraca bieżące zużycie i limity zalogowanego użytkownika."""
-    return get_quota_info(db, current_user)
+    data = get_quota_info(db, current_user)
+    # Append subscription metadata for the Account tab
+    plan_expires_at = current_user.plan_expires_at
+    data["subscription"] = {
+        "renews_at": plan_expires_at.isoformat() + "Z" if plan_expires_at else None,
+        "status": current_user.lemon_subscription_status,
+    }
+    return data
 
 
 @app.post("/api/admin/set-plan")
@@ -557,8 +565,9 @@ def admin_set_plan(
 
 
 _LS_WEBHOOK_SECRET = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
+_LS_API_KEY = os.getenv("LEMONSQUEEZY_API_KEY", "")
 _LS_ACTIVE_STATUSES = {"active", "on_trial"}
-_LS_INACTIVE_STATUSES = {"expired", "cancelled", "unpaid", "paused"}
+_LS_INACTIVE_STATUSES = {"expired", "unpaid", "paused"}
 
 @app.post("/api/webhooks/lemonsqueezy", include_in_schema=False)
 async def lemonsqueezy_webhook(request: Request, db: Session = Depends(database.get_db)):
@@ -604,14 +613,33 @@ async def lemonsqueezy_webhook(request: Request, db: Session = Depends(database.
         )
         return {"received": True}
 
+    def _parse_ls_date(date_str):
+        """Parse ISO date string from Lemon Squeezy into a naive UTC datetime."""
+        if not date_str:
+            return None
+        try:
+            from datetime import datetime, timezone
+            dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        except Exception:
+            return None
+
     if event in ("subscription_created", "subscription_updated"):
         if status in _LS_ACTIVE_STATUSES:
             user.plan = "pro"
             user.lemon_subscription_id = subscription_id
-            user.plan_expires_at = None
-            logger.info("LS webhook: user %d upgraded to pro (sub %s)", user.id, subscription_id)
+            user.lemon_subscription_status = status
+            user.plan_expires_at = _parse_ls_date(attrs.get("renews_at"))
+            logger.info("LS webhook: user %d upgraded to pro (sub %s, renews_at=%s)", user.id, subscription_id, attrs.get("renews_at"))
+        elif status == "cancelled":
+            # Cancelled but still active until period ends — keep pro access
+            user.lemon_subscription_id = subscription_id
+            user.lemon_subscription_status = "cancelled"
+            user.plan_expires_at = _parse_ls_date(attrs.get("ends_at"))
+            logger.info("LS webhook: user %d subscription cancelled (sub %s, ends_at=%s)", user.id, subscription_id, attrs.get("ends_at"))
         elif status in _LS_INACTIVE_STATUSES:
             user.plan = "free"
+            user.lemon_subscription_status = status
             logger.info(
                 "LS webhook: user %d downgraded to free (sub %s, status=%s)",
                 user.id, subscription_id, status,
@@ -619,10 +647,51 @@ async def lemonsqueezy_webhook(request: Request, db: Session = Depends(database.
     elif event == "subscription_expired":
         user.plan = "free"
         user.lemon_subscription_id = None
+        user.lemon_subscription_status = "expired"
+        user.plan_expires_at = None
         logger.info("LS webhook: user %d subscription expired → free", user.id)
 
     db.commit()
     return {"received": True}
+
+
+@app.post("/api/subscription/cancel")
+def cancel_subscription(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Anuluje subskrypcję Lemon Squeezy zalogowanego użytkownika."""
+    if current_user.plan != "pro" or not current_user.lemon_subscription_id:
+        raise HTTPException(status_code=400, detail="Brak aktywnej subskrypcji do anulowania.")
+    if current_user.lemon_subscription_status == "cancelled":
+        raise HTTPException(status_code=400, detail="Subskrypcja jest już anulowana.")
+    if not _LS_API_KEY:
+        raise HTTPException(status_code=500, detail="Brak konfiguracji Lemon Squeezy API.")
+
+    import httpx
+    sub_id = current_user.lemon_subscription_id
+    try:
+        resp = httpx.delete(
+            f"https://api.lemonsqueezy.com/v1/subscriptions/{sub_id}",
+            headers={
+                "Accept": "application/vnd.api+json",
+                "Authorization": f"Bearer {_LS_API_KEY}",
+            },
+            timeout=15.0,
+        )
+    except httpx.RequestError as exc:
+        logger.error("LS cancel subscription request error: %s", exc)
+        raise HTTPException(status_code=502, detail="Błąd połączenia z Lemon Squeezy.")
+
+    if resp.status_code not in (200, 202, 204):
+        logger.error("LS cancel subscription failed: %s %s", resp.status_code, resp.text)
+        raise HTTPException(status_code=502, detail="Nie udało się anulować subskrypcji w Lemon Squeezy.")
+
+    # Update local state — webhook will eventually confirm, but update optimistically
+    current_user.lemon_subscription_status = "cancelled"
+    db.commit()
+    logger.info("User %d cancelled subscription %s", current_user.id, sub_id)
+    return {"message": "Subskrypcja została anulowana. Dostęp Pro pozostaje aktywny do końca okresu rozliczeniowego."}
 
 
 @app.get("/api/admin/stats")

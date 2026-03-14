@@ -282,6 +282,11 @@ export default {
 		return api.get("/usage");
 	},
 
+	// Subscription
+	cancelSubscription(): Promise<AxiosResponse> {
+		return api.post("/subscription/cancel");
+	},
+
 	// Admin
 	adminGetUsers(): Promise<AxiosResponse> {
 		return api.get("/admin/users");

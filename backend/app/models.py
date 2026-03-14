@@ -13,6 +13,7 @@ class User(Base):
     plan = Column(String, default="free")  # 'free' | 'pro'  (admin → rola, nie plan)
     plan_expires_at = Column(DateTime, nullable=True)
     lemon_subscription_id = Column(String, nullable=True, index=True)
+    lemon_subscription_status = Column(String, nullable=True)  # 'active' | 'cancelled' | 'expired' etc.
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_verified = Column(Boolean, default=False)
     verification_token = Column(String, nullable=True, index=True)

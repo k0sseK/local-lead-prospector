@@ -215,6 +215,46 @@ async function setDefault(t) {
 	}
 }
 
+// ─── Subscription ─────────────────────────────────────────────────
+const showCancelDialog = ref(false);
+const cancelling = ref(false);
+
+const subscriptionRenewsAt = computed(() => {
+	const raw = usage.value?.subscription?.renews_at;
+	if (!raw) return null;
+	return new Date(raw).toLocaleDateString("pl-PL", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+});
+
+const subscriptionIsCancelled = computed(
+	() => usage.value?.subscription?.status === "cancelled",
+);
+
+async function confirmCancelSubscription() {
+	cancelling.value = true;
+	try {
+		await api.cancelSubscription();
+		// Optimistically update local state
+		if (usage.value?.subscription) {
+			usage.value.subscription.status = "cancelled";
+		}
+		toast.success(
+			"Subskrypcja anulowana. Dostęp Pro pozostaje aktywny do końca okresu.",
+		);
+	} catch (err) {
+		toast.error(
+			err?.response?.data?.detail ||
+				"Nie udało się anulować subskrypcji.",
+		);
+	} finally {
+		cancelling.value = false;
+		showCancelDialog.value = false;
+	}
+}
+
 // ─── Resend dialog ────────────────────────────────────────────────
 const showResendDialog = ref(false);
 const resendSteps = [
@@ -846,6 +886,32 @@ const TABS = [
 							<Zap class="w-4 h-4" />
 							Ulepsz do Pro
 						</a>
+
+						<!-- Renewal / expiry info for Pro users -->
+						<div
+							v-if="usage.plan === 'pro' && subscriptionRenewsAt"
+							class="rounded-lg px-4 py-3 text-sm"
+							:class="subscriptionIsCancelled ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-slate-50 border border-slate-200 text-slate-600'"
+						>
+							<template v-if="subscriptionIsCancelled">
+								<span class="font-semibold">Subskrypcja anulowana.</span>
+								Dostęp Pro aktywny do
+								<span class="font-semibold">{{ subscriptionRenewsAt }}</span>.
+							</template>
+							<template v-else>
+								Następne odnowienie:
+								<span class="font-semibold text-slate-800">{{ subscriptionRenewsAt }}</span>
+							</template>
+						</div>
+
+						<!-- Cancel subscription -->
+						<button
+							v-if="usage.plan === 'pro' && !subscriptionIsCancelled"
+							@click="showCancelDialog = true"
+							class="w-full py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
+						>
+							Anuluj subskrypcję
+						</button>
 					</div>
 
 					<div v-else class="text-center py-8 text-slate-400">
@@ -855,6 +921,40 @@ const TABS = [
 				</div>
 			</div>
 		</div>
+
+		<!-- Cancel Subscription Dialog -->
+		<Teleport to="body">
+			<div
+				v-if="showCancelDialog"
+				class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+				@click.self="showCancelDialog = false"
+			>
+				<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+					<div class="p-6 border-b border-slate-100">
+						<h2 class="text-lg font-bold text-slate-900">Anulowanie subskrypcji</h2>
+						<p class="text-sm text-slate-500 mt-1">
+							Czy na pewno chcesz anulować plan Pro? Dostęp pozostanie aktywny do końca opłaconego okresu.
+						</p>
+					</div>
+					<div class="p-6 flex gap-3">
+						<button
+							@click="showCancelDialog = false"
+							:disabled="cancelling"
+							class="flex-1 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors"
+						>
+							Zachowaj subskrypcję
+						</button>
+						<button
+							@click="confirmCancelSubscription"
+							:disabled="cancelling"
+							class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors"
+						>
+							{{ cancelling ? "Anulowanie..." : "Tak, anuluj" }}
+						</button>
+					</div>
+				</div>
+			</div>
+		</Teleport>
 
 		<!-- Resend Instructions Dialog -->
 		<Teleport to="body">
