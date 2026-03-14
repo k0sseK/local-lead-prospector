@@ -41,7 +41,7 @@ def contact(request: Request, payload: ContactFormPayload):
     try:
         resend.Emails.send(
             {
-                "from": os.getenv("RESEND_FROM_EMAIL", "formularz@znajdzfirmy.pl"),
+                "from": os.getenv("RESEND_FROM_EMAIL", "Formularz kontaktowy <formularz@znajdzfirmy.pl>"),
                 "to": ["kontakt@znajdzfirmy.pl"],
                 "reply_to": str(payload.email),
                 "subject": f"Wiadomość od {safe_name} – formularz kontaktowy",
