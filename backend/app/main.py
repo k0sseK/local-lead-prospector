@@ -403,41 +403,34 @@ async def scan_for_leads(
             detail="Wyczerpałeś miesięczny limit skanów. Przejdź na plan Pro, aby kontynuować.",
         )
 
-    from scraper import scan_google_places
+    # Walidacja klucza API przed dispatch — szybki fail jeśli brakuje klucza
+    google_api_key = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
+    if not google_api_key or google_api_key == "your_google_api_key_here":
+        raise HTTPException(status_code=400, detail="Brak klucza GOOGLE_PLACES_API_KEY w konfiguracji.")
 
-    filters = {
-        "website_filter": scan_request.website_filter,
-        "min_rating": scan_request.min_rating,
-        "max_rating": scan_request.max_rating,
-        "min_reviews": scan_request.min_reviews,
-        "max_reviews": scan_request.max_reviews,
-    }
+    increment_usage(db, current_user, "scans")
 
-    try:
-        new_leads_added = await scan_google_places(
-            keyword=scan_request.keyword,
-            lat=scan_request.lat,
-            lng=scan_request.lng,
-            radius_km=scan_request.radius_km,
-            limit=scan_request.limit,
-            db=db,
-            user_id=current_user.id,
-            filters=filters,
-            country_code=scan_request.country_code,
-        )
-        increment_usage(db, current_user, "scans")
-        return {"message": f"Scan completed. Added {new_leads_added} new leads."}
-    except ValueError as e:
-        # Nieprawidłowy klucz API lub błąd odpowiedzi Google
-        raise HTTPException(status_code=400, detail=str(e))
-    except ConnectionError as e:
-        # Timeout, DNS failure — serwis Google niedostępny
-        raise HTTPException(status_code=503, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    from .tasks import scan_places_task
+    task = scan_places_task.delay(
+        user_id=current_user.id,
+        keyword=scan_request.keyword,
+        lat=scan_request.lat,
+        lng=scan_request.lng,
+        radius_km=scan_request.radius_km,
+        limit=scan_request.limit,
+        country_code=scan_request.country_code,
+        filters={
+            "website_filter": scan_request.website_filter,
+            "min_rating": scan_request.min_rating,
+            "max_rating": scan_request.max_rating,
+            "min_reviews": scan_request.min_reviews,
+            "max_reviews": scan_request.max_reviews,
+        },
+    )
+    return {"task_id": task.id, "status": "queued"}
 
 
-@app.post("/api/leads/{lead_id}/audit", response_model=schemas.Lead)
+@app.post("/api/leads/{lead_id}/audit")
 async def audit_lead_endpoint(
     lead_id: int,
     audit_request: schemas.AuditRequest = schemas.AuditRequest(),
@@ -458,14 +451,40 @@ async def audit_lead_endpoint(
     if db_lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
 
-    try:
-        from .audit_service import run_full_audit
-        result = await run_full_audit(db_lead, db, template_id=audit_request.template_id, target_language=audit_request.target_language)
-        increment_usage(db, current_user, "ai_audits", tokens_in=900, tokens_out=500, lead_id=lead_id)
-        return result
-    except Exception as exc:
-        logger.error("Audit endpoint failed for lead %d: %s", lead_id, exc, exc_info=True)
-        raise HTTPException(status_code=500, detail="Audit failed. Sprawdź logi serwera.")
+    increment_usage(db, current_user, "ai_audits", tokens_in=900, tokens_out=500, lead_id=lead_id)
+
+    from .tasks import audit_lead_task
+    task = audit_lead_task.delay(
+        lead_id=lead_id,
+        user_id=current_user.id,
+        template_id=audit_request.template_id,
+        target_language=audit_request.target_language,
+    )
+    return {"task_id": task.id, "lead_id": lead_id, "status": "queued"}
+
+
+@app.get("/api/tasks/{task_id}")
+async def get_task_status(
+    task_id: str,
+    current_user: models.User = Depends(get_current_user),
+):
+    """Polling endpoint — zwraca status taska Celery."""
+    from celery.result import AsyncResult
+    from .celery_app import celery_app as _celery
+
+    result = AsyncResult(task_id, app=_celery)
+    status = result.status  # PENDING | STARTED | SUCCESS | FAILURE | RETRY
+
+    payload: dict = {"task_id": task_id, "status": status, "result": None}
+
+    if result.ready():
+        if result.successful():
+            payload["result"] = result.result
+        else:
+            # result.result zawiera wyjątek — serializujemy do stringa
+            payload["result"] = {"error": str(result.result)}
+
+    return payload
 
 
 @app.post("/api/leads/{lead_id}/send-email")

@@ -310,4 +310,9 @@ export default {
 	submitContactForm(data: ContactFormPayload): Promise<AxiosResponse> {
 		return api.post("/contact", data);
 	},
+
+	// Task status polling (Celery)
+	getTaskStatus(taskId: string): Promise<AxiosResponse> {
+		return api.get(`/tasks/${taskId}`);
+	},
 };

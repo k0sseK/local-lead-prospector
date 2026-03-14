@@ -1,9 +1,10 @@
 <script setup>
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onUnmounted } from "vue";
 import draggable from "vuedraggable";
 import KanbanCard from "@/components/KanbanCard.vue";
 import { toast } from "vue-sonner";
 import api from "@/services/api";
+import { useTaskPoller } from "@/composables/useTaskPoller";
 
 const props = defineProps({
 	leads: {
@@ -123,33 +124,59 @@ const bulkDelete = async () => {
 	}
 };
 
-const handleAuditLead = async (leadId) => {
-	if (auditingIds.value.has(leadId)) return;
+const { pollTask } = useTaskPoller();
+const _pollerCleanups = new Map();
 
-	auditingIds.value.add(leadId);
+onUnmounted(() => {
+	_pollerCleanups.forEach((cancel) => cancel());
+	_pollerCleanups.clear();
+});
+
+const _applyUpdatedLead = async (leadId) => {
 	try {
-		const response = await api.auditLead(leadId);
-		const updatedLead = response.data;
-
+		const res = await api.getLead(leadId);
+		const updatedLead = res.data;
 		for (const columnId in localColumns.value) {
-			const index = localColumns.value[columnId].findIndex(
-				(l) => l.id === leadId,
-			);
+			const index = localColumns.value[columnId].findIndex((l) => l.id === leadId);
 			if (index !== -1) {
-				const localLead = localColumns.value[columnId][index];
-				localLead.email = updatedLead.email;
-				localLead.has_ssl = updatedLead.has_ssl;
-				localLead.audited = updatedLead.audited;
-				localLead.audit_report = updatedLead.audit_report;
+				const lead = localColumns.value[columnId][index];
+				lead.email = updatedLead.email;
+				lead.has_ssl = updatedLead.has_ssl;
+				lead.audited = updatedLead.audited;
+				lead.audit_report = updatedLead.audit_report;
+				lead.lead_score = updatedLead.lead_score;
 				break;
 			}
 		}
-		toast.success("Audyt AI zakończony pomyślnie!");
+	} catch { /* ignoruj */ }
+};
+
+const handleAuditLead = async (leadId) => {
+	if (auditingIds.value.has(leadId)) return;
+	auditingIds.value.add(leadId);
+
+	try {
+		const response = await api.auditLead(leadId);
+		const { task_id } = response.data;
+
+		const cancel = pollTask(task_id, {
+			onSuccess: async () => {
+				await _applyUpdatedLead(leadId);
+				auditingIds.value.delete(leadId);
+				_pollerCleanups.delete(leadId);
+				toast.success("Audyt AI zakończony pomyślnie!");
+			},
+			onError: (msg) => {
+				auditingIds.value.delete(leadId);
+				_pollerCleanups.delete(leadId);
+				toast.error(msg || "Nie udało się przeprowadzić audytu AI.");
+			},
+		});
+
+		_pollerCleanups.set(leadId, cancel);
 	} catch (error) {
-		console.error(error);
-		toast.error("Nie udało się przeprowadzić audytu AI.");
-	} finally {
 		auditingIds.value.delete(leadId);
+		toast.error(error.response?.data?.detail || "Nie udało się przeprowadzić audytu AI.");
 	}
 };
 

@@ -99,26 +99,41 @@ const deleteLead = async () => {
 const regenerateEmail = async () => {
 	try {
 		isRegeneratingEmail.value = true;
-		const lang =
-			selectedEmailLanguage.value === "auto"
-				? null
-				: selectedEmailLanguage.value;
-		const response = await api.auditLeadWithTemplate(
-			props.lead.id,
-			null,
-			lang,
-		);
-		const updated = response.data;
-		Object.assign(props.lead, updated);
-		editableEmailDraft.value = updated.audit_report?.email_draft || "";
-		toast.success("Mail zregenerowany!");
+		const lang = selectedEmailLanguage.value === "auto" ? null : selectedEmailLanguage.value;
+		const response = await api.auditLeadWithTemplate(props.lead.id, null, lang);
+		const { task_id, lead_id } = response.data;
+
+		// Polling co 2s aż do zakończenia taska
+		let attempts = 0;
+		const interval = setInterval(async () => {
+			attempts++;
+			if (attempts > 90) {
+				clearInterval(interval);
+				isRegeneratingEmail.value = false;
+				toast.error("Timeout — regeneracja trwa zbyt długo.");
+				return;
+			}
+			try {
+				const statusRes = await api.getTaskStatus(task_id);
+				const { status } = statusRes.data;
+				if (status === "SUCCESS") {
+					clearInterval(interval);
+					const leadRes = await api.getLead(lead_id);
+					const updated = leadRes.data;
+					Object.assign(props.lead, updated);
+					editableEmailDraft.value = updated.audit_report?.email_draft || "";
+					isRegeneratingEmail.value = false;
+					toast.success("Mail zregenerowany!");
+				} else if (status === "FAILURE") {
+					clearInterval(interval);
+					isRegeneratingEmail.value = false;
+					toast.error("Nie udało się zregenerować maila.");
+				}
+			} catch { /* błąd sieci — próbujemy dalej */ }
+		}, 2000);
 	} catch (err) {
-		console.error(err);
-		toast.error(
-			err.response?.data?.detail || "Nie udało się zregenerować maila.",
-		);
-	} finally {
 		isRegeneratingEmail.value = false;
+		toast.error(err.response?.data?.detail || "Nie udało się zregenerować maila.");
 	}
 };
 

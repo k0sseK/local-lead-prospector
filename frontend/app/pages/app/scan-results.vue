@@ -1,12 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "#imports";
 import { toast } from "vue-sonner";
 import api from "@/services/api";
+import { useTaskPoller } from "@/composables/useTaskPoller";
 import {
-	ArrowLeft,
 	CheckCircle,
-	ChevronDown,
 	Search,
 	Star,
 	Mail,
@@ -38,6 +37,14 @@ const auditTemplates = ref([]);
 const selectedTemplateId = ref(null);
 const auditingIds = ref(new Set());
 
+// Cleanup funkcje dla aktywnych pollerów (key: lead_id → cancel fn)
+const _pollerCleanups = new Map();
+
+onUnmounted(() => {
+	_pollerCleanups.forEach((cancel) => cancel());
+	_pollerCleanups.clear();
+});
+
 const fetchAuditTemplates = async () => {
 	try {
 		const res = await api.getAuditTemplates();
@@ -49,18 +56,49 @@ const fetchAuditTemplates = async () => {
 	}
 };
 
+const { pollTask } = useTaskPoller();
+
 const auditSingleLead = async (lead) => {
 	if (auditingIds.value.has(lead.id)) return;
 	auditingIds.value = new Set([...auditingIds.value, lead.id]);
+
 	try {
 		const res = await api.auditLeadWithTemplate(
 			lead.id,
 			selectedTemplateId.value,
+			null,
 		);
-		const idx = leads.value.findIndex((l) => l.id === lead.id);
-		if (idx !== -1) leads.value[idx] = { ...leads.value[idx], ...res.data };
-		toast.success("Audyt zakończony!");
-		router.push(`/app/lead/${lead.id}/audit`);
+		const { task_id, lead_id } = res.data;
+
+		const cancel = pollTask(task_id, {
+			onSuccess: async () => {
+				// Odśwież lead z serwera po zakończeniu audytu
+				try {
+					const leadRes = await api.getLead(lead_id);
+					const idx = leads.value.findIndex((l) => l.id === lead_id);
+					if (idx !== -1) leads.value[idx] = leadRes.data;
+				} catch { /* ignoruj */ }
+
+				const s = new Set(auditingIds.value);
+				s.delete(lead.id);
+				auditingIds.value = s;
+				_pollerCleanups.delete(lead.id);
+
+				invalidateLeads();
+				toast.success("Audyt zakończony!");
+				router.push(`/app/lead/${lead_id}/audit`);
+			},
+			onError: (msg) => {
+				const s = new Set(auditingIds.value);
+				s.delete(lead.id);
+				auditingIds.value = s;
+				_pollerCleanups.delete(lead.id);
+				toast.error(msg || "Audyt nie powiódł się.");
+			},
+		});
+
+		_pollerCleanups.set(lead.id, cancel);
+
 	} catch (err) {
 		const detail = err.response?.data?.detail;
 		if (err.response?.status === 429) {
@@ -68,7 +106,6 @@ const auditSingleLead = async (lead) => {
 		} else {
 			toast.error(detail || "Audyt nie powiódł się.");
 		}
-	} finally {
 		const s = new Set(auditingIds.value);
 		s.delete(lead.id);
 		auditingIds.value = s;

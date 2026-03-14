@@ -285,21 +285,45 @@ const runScan = async () => {
 		};
 
 		const response = await api.triggerScan(payload);
-		scanMessage.value = response.data.message;
+		const { task_id } = response.data;
+		scanMessage.value = "Skanowanie w toku...";
 
-		await refreshLeads();
-		await refreshQuota(); // force-refresh counters after scan mutation
+		// Polling statusu taska co 2s
+		let attempts = 0;
+		const interval = setInterval(async () => {
+			attempts++;
+			if (attempts > 90) {
+				clearInterval(interval);
+				isScanning.value = false;
+				scanMessage.value = null;
+				toast.error("Skan trwał zbyt długo. Sprawdź wyniki ręcznie.");
+				return;
+			}
+			try {
+				const statusRes = await api.getTaskStatus(task_id);
+				const { status, result } = statusRes.data;
+				if (status === "SUCCESS") {
+					clearInterval(interval);
+					isScanning.value = false;
+					const count = result?.new_leads ?? 0;
+					scanMessage.value = `Dodano ${count} nowych leadów.`;
+					await refreshLeads();
+					await refreshQuota();
+				} else if (status === "FAILURE") {
+					clearInterval(interval);
+					isScanning.value = false;
+					scanMessage.value = null;
+					toast.error(result?.error || "Skan nie powiódł się.");
+				}
+			} catch { /* błąd sieci — próbujemy dalej */ }
+		}, 2000);
 	} catch (err) {
 		const detail = err.response?.data?.detail;
 		if (err.response?.status === 429) {
-			toast.error(
-				detail || "Limit skanów wyczerpany. Przejdź na plan Pro.",
-			);
+			toast.error(detail || "Limit skanów wyczerpany. Przejdź na plan Pro.");
 		} else {
-			toast.error(detail || "Failed to trigger scan.");
+			toast.error(detail || "Nie udało się uruchomić skanu.");
 		}
-		console.error(err);
-	} finally {
 		isScanning.value = false;
 	}
 };
