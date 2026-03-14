@@ -37,14 +37,23 @@ async def generate_ai_analysis(raw_data: dict, company_name: str, user_settings=
 
         model = genai.GenerativeModel("gemini-2.5-flash")
 
-        if user_settings:
-            sender_block = (
-                f"Napisz e-mail w imieniu {user_settings.sender_name} "
-                f"z firmy {user_settings.company_name}. "
-                f"Oferujesz: {user_settings.offer_description}. "
-                f"Bezwzględnie zachowaj następujący ton wypowiedzi: {user_settings.tone_of_voice}. "
-                f"Użyj zebranych błędów z audytu, aby zaproponować swoje usługi."
-            )
+        has_sender_info = user_settings and (
+            user_settings.sender_name or user_settings.company_name or user_settings.offer_description
+        )
+        if has_sender_info:
+            parts = []
+            if user_settings.sender_name and user_settings.company_name:
+                parts.append(f"Napisz e-mail w imieniu {user_settings.sender_name} z firmy {user_settings.company_name}.")
+            elif user_settings.sender_name:
+                parts.append(f"Napisz e-mail w imieniu {user_settings.sender_name}.")
+            elif user_settings.company_name:
+                parts.append(f"Napisz e-mail w imieniu firmy {user_settings.company_name}.")
+            if user_settings.offer_description:
+                parts.append(f"Oferujesz: {user_settings.offer_description}.")
+            tone = user_settings.tone_of_voice or "formalny"
+            parts.append(f"Bezwzględnie zachowaj następujący ton wypowiedzi: {tone}.")
+            parts.append("Użyj zebranych błędów z audytu, aby zaproponować swoje usługi.")
+            sender_block = " ".join(parts)
         else:
             sender_block = (
                 "Napisz profesjonalnego, nienachalnego e-maila sprzedażowego w tonie formalnym. "

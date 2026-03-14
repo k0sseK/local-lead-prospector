@@ -76,6 +76,14 @@ const statusInfo = computed(
 	() => STATUS_MAP[lead.value?.status] || STATUS_MAP.new,
 );
 
+const isMobileFriendly = computed(
+	() => lead.value?.audit_report?.raw_data?.has_viewport === true,
+);
+const isSlowWebsite = computed(() => {
+	const t = lead.value?.audit_report?.raw_data?.load_time;
+	return typeof t === "number" && t > 2;
+});
+
 const fetchLead = async () => {
 	try {
 		loading.value = true;
@@ -454,13 +462,13 @@ const sendEmail = async () => {
 										<div
 											class="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2"
 											:class="
-												lead.is_mobile_friendly
+												isMobileFriendly
 													? 'bg-green-100'
 													: 'bg-red-100'
 											"
 										>
 											<CheckCircle
-												v-if="lead.is_mobile_friendly"
+												v-if="isMobileFriendly"
 												class="w-6 h-6 text-green-600"
 											/>
 											<XCircle
@@ -476,13 +484,13 @@ const sendEmail = async () => {
 										<p
 											class="text-sm font-bold"
 											:class="
-												lead.is_mobile_friendly
+												isMobileFriendly
 													? 'text-green-600'
 													: 'text-red-600'
 											"
 										>
 											{{
-												lead.is_mobile_friendly
+												isMobileFriendly
 													? "OK"
 													: "Problem"
 											}}
@@ -494,13 +502,13 @@ const sendEmail = async () => {
 										<div
 											class="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2"
 											:class="
-												lead.slow_website
+												isSlowWebsite
 													? 'bg-yellow-100'
 													: 'bg-green-100'
 											"
 										>
 											<AlertCircle
-												v-if="lead.slow_website"
+												v-if="isSlowWebsite"
 												class="w-6 h-6 text-yellow-600"
 											/>
 											<CheckCircle
@@ -516,13 +524,13 @@ const sendEmail = async () => {
 										<p
 											class="text-sm font-bold"
 											:class="
-												lead.slow_website
+												isSlowWebsite
 													? 'text-yellow-600'
 													: 'text-green-600'
 											"
 										>
 											{{
-												lead.slow_website
+												isSlowWebsite
 													? "Wolna"
 													: "OK"
 											}}

@@ -171,7 +171,8 @@ function statusBadge(lead) {
 			text: "Brak SSL!",
 			cls: "bg-red-100 text-red-700 border-red-200",
 		};
-	if (lead.slow_website)
+	const loadTime = lead.audit_report?.raw_data?.load_time;
+	if (typeof loadTime === "number" && loadTime > 2)
 		return {
 			text: "Slow website",
 			cls: "bg-yellow-100 text-yellow-700 border-yellow-200",
