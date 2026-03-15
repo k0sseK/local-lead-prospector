@@ -66,13 +66,30 @@ const usage = ref(null);
 
 const usagePlanLabel = computed(() => {
 	if (usage.value?.plan === "admin") return "Admin";
+	if (usage.value?.plan === "pro_annual") return "Pro Roczny";
 	if (usage.value?.plan === "pro") return "Pro";
 	return "Darmowy";
 });
 
 const usagePlanPrice = computed(() => {
 	if (usage.value?.plan === "admin") return "--";
-	return usage.value?.plan === "pro" ? "49" : "0";
+	if (usage.value?.plan === "pro_annual") return "47";
+	return usage.value?.plan === "pro" ? "59" : "0";
+});
+
+const creditsResetDaysLeft = computed(() => {
+	const raw = usage.value?.credits_reset_at;
+	if (!raw) return null;
+	const diff = new Date(raw) - new Date();
+	if (diff <= 0) return 0;
+	return Math.ceil(diff / (1000 * 60 * 60 * 24));
+});
+
+const monthlyCreditsPercent = computed(() => {
+	const monthly = usage.value?.monthly_credits ?? 0;
+	const limit = usage.value?.monthly_credits_limit ?? 1;
+	if (limit === 0) return 0;
+	return Math.min(100, Math.round((monthly / limit) * 100));
 });
 
 onMounted(async () => {
@@ -830,66 +847,57 @@ const TABS = [
 							</div>
 						</div>
 
-						<h3 class="text-sm font-semibold text-slate-900">
-							Wykorzystanie limitów
-						</h3>
+						<h3 class="text-sm font-semibold text-slate-900">Stan kredytów</h3>
 						<div class="space-y-4">
+							<!-- Monthly credits bar -->
 							<div>
-								<div
-									class="flex items-center justify-between text-sm mb-1"
-								>
-									<span class="text-slate-600"
-										>Audyty AI</span
-									>
-									<span class="font-medium text-slate-900"
-										>{{ usage.usage.ai_audits }}/{{
-											usage.limits.ai_audits
-										}}</span
-									>
+								<div class="flex items-center justify-between text-sm mb-1">
+									<span class="text-slate-600">Kredyty miesięczne</span>
+									<span class="font-medium text-slate-900">
+										{{ usage.monthly_credits }} / {{ usage.monthly_credits_limit }}
+										<span v-if="creditsResetDaysLeft !== null" class="text-slate-400 font-normal ml-1">(reset za {{ creditsResetDaysLeft }} dni)</span>
+									</span>
 								</div>
-								<div
-									class="h-2 bg-slate-100 rounded-full overflow-hidden"
-								>
+								<div class="h-2 bg-slate-100 rounded-full overflow-hidden">
 									<div
 										class="h-full bg-brand-green rounded-full transition-all"
-										:style="`width: ${Math.min(100, (usage.usage.ai_audits / usage.limits.ai_audits) * 100)}%`"
+										:style="`width: ${monthlyCreditsPercent}%`"
 									></div>
 								</div>
 							</div>
-							<div>
-								<div
-									class="flex items-center justify-between text-sm mb-1"
-								>
-									<span class="text-slate-600">Skany</span>
-									<span class="font-medium text-slate-900"
-										>{{ usage.usage.scans }}/{{
-											usage.limits.scans
-										}}</span
-									>
-								</div>
-								<div
-									class="h-2 bg-slate-100 rounded-full overflow-hidden"
-								>
-									<div
-										class="h-full bg-brand-green rounded-full transition-all"
-										:style="`width: ${Math.min(100, (usage.usage.scans / usage.limits.scans) * 100)}%`"
-									></div>
-								</div>
+							<!-- Pack credits -->
+							<div class="flex items-center justify-between text-sm py-2 px-3 bg-slate-50 rounded-lg border border-slate-200">
+								<span class="text-slate-600">Kredyty z doładowań</span>
+								<span class="font-semibold text-slate-900">{{ usage.credits_balance }}</span>
+							</div>
+							<!-- Total -->
+							<div class="flex items-center justify-between text-sm py-2 px-3 bg-brand-green/5 rounded-lg border border-brand-green/20">
+								<span class="text-slate-700 font-medium">Łącznie dostępne</span>
+								<span class="font-bold text-brand-green text-base">{{ usage.total_credits }} kredytów</span>
 							</div>
 						</div>
 
-						<a
-							v-if="usage.plan === 'free'"
-							href="/pricing"
-							class="flex items-center justify-center gap-2 w-full py-3 bg-brand-teal hover:bg-brand-teal/90 text-white rounded-lg font-semibold text-sm transition-all"
-						>
-							<Zap class="w-4 h-4" />
-							Ulepsz do Pro
-						</a>
+						<!-- CTA buttons -->
+						<div class="flex flex-col gap-2">
+							<a
+								v-if="usage.plan === 'free'"
+								href="/pricing"
+								class="flex items-center justify-center gap-2 w-full py-3 bg-brand-teal hover:bg-brand-teal/90 text-white rounded-lg font-semibold text-sm transition-all"
+							>
+								<Zap class="w-4 h-4" />
+								Ulepsz do Pro — 250 kr/mies
+							</a>
+							<a
+								href="/pricing#doladowania"
+								class="flex items-center justify-center gap-2 w-full py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm transition-colors"
+							>
+								Kup więcej kredytów
+							</a>
+						</div>
 
 						<!-- Renewal / expiry info for Pro users -->
 						<div
-							v-if="usage.plan === 'pro' && subscriptionRenewsAt"
+							v-if="(usage.plan === 'pro' || usage.plan === 'pro_annual') && subscriptionRenewsAt"
 							class="rounded-lg px-4 py-3 text-sm"
 							:class="subscriptionIsCancelled ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-slate-50 border border-slate-200 text-slate-600'"
 						>
@@ -906,7 +914,7 @@ const TABS = [
 
 						<!-- Cancel subscription -->
 						<button
-							v-if="usage.plan === 'pro' && !subscriptionIsCancelled"
+							v-if="(usage.plan === 'pro' || usage.plan === 'pro_annual') && !subscriptionIsCancelled"
 							@click="showCancelDialog = true"
 							class="w-full py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
 						>

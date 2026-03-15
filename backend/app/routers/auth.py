@@ -24,6 +24,7 @@ from ..templates.verification_email import get_verification_email_html
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 from ..main import limiter
+from ..quota_service import reset_monthly_credits_if_due
 
 def send_verification_email(email: str, token: str):
     import logging
@@ -95,6 +96,9 @@ def register(request: Request, user_in: schemas.UserCreate, background_tasks: Ba
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # Initialize free plan credits
+    reset_monthly_credits_if_due(db, user)
 
     background_tasks.add_task(send_verification_email, user.email, token_str)
 

@@ -10,10 +10,13 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="user")  # 'user' | 'admin'
-    plan = Column(String, default="free")  # 'free' | 'pro'  (admin → rola, nie plan)
+    plan = Column(String, default="free")  # 'free' | 'pro' | 'pro_annual'  (admin → rola, nie plan)
     plan_expires_at = Column(DateTime, nullable=True)
     lemon_subscription_id = Column(String, nullable=True, index=True)
     lemon_subscription_status = Column(String, nullable=True)  # 'active' | 'cancelled' | 'expired' etc.
+    credits_balance = Column(Integer, default=0, nullable=False)   # from packs, permanent
+    monthly_credits = Column(Integer, default=0, nullable=False)   # from plan, resets monthly
+    credits_reset_at = Column(DateTime, nullable=True)             # next monthly reset timestamp
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_verified = Column(Boolean, default=False)
     verification_token = Column(String, nullable=True, index=True)

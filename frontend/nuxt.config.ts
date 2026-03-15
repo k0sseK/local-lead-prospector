@@ -59,6 +59,11 @@ export default defineNuxtConfig({
 				process.env.NUXT_PUBLIC_API_BASE ?? "http://localhost:8000/api",
 			googleMapsApiKey: process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
 			lemonCheckoutUrl: process.env.NUXT_PUBLIC_LEMON_CHECKOUT_URL || "",
+			lsProUrl: process.env.NUXT_PUBLIC_LS_PRO_URL || "",
+			lsAnnualUrl: process.env.NUXT_PUBLIC_LS_ANNUAL_URL || "",
+			lsCredits50Url: process.env.NUXT_PUBLIC_LS_CREDITS_50_URL || "",
+			lsCredits200Url: process.env.NUXT_PUBLIC_LS_CREDITS_200_URL || "",
+			lsCredits500Url: process.env.NUXT_PUBLIC_LS_CREDITS_500_URL || "",
 		},
 	},
 

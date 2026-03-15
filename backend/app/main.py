@@ -34,7 +34,7 @@ from .routers import settings as settings_router
 from .routers import ai as ai_router
 from .routers import contact as contact_router
 from .routers import saved_searches as saved_searches_router
-from .quota_service import check_quota, increment_usage, get_quota_info
+from .quota_service import check_credits, spend_credits, increment_usage, get_credits_info
 
 logger = logging.getLogger(__name__)
 
@@ -382,10 +382,10 @@ async def scan_for_leads(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if not check_quota(db, current_user, "scans"):
+    if not check_credits(db, current_user, "scans"):
         raise HTTPException(
-            status_code=429,
-            detail="Wyczerpałeś miesięczny limit skanów. Przejdź na plan Pro, aby kontynuować.",
+            status_code=402,
+            detail="Niewystarczająca liczba kredytów. Kup doładowanie lub poczekaj na reset miesięczny.",
         )
 
     # Walidacja klucza API przed dispatch — szybki fail jeśli brakuje klucza
@@ -393,7 +393,7 @@ async def scan_for_leads(
     if not google_api_key or google_api_key == "your_google_api_key_here":
         raise HTTPException(status_code=400, detail="Brak klucza GOOGLE_PLACES_API_KEY w konfiguracji.")
 
-    increment_usage(db, current_user, "scans")
+    spend_credits(db, current_user, "scans")
 
     from .tasks import scan_places_task
     task = scan_places_task.delay(
@@ -423,10 +423,10 @@ async def audit_lead_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if not check_quota(db, current_user, "ai_audits"):
+    if not check_credits(db, current_user, "ai_audits"):
         raise HTTPException(
-            status_code=429,
-            detail="Wyczerpałeś miesięczny limit audytów AI. Przejdź na plan Pro, aby kontynuować.",
+            status_code=402,
+            detail="Niewystarczająca liczba kredytów. Kup doładowanie lub poczekaj na reset miesięczny.",
         )
 
     db_lead = (
@@ -437,6 +437,7 @@ async def audit_lead_endpoint(
     if db_lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
 
+    spend_credits(db, current_user, "ai_audits")
     increment_usage(db, current_user, "ai_audits", tokens_in=900, tokens_out=500, lead_id=lead_id)
 
     from .tasks import audit_lead_task
@@ -492,10 +493,10 @@ async def send_email_endpoint(
     if not db_lead.email:
         raise HTTPException(status_code=400, detail="Lead ma zły/brak adresu e-mail")
 
-    if not check_quota(db, current_user, "emails_sent"):
+    if not check_credits(db, current_user, "emails_sent"):
         raise HTTPException(
-            status_code=429,
-            detail="Wyczerpałeś miesięczny limit wysyłki e-mail. Przejdź na plan Pro, aby kontynuować.",
+            status_code=402,
+            detail="Niewystarczająca liczba kredytów. Kup doładowanie lub poczekaj na reset miesięczny.",
         )
 
     user_settings = db.query(models.UserSettings).filter(models.UserSettings.user_id == current_user.id).first()
@@ -571,7 +572,7 @@ async def send_email_endpoint(
     db_lead.status = "contacted"
     db.commit()
     db.refresh(db_lead)
-    increment_usage(db, current_user, "emails_sent", lead_id=lead_id)
+    spend_credits(db, current_user, "emails_sent")
     return {"message": "Email wysłany pomyślnie!", "lead": db_lead}
 
 
@@ -623,6 +624,12 @@ def create_sequence(
 
     if len(request.steps) != 3:
         raise HTTPException(status_code=400, detail="Sekwencja musi mieć dokładnie 3 kroki.")
+
+    if not check_credits(db, current_user, "emails_sent"):
+        raise HTTPException(
+            status_code=402,
+            detail="Niewystarczająca liczba kredytów. Kup doładowanie lub poczekaj na reset miesięczny.",
+        )
 
     db_lead = (
         db.query(models.Lead)
@@ -676,6 +683,8 @@ def create_sequence(
     db.refresh(sequence)
     for s in steps:
         db.refresh(s)
+
+    spend_credits(db, current_user, "emails_sent")
 
     return schemas.SequenceOut(
         id=sequence.id,
@@ -812,9 +821,8 @@ def get_usage(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Zwraca bieżące zużycie i limity zalogowanego użytkownika."""
-    data = get_quota_info(db, current_user)
-    # Append subscription metadata for the Account tab
+    """Zwraca stan kredytów i metadane subskrypcji zalogowanego użytkownika."""
+    data = get_credits_info(db, current_user)
     plan_expires_at = current_user.plan_expires_at
     data["subscription"] = {
         "renews_at": plan_expires_at.isoformat() + "Z" if plan_expires_at else None,
@@ -837,7 +845,7 @@ def admin_set_plan(
     if not target_user:
         raise HTTPException(status_code=404, detail="Użytkownik nie znaleziony.")
 
-    valid_plans = {"free", "pro", "admin"}
+    valid_plans = {"free", "pro", "pro_annual", "admin"}
     if request.plan not in valid_plans:
         raise HTTPException(status_code=422, detail=f"Nieprawidłowy plan. Dozwolone: {', '.join(valid_plans)}")
 
@@ -851,6 +859,12 @@ _LS_WEBHOOK_SECRET = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
 _LS_API_KEY = os.getenv("LEMONSQUEEZY_API_KEY", "")
 _LS_ACTIVE_STATUSES = {"active", "on_trial"}
 _LS_INACTIVE_STATUSES = {"expired", "unpaid", "paused"}
+_LS_ANNUAL_VARIANT_ID = os.getenv("LEMONSQUEEZY_ANNUAL_VARIANT_ID", "")
+_LS_CREDIT_PACKS = {
+    os.getenv("LEMONSQUEEZY_CREDITS_50_VARIANT_ID", ""): 50,
+    os.getenv("LEMONSQUEEZY_CREDITS_200_VARIANT_ID", ""): 200,
+    os.getenv("LEMONSQUEEZY_CREDITS_500_VARIANT_ID", ""): 500,
+}
 
 @app.post("/api/webhooks/lemonsqueezy", include_in_schema=False)
 async def lemonsqueezy_webhook(request: Request, db: Session = Depends(database.get_db)):
@@ -907,13 +921,28 @@ async def lemonsqueezy_webhook(request: Request, db: Session = Depends(database.
         except Exception:
             return None
 
+    from .quota_service import reset_monthly_credits_if_due, PLAN_MONTHLY_ALLOC
+
     if event in ("subscription_created", "subscription_updated"):
         if status in _LS_ACTIVE_STATUSES:
-            user.plan = "pro"
+            # Detect annual vs monthly plan by variant_id
+            variant_id = str(attrs.get("first_subscription_item", {}).get("variant_id", ""))
+            if _LS_ANNUAL_VARIANT_ID and variant_id == _LS_ANNUAL_VARIANT_ID:
+                new_plan = "pro_annual"
+            else:
+                new_plan = "pro"
+            user.plan = new_plan
             user.lemon_subscription_id = subscription_id
             user.lemon_subscription_status = status
             user.plan_expires_at = _parse_ls_date(attrs.get("renews_at"))
-            logger.info("LS webhook: user %d upgraded to pro (sub %s, renews_at=%s)", user.id, subscription_id, attrs.get("renews_at"))
+            # Reset credits to plan allocation
+            user.monthly_credits = PLAN_MONTHLY_ALLOC.get(new_plan, 250)
+            from .quota_service import _first_of_next_month
+            user.credits_reset_at = _first_of_next_month()
+            logger.info(
+                "LS webhook: user %d upgraded to %s (sub %s, renews_at=%s)",
+                user.id, new_plan, subscription_id, attrs.get("renews_at"),
+            )
         elif status == "cancelled":
             # Cancelled but still active until period ends — keep pro access
             user.lemon_subscription_id = subscription_id
@@ -923,6 +952,9 @@ async def lemonsqueezy_webhook(request: Request, db: Session = Depends(database.
         elif status in _LS_INACTIVE_STATUSES:
             user.plan = "free"
             user.lemon_subscription_status = status
+            user.monthly_credits = 15
+            from .quota_service import _first_of_next_month
+            user.credits_reset_at = _first_of_next_month()
             logger.info(
                 "LS webhook: user %d downgraded to free (sub %s, status=%s)",
                 user.id, subscription_id, status,
@@ -932,7 +964,27 @@ async def lemonsqueezy_webhook(request: Request, db: Session = Depends(database.
         user.lemon_subscription_id = None
         user.lemon_subscription_status = "expired"
         user.plan_expires_at = None
+        user.monthly_credits = 15
+        from .quota_service import _first_of_next_month
+        user.credits_reset_at = _first_of_next_month()
         logger.info("LS webhook: user %d subscription expired → free", user.id)
+    elif event == "order_created":
+        # One-time credit pack purchase
+        order_attrs = payload.get("data", {}).get("attributes", {})
+        items = order_attrs.get("first_order_item", {})
+        variant_id = str(items.get("variant_id", ""))
+        credits_to_add = _LS_CREDIT_PACKS.get(variant_id, 0)
+        if credits_to_add > 0:
+            user.credits_balance = (user.credits_balance or 0) + credits_to_add
+            logger.info(
+                "LS webhook: user %d purchased %d credits (variant %s)",
+                user.id, credits_to_add, variant_id,
+            )
+        else:
+            logger.warning(
+                "LS webhook: order_created with unknown variant_id=%s for user %d",
+                variant_id, user.id,
+            )
 
     db.commit()
     return {"received": True}
@@ -944,7 +996,7 @@ def cancel_subscription(
     current_user: models.User = Depends(get_current_user),
 ):
     """Anuluje subskrypcję Lemon Squeezy zalogowanego użytkownika."""
-    if current_user.plan != "pro" or not current_user.lemon_subscription_id:
+    if current_user.plan not in ("pro", "pro_annual") or not current_user.lemon_subscription_id:
         raise HTTPException(status_code=400, detail="Brak aktywnej subskrypcji do anulowania.")
     if current_user.lemon_subscription_status == "cancelled":
         raise HTTPException(status_code=400, detail="Subskrypcja jest już anulowana.")
@@ -990,7 +1042,7 @@ def admin_get_stats(
     month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     total_users = db.query(models.User).count()
-    pro_users = db.query(models.User).filter(models.User.plan == "pro").count()
+    pro_users = db.query(models.User).filter(models.User.plan.in_(["pro", "pro_annual"])).count()
     new_users_this_month = db.query(models.User).filter(models.User.created_at >= month_start).count()
     total_leads = db.query(models.Lead).count()
 
