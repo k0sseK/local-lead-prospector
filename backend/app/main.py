@@ -22,7 +22,10 @@ from typing import List
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+)
 
 from . import models, schemas, database
 from .dependencies import get_current_user
