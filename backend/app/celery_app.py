@@ -39,4 +39,11 @@ celery_app.conf.update(
     result_expires=3600,          # wyniki w Redis wygasają po 1h
     worker_prefetch_multiplier=1, # jeden task na raz per worker (długie operacje IO)
     task_acks_late=True,          # ACK po ukończeniu — bezpieczniejsze przy crashu workera
+    beat_schedule={
+        # Sprawdza i wysyła zaległe kroki sekwencji e-mail co 30 minut
+        "send-due-sequence-steps": {
+            "task": "tasks.send_due_sequence_steps",
+            "schedule": 1800.0,  # 30 minutes
+        },
+    },
 )

@@ -182,3 +182,50 @@ class KeywordSuggestionRequest(BaseModel):
 class KeywordSuggestionResponse(BaseModel):
     suggestions: List[str]
     detected_location: Optional[str] = None
+
+
+# ─── Email Sequences ──────────────────────────────────────────────────────────
+
+class SequenceStepDraft(BaseModel):
+    subject: str
+    body: str
+
+
+class SequenceCreate(BaseModel):
+    steps: List[SequenceStepDraft]  # exactly 3 steps
+
+
+class SequenceStepOut(BaseModel):
+    id: int
+    step_number: int
+    day_offset: int
+    subject: str
+    body: str
+    status: str
+    scheduled_at: datetime
+    sent_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SequenceOut(BaseModel):
+    id: int
+    lead_id: int
+    user_id: int
+    status: str
+    created_at: datetime
+    steps: List[SequenceStepOut] = []
+    company_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SequencePatchRequest(BaseModel):
+    status: str  # active | paused | cancelled
+
+
+class SequenceStepUpdate(BaseModel):
+    subject: str
+    body: str

@@ -1,16 +1,54 @@
 """
 tasks.py
 
-Celery tasks dla długich operacji (audyt AI, skan Google Places).
+Celery tasks dla długich operacji (audyt AI, skan Google Places, sekwencje email).
 Taski są synchroniczne — async kod wywoływany przez asyncio.run().
 Worker uruchamiany osobnym procesem (Railway service lub lokalnie).
 """
 import asyncio
 import logging
+import os
+import smtplib
+from email.message import EmailMessage
 
 from .celery_app import celery_app  # sys.path naprawiony tam
 
 logger = logging.getLogger(__name__)
+
+
+def _send_email_via_settings(user_settings, to_email: str, subject: str, body: str):
+    """Sends an email using the user's configured provider (resend or smtp)."""
+    provider = user_settings.email_provider if user_settings else "none"
+    html_body = body.replace('\n', '<br>')
+
+    if provider == "resend":
+        import resend as resend_lib
+        api_key = user_settings.resend_api_key if user_settings else None
+        from_email = user_settings.smtp_from_email if user_settings else None
+        resend_lib.api_key = api_key or os.getenv("RESEND_API_KEY")
+        real_from = from_email or os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+        if not resend_lib.api_key:
+            raise ValueError("Brak klucza API dla Resend.")
+        resend_lib.Emails.send({"from": real_from, "to": [to_email], "subject": subject, "html": html_body})
+
+    elif provider == "smtp":
+        if not user_settings or not all([
+            user_settings.smtp_host, user_settings.smtp_port,
+            user_settings.smtp_user, user_settings.smtp_password,
+            user_settings.smtp_from_email,
+        ]):
+            raise ValueError("Brak pełnych danych konfiguracji SMTP.")
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = user_settings.smtp_from_email
+        msg['To'] = to_email
+        msg.set_content("Masz wyłączone wsparcie HTML.")
+        msg.add_alternative(html_body, subtype='html')
+        with smtplib.SMTP_SSL(user_settings.smtp_host, user_settings.smtp_port) as server:
+            server.login(user_settings.smtp_user, user_settings.smtp_password)
+            server.send_message(msg)
+    else:
+        raise ValueError(f"Nie skonfigurowano dostawcy e-mail (provider='{provider}').")
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +154,100 @@ def scan_places_task(
 
     except Exception as exc:
         logger.error("Scan task failed for user %d: %s", user_id, exc, exc_info=True)
+        raise
+
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Periodic task: Send due email sequence steps
+# ---------------------------------------------------------------------------
+
+@celery_app.task(name="tasks.send_due_sequence_steps")
+def send_due_sequence_steps() -> dict:
+    """
+    Periodic beat task (every 30 min): finds all pending sequence steps whose
+    scheduled_at has passed and sends them using the user's email settings.
+    Marks sequences as 'completed' when all steps are done.
+    """
+    from datetime import datetime, timezone
+    from .database import SessionLocal
+    from . import models
+
+    db = SessionLocal()
+    sent_count = 0
+    failed_count = 0
+
+    try:
+        now = datetime.now(timezone.utc)
+
+        due_steps = (
+            db.query(models.EmailSequenceStep)
+            .join(models.EmailSequence, models.EmailSequenceStep.sequence_id == models.EmailSequence.id)
+            .filter(
+                models.EmailSequenceStep.status == "pending",
+                models.EmailSequenceStep.scheduled_at <= now,
+                models.EmailSequence.status == "active",
+            )
+            .order_by(models.EmailSequenceStep.sequence_id, models.EmailSequenceStep.step_number)
+            .all()
+        )
+
+        logger.info("send_due_sequence_steps: found %d due steps", len(due_steps))
+
+        for step in due_steps:
+            seq = db.query(models.EmailSequence).filter(models.EmailSequence.id == step.sequence_id).first()
+            if not seq or seq.status != "active":
+                continue
+
+            lead = db.query(models.Lead).filter(models.Lead.id == seq.lead_id).first()
+            if not lead or not lead.email:
+                step.status = "skipped"
+                db.commit()
+                continue
+
+            user_settings = (
+                db.query(models.UserSettings)
+                .filter(models.UserSettings.user_id == seq.user_id)
+                .first()
+            )
+
+            try:
+                _send_email_via_settings(user_settings, lead.email, step.subject, step.body)
+                step.status = "sent"
+                step.sent_at = now
+                lead.status = "contacted"
+                sent_count += 1
+                logger.info(
+                    "Sequence step sent: seq=%d step=%d lead=%d (%s)",
+                    seq.id, step.step_number, lead.id, lead.email,
+                )
+            except Exception as e:
+                step.status = "failed"
+                failed_count += 1
+                logger.error(
+                    "Failed to send sequence step seq=%d step=%d: %s",
+                    seq.id, step.step_number, e,
+                )
+
+            db.commit()
+
+            # Check if the whole sequence is now finished
+            all_steps = (
+                db.query(models.EmailSequenceStep)
+                .filter(models.EmailSequenceStep.sequence_id == seq.id)
+                .all()
+            )
+            if all(s.status in ("sent", "failed", "skipped") for s in all_steps):
+                seq.status = "completed"
+                db.commit()
+                logger.info("Sequence %d completed", seq.id)
+
+        return {"sent": sent_count, "failed": failed_count}
+
+    except Exception as exc:
+        logger.error("send_due_sequence_steps crashed: %s", exc, exc_info=True)
         raise
 
     finally:

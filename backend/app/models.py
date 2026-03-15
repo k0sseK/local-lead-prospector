@@ -78,6 +78,30 @@ class AuditTemplate(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class EmailSequence(Base):
+    __tablename__ = "email_sequences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lead_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    status = Column(String, default="active")  # active | paused | completed | cancelled
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class EmailSequenceStep(Base):
+    __tablename__ = "email_sequence_steps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sequence_id = Column(Integer, ForeignKey("email_sequences.id"), nullable=False, index=True)
+    step_number = Column(Integer, nullable=False)   # 1, 2, 3
+    day_offset = Column(Integer, nullable=False)    # 0 = day 1, 2 = day 3, 6 = day 7
+    subject = Column(String, nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(String, default="pending")      # pending | sent | skipped | failed
+    scheduled_at = Column(DateTime, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+
+
 class Lead(Base):
     __tablename__ = "leads"
 

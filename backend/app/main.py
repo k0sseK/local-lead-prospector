@@ -573,6 +573,217 @@ async def send_email_endpoint(
     return {"message": "Email wysłany pomyślnie!", "lead": db_lead}
 
 
+# ─── Email Sequences ─────────────────────────────────────────────────────────
+
+@app.post("/api/leads/{lead_id}/sequences/generate-drafts")
+async def generate_sequence_drafts_endpoint(
+    lead_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Generates 3 AI email drafts for a sequence (no DB write)."""
+    from .ai_analyzer import generate_sequence_drafts
+
+    db_lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
+    if db_lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    audit_report = db_lead.audit_report or {}
+    initial_draft = audit_report.get("email_draft", "")
+    selling_points = audit_report.get("selling_points", [])
+
+    user_settings = db.query(models.UserSettings).filter(models.UserSettings.user_id == current_user.id).first()
+    target_language = (user_settings.default_email_language if user_settings else None) or "polskim"
+
+    drafts = await generate_sequence_drafts(
+        company_name=db_lead.company_name,
+        initial_email_draft=initial_draft,
+        selling_points=selling_points,
+        user_settings=user_settings,
+        target_language=target_language,
+    )
+    return {"drafts": drafts}
+
+
+@app.post("/api/leads/{lead_id}/sequences", response_model=schemas.SequenceOut)
+def create_sequence(
+    lead_id: int,
+    request: schemas.SequenceCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Creates and activates a 3-step email sequence for a lead."""
+    from datetime import timedelta
+
+    if len(request.steps) != 3:
+        raise HTTPException(status_code=400, detail="Sekwencja musi mieć dokładnie 3 kroki.")
+
+    db_lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
+    if db_lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    if not db_lead.email:
+        raise HTTPException(status_code=400, detail="Lead nie ma adresu e-mail — nie można uruchomić sekwencji.")
+
+    # Cancel any existing active/paused sequence for this lead
+    existing = (
+        db.query(models.EmailSequence)
+        .filter(
+            models.EmailSequence.lead_id == lead_id,
+            models.EmailSequence.user_id == current_user.id,
+            models.EmailSequence.status.in_(["active", "paused"]),
+        )
+        .all()
+    )
+    for seq in existing:
+        seq.status = "cancelled"
+
+    now = datetime.now(timezone.utc)
+    day_offsets = [0, 2, 6]  # day 1, day 3, day 7
+
+    sequence = models.EmailSequence(
+        lead_id=lead_id,
+        user_id=current_user.id,
+        status="active",
+    )
+    db.add(sequence)
+    db.flush()  # get sequence.id
+
+    steps = []
+    for i, (step_data, offset) in enumerate(zip(request.steps, day_offsets), start=1):
+        step = models.EmailSequenceStep(
+            sequence_id=sequence.id,
+            step_number=i,
+            day_offset=offset,
+            subject=step_data.subject,
+            body=step_data.body,
+            status="pending",
+            scheduled_at=now + timedelta(days=offset),
+        )
+        db.add(step)
+        steps.append(step)
+
+    db.commit()
+    db.refresh(sequence)
+    for s in steps:
+        db.refresh(s)
+
+    return schemas.SequenceOut(
+        id=sequence.id,
+        lead_id=sequence.lead_id,
+        user_id=sequence.user_id,
+        status=sequence.status,
+        created_at=sequence.created_at,
+        company_name=db_lead.company_name,
+        steps=[schemas.SequenceStepOut.model_validate(s) for s in steps],
+    )
+
+
+@app.get("/api/sequences")
+def list_sequences(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Returns all sequences for the current user, with step details."""
+    sequences = (
+        db.query(models.EmailSequence)
+        .filter(models.EmailSequence.user_id == current_user.id)
+        .order_by(models.EmailSequence.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for seq in sequences:
+        lead = db.query(models.Lead).filter(models.Lead.id == seq.lead_id).first()
+        steps = (
+            db.query(models.EmailSequenceStep)
+            .filter(models.EmailSequenceStep.sequence_id == seq.id)
+            .order_by(models.EmailSequenceStep.step_number)
+            .all()
+        )
+        result.append(schemas.SequenceOut(
+            id=seq.id,
+            lead_id=seq.lead_id,
+            user_id=seq.user_id,
+            status=seq.status,
+            created_at=seq.created_at,
+            company_name=lead.company_name if lead else None,
+            steps=[schemas.SequenceStepOut.model_validate(s) for s in steps],
+        ))
+    return result
+
+
+@app.patch("/api/sequences/{seq_id}")
+def patch_sequence(
+    seq_id: int,
+    request: schemas.SequencePatchRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Pause, resume or cancel a sequence."""
+    allowed = {"active", "paused", "cancelled"}
+    if request.status not in allowed:
+        raise HTTPException(status_code=400, detail=f"Nieprawidłowy status. Dozwolone: {allowed}")
+
+    seq = (
+        db.query(models.EmailSequence)
+        .filter(models.EmailSequence.id == seq_id, models.EmailSequence.user_id == current_user.id)
+        .first()
+    )
+    if seq is None:
+        raise HTTPException(status_code=404, detail="Sequence not found")
+    if seq.status in ("completed", "cancelled") and request.status != "cancelled":
+        raise HTTPException(status_code=400, detail="Nie można zmienić statusu zakończonej/anulowanej sekwencji.")
+
+    seq.status = request.status
+    db.commit()
+    return {"id": seq.id, "status": seq.status}
+
+
+@app.put("/api/sequences/{seq_id}/steps/{step_id}")
+def update_sequence_step(
+    seq_id: int,
+    step_id: int,
+    request: schemas.SequenceStepUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Edit a pending step's subject and body."""
+    seq = (
+        db.query(models.EmailSequence)
+        .filter(models.EmailSequence.id == seq_id, models.EmailSequence.user_id == current_user.id)
+        .first()
+    )
+    if seq is None:
+        raise HTTPException(status_code=404, detail="Sequence not found")
+
+    step = (
+        db.query(models.EmailSequenceStep)
+        .filter(models.EmailSequenceStep.id == step_id, models.EmailSequenceStep.sequence_id == seq_id)
+        .first()
+    )
+    if step is None:
+        raise HTTPException(status_code=404, detail="Step not found")
+    if step.status != "pending":
+        raise HTTPException(status_code=400, detail="Można edytować tylko kroki ze statusem 'pending'.")
+
+    step.subject = request.subject
+    step.body = request.body
+    db.commit()
+    db.refresh(step)
+    return schemas.SequenceStepOut.model_validate(step)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 @app.get("/api/usage")
 def get_usage(
     db: Session = Depends(database.get_db),

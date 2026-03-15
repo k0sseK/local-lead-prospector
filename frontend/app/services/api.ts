@@ -252,6 +252,30 @@ export default {
 		return api.post(`/leads/${id}/send-email`, data);
 	},
 
+	// Email Sequences
+	generateSequenceDrafts(leadId: number): Promise<AxiosResponse> {
+		return api.post(`/leads/${leadId}/sequences/generate-drafts`);
+	},
+	createSequence(
+		leadId: number,
+		steps: { subject: string; body: string }[],
+	): Promise<AxiosResponse> {
+		return api.post(`/leads/${leadId}/sequences`, { steps });
+	},
+	listSequences(): Promise<AxiosResponse> {
+		return api.get("/sequences");
+	},
+	patchSequence(seqId: number, status: string): Promise<AxiosResponse> {
+		return api.patch(`/sequences/${seqId}`, { status });
+	},
+	updateSequenceStep(
+		seqId: number,
+		stepId: number,
+		data: { subject: string; body: string },
+	): Promise<AxiosResponse> {
+		return api.put(`/sequences/${seqId}/steps/${stepId}`, data);
+	},
+
 	// Settings
 	getSettings(): Promise<AxiosResponse> {
 		return api.get("/settings");
