@@ -426,8 +426,9 @@ async def scan_for_leads(
             "min_reviews": scan_request.min_reviews,
             "max_reviews": scan_request.max_reviews,
         },
+        auto_audit=scan_request.auto_audit,
     )
-    return {"task_id": task.id, "status": "queued"}
+    return {"task_id": task.id, "status": "queued", "auto_audit": scan_request.auto_audit}
 
 
 @app.post("/api/leads/{lead_id}/audit")

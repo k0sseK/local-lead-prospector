@@ -91,6 +91,7 @@ const markerPosition = ref(null);
 const isScanning = ref(false);
 const isLocating = ref(false);
 const scanMessage = ref(null);
+const autoAudit = ref(false);
 
 // ─── Keyword Suggestions ─────────────────────────────────────────
 const showKeywordPanel = ref(false);
@@ -282,6 +283,7 @@ const runScan = async () => {
 				filterMaxReviews.value !== ""
 					? parseInt(filterMaxReviews.value)
 					: null,
+			auto_audit: autoAudit.value,
 		};
 
 		const response = await api.triggerScan(payload);
@@ -306,7 +308,11 @@ const runScan = async () => {
 					clearInterval(interval);
 					isScanning.value = false;
 					const count = result?.new_leads ?? 0;
-					scanMessage.value = `Dodano ${count} nowych leadów.`;
+					if (count > 0 && result?.auto_audit) {
+						scanMessage.value = `Dodano ${count} nowych leadów — trwa automatyczny audyt AI.`;
+					} else {
+						scanMessage.value = `Dodano ${count} nowych leadów.`;
+					}
 					await refreshLeads();
 					await refreshQuota();
 				} else if (status === "FAILURE") {
@@ -1185,6 +1191,25 @@ onMounted(() => {
 									Przejdź na plan Pro
 								</NuxtLink>
 							</div>
+
+							<!-- ─── Auto-audit toggle ─────────────────────────────── -->
+							<label class="flex items-center gap-3 cursor-pointer select-none">
+								<div class="relative">
+									<input type="checkbox" v-model="autoAudit" class="sr-only" />
+									<div
+										class="w-10 h-6 rounded-full transition-colors duration-200"
+										:class="autoAudit ? 'bg-brand-teal' : 'bg-slate-200'"
+									></div>
+									<div
+										class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"
+										:class="autoAudit ? 'translate-x-4' : 'translate-x-0'"
+									></div>
+								</div>
+								<div>
+									<span class="text-sm font-medium text-slate-700">Automatyczny audyt AI</span>
+									<p class="text-xs text-slate-400">Audytuj nowe leady od razu po skanie</p>
+								</div>
+							</label>
 
 							<Button
 								@click="runScan"

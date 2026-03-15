@@ -142,10 +142,10 @@ def _matches_filters(place: dict, filters: dict) -> bool:
 # Odpowiedzialność 4: Zapis do bazy danych (deduplication)
 # ---------------------------------------------------------------------------
 
-def _save_lead_if_new(place: dict, db: Session, user_id: int) -> bool:
+def _save_lead_if_new(place: dict, db: Session, user_id: int):
     """
     Zapisuje lead do DB jeśli jeszcze nie istnieje.
-    Zwraca True jeśli rekord został dodany, False jeśli pominięty (duplikat).
+    Zwraca obiekt Lead jeśli rekord został dodany, None jeśli pominięty (duplikat).
     """
     from app.models import Lead  # opóźniony import — Lead jest w osobnym pakiecie
 
@@ -155,26 +155,25 @@ def _save_lead_if_new(place: dict, db: Session, user_id: int) -> bool:
     # Deduplication — sprawdzamy po place_id, fallback po nazwie (dla danego użytkownika)
     if db.query(Lead).filter(Lead.place_id == place_id, Lead.user_id == user_id).first():
         logger.debug("Skipping duplicate (place_id): %s", place_id)
-        return False
+        return None
     if db.query(Lead).filter(Lead.company_name == name, Lead.user_id == user_id).first():
         logger.debug("Skipping duplicate (name): %s", name)
-        return False
+        return None
 
-    db.add(
-        Lead(
-            place_id=place_id,
-            company_name=name,
-            phone=place.get("nationalPhoneNumber", ""),
-            address=place.get("formattedAddress", ""),
-            rating=place.get("rating", 0.0),
-            reviews_count=place.get("userRatingCount", 0),
-            website_uri=place.get("websiteUri", ""),
-            industry=place.get("primaryType"),
-            user_id=user_id,
-            status="new",
-        )
+    lead = Lead(
+        place_id=place_id,
+        company_name=name,
+        phone=place.get("nationalPhoneNumber", ""),
+        address=place.get("formattedAddress", ""),
+        rating=place.get("rating", 0.0),
+        reviews_count=place.get("userRatingCount", 0),
+        website_uri=place.get("websiteUri", ""),
+        industry=place.get("primaryType"),
+        user_id=user_id,
+        status="new",
     )
-    return True
+    db.add(lead)
+    return lead
 
 
 # ---------------------------------------------------------------------------
@@ -191,12 +190,12 @@ async def scan_google_places(
     user_id: int,
     filters: dict | None = None,
     country_code: str = "pl",
-) -> int:
+) -> list[int]:
     """
     Skanuje Google Places API, filtruje wyniki i zapisuje nowe leady do DB.
 
     Returns:
-        Liczba nowo dodanych leadów.
+        Lista ID nowo dodanych leadów.
 
     Raises:
         ValueError: Brak/nieprawidłowy klucz API lub błąd odpowiedzi Google.
@@ -216,10 +215,14 @@ async def scan_google_places(
     qualified = [p for p in places if _matches_filters(p, _filters)]
     logger.info("%d places qualified as leads after filtering", len(qualified))
 
-    new_count = sum(_save_lead_if_new(p, db, user_id) for p in qualified)
+    new_leads = [_save_lead_if_new(p, db, user_id) for p in qualified]
+    new_leads = [lead for lead in new_leads if lead is not None]
 
-    if new_count > 0:
+    if new_leads:
         db.commit()
-        logger.info("Committed %d new leads to DB", new_count)
+        # Odświeżamy obiekty, żeby mieć ID nadane przez DB
+        for lead in new_leads:
+            db.refresh(lead)
+        logger.info("Committed %d new leads to DB", len(new_leads))
 
-    return new_count
+    return [lead.id for lead in new_leads]

@@ -103,6 +103,7 @@ class ScanRequest(BaseModel):
     max_rating: Optional[float] = None
     min_reviews: Optional[int] = None
     max_reviews: Optional[int] = None
+    auto_audit: bool = False          # automatyczny audyt AI dla nowych leadów po skanie
 
 class EmailSendRequest(BaseModel):
     subject: str

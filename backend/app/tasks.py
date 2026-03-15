@@ -72,9 +72,11 @@ def scan_places_task(
     limit: int,
     country_code: str,
     filters: dict,
+    auto_audit: bool = False,
 ) -> dict:
     """
     Skanuje Google Places API i zapisuje nowe leady do bazy w tle.
+    Jeśli auto_audit=True, uruchamia audyt AI dla każdego nowego leada.
     HTTP request wraca natychmiast z task_id.
     """
     from .database import SessionLocal
@@ -83,10 +85,10 @@ def scan_places_task(
     db = SessionLocal()
     try:
         logger.info(
-            "Starting scan task: user=%d keyword='%s' lat=%.4f lng=%.4f",
-            user_id, keyword, lat, lng,
+            "Starting scan task: user=%d keyword='%s' lat=%.4f lng=%.4f auto_audit=%s",
+            user_id, keyword, lat, lng, auto_audit,
         )
-        new_count = asyncio.run(
+        new_lead_ids = asyncio.run(
             scan_google_places(
                 keyword=keyword,
                 lat=lat,
@@ -99,8 +101,18 @@ def scan_places_task(
                 country_code=country_code,
             )
         )
+        new_count = len(new_lead_ids)
         logger.info("Scan task completed: %d new leads for user %d", new_count, user_id)
-        return {"new_leads": new_count}
+
+        if auto_audit and new_lead_ids:
+            logger.info(
+                "Auto-audit enabled: queuing %d audit tasks for user %d",
+                len(new_lead_ids), user_id,
+            )
+            for lead_id in new_lead_ids:
+                audit_lead_task.delay(lead_id=lead_id, user_id=user_id)
+
+        return {"new_leads": new_count, "auto_audit": auto_audit, "audited_ids": new_lead_ids if auto_audit else []}
 
     except Exception as exc:
         logger.error("Scan task failed for user %d: %s", user_id, exc, exc_info=True)
