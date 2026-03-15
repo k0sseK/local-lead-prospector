@@ -60,6 +60,33 @@ def health_check():
     """Liveness probe used by CI and Railway health checks."""
     return {"status": "ok"}
 
+
+# 1×1 transparent GIF (43 bytes)
+_TRACKING_GIF = (
+    b"\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00"
+    b"\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x00\x00\x00\x00"
+    b"\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02"
+    b"\x44\x01\x00\x3b"
+)
+
+
+@app.get("/api/t/{event_id}.gif", include_in_schema=False)
+def tracking_pixel(event_id: str, db: Session = Depends(database.get_db)):
+    """Email open tracking pixel — no auth required (embedded in sent emails)."""
+    event = db.query(models.EmailEvent).filter(models.EmailEvent.id == event_id).first()
+    if event and event.opened_at is None:
+        event.opened_at = datetime.now(timezone.utc)
+        db.commit()
+    from fastapi.responses import Response
+    return Response(
+        content=_TRACKING_GIF,
+        media_type="image/gif",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+        },
+    )
+
 # ─── Rate limiting (in-memory, per real client IP, 120 req/min) ──────────────
 # NOTE: Railway (and most reverse-proxies) terminate TLS and forward the
 # original client IP in the X-Forwarded-For header.  Using request.client.host
@@ -274,6 +301,32 @@ def delete_lead(
     db.commit()
 
 
+@app.get("/api/leads/{lead_id}/email-events", response_model=list[schemas.EmailEventOut])
+def get_lead_email_events(
+    lead_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Returns all email events (sent + open tracking) for a lead."""
+    db_lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
+    if db_lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    events = (
+        db.query(models.EmailEvent)
+        .filter(
+            models.EmailEvent.lead_id == lead_id,
+            models.EmailEvent.user_id == current_user.id,
+        )
+        .order_by(models.EmailEvent.sent_at.desc())
+        .all()
+    )
+    return events
+
+
 @app.get("/api/leads/export/csv")
 def export_leads_csv(
     db: Session = Depends(database.get_db),
@@ -421,6 +474,8 @@ async def send_email_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    import uuid as _uuid
+
     db_lead = (
         db.query(models.Lead)
         .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
@@ -443,29 +498,36 @@ async def send_email_endpoint(
     if provider == "none":
         raise HTTPException(status_code=400, detail="Najpierw skonfiguruj dostawcę e-mail w zakładce Ustawienia.")
 
+    # Build tracking pixel
+    event_id = str(_uuid.uuid4())
+    app_url = os.getenv("APP_URL", "http://localhost:8000")
+    tracking_pixel = (
+        f'<img src="{app_url}/api/t/{event_id}.gif" '
+        f'width="1" height="1" style="display:block;width:1px;height:1px;opacity:0;" alt="" />'
+    )
+
     try:
-        html_body = request.body.replace('\n', '<br>')
-        
+        html_body = request.body.replace('\n', '<br>') + tracking_pixel
+
         if provider == "resend":
             import resend
-            
+
             api_key = user_settings.resend_api_key if user_settings else None
             from_email = user_settings.smtp_from_email if user_settings else None
-            
+
             # W ostateczności fallback na globalne pliki, ale priorytet to ustawienia użytkownika
             resend.api_key = api_key or os.getenv("RESEND_API_KEY")
             real_from = from_email or os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
 
             if not resend.api_key:
                 raise ValueError("Brak klucza API dla Resend.")
-            
-            params = {
+
+            resend.Emails.send({
                 "from": real_from,
                 "to": [db_lead.email],
                 "subject": request.subject,
-                "html": html_body
-            }
-            resend.Emails.send(params)
+                "html": html_body,
+            })
 
         elif provider == "smtp":
             import smtplib
@@ -484,7 +546,7 @@ async def send_email_endpoint(
             with smtplib.SMTP_SSL(user_settings.smtp_host, user_settings.smtp_port) as server:
                 server.login(user_settings.smtp_user, user_settings.smtp_password)
                 server.send_message(msg)
-                
+
         else:
             raise ValueError(f"Nieobsługiwany dostawca: {provider}")
 
@@ -492,6 +554,14 @@ async def send_email_endpoint(
         logger.error(f"Porażka przy wysyłce email na {db_lead.email}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Błąd wysyłki: {str(e)}")
 
+    # Record the email event for open tracking
+    db.add(models.EmailEvent(
+        id=event_id,
+        user_id=current_user.id,
+        lead_id=lead_id,
+        sequence_step_id=None,
+        sent_at=datetime.now(timezone.utc),
+    ))
     db_lead.status = "contacted"
     db.commit()
     db.refresh(db_lead)
@@ -634,6 +704,27 @@ def list_sequences(
             .order_by(models.EmailSequenceStep.step_number)
             .all()
         )
+        # Enrich each step with open tracking data from EmailEvent
+        step_outs = []
+        for s in steps:
+            event = (
+                db.query(models.EmailEvent)
+                .filter(models.EmailEvent.sequence_step_id == s.id)
+                .first()
+            )
+            step_out = schemas.SequenceStepOut(
+                id=s.id,
+                step_number=s.step_number,
+                day_offset=s.day_offset,
+                subject=s.subject,
+                body=s.body,
+                status=s.status,
+                scheduled_at=s.scheduled_at,
+                sent_at=s.sent_at,
+                opened_at=event.opened_at if event else None,
+                email_event_id=event.id if event else None,
+            )
+            step_outs.append(step_out)
         result.append(schemas.SequenceOut(
             id=seq.id,
             lead_id=seq.lead_id,
@@ -641,7 +732,7 @@ def list_sequences(
             status=seq.status,
             created_at=seq.created_at,
             company_name=lead.company_name if lead else None,
-            steps=[schemas.SequenceStepOut.model_validate(s) for s in steps],
+            steps=step_outs,
         ))
     return result
 

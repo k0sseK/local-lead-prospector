@@ -195,6 +195,17 @@ class SequenceCreate(BaseModel):
     steps: List[SequenceStepDraft]  # exactly 3 steps
 
 
+class EmailEventOut(BaseModel):
+    id: str
+    lead_id: int
+    sequence_step_id: Optional[int] = None
+    sent_at: datetime
+    opened_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class SequenceStepOut(BaseModel):
     id: int
     step_number: int
@@ -204,6 +215,8 @@ class SequenceStepOut(BaseModel):
     status: str
     scheduled_at: datetime
     sent_at: Optional[datetime] = None
+    opened_at: Optional[datetime] = None       # populated from EmailEvent
+    email_event_id: Optional[str] = None       # UUID of the tracking pixel
 
     class Config:
         from_attributes = True

@@ -16,10 +16,19 @@ from .celery_app import celery_app  # sys.path naprawiony tam
 logger = logging.getLogger(__name__)
 
 
-def _send_email_via_settings(user_settings, to_email: str, subject: str, body: str):
-    """Sends an email using the user's configured provider (resend or smtp)."""
+def _send_email_via_settings(
+    user_settings,
+    to_email: str,
+    subject: str,
+    body: str,
+    tracking_pixel_html: str = "",
+):
+    """Sends an email using the user's configured provider (resend or smtp).
+
+    tracking_pixel_html is appended to the HTML body when provided.
+    """
     provider = user_settings.email_provider if user_settings else "none"
-    html_body = body.replace('\n', '<br>')
+    html_body = body.replace('\n', '<br>') + tracking_pixel_html
 
     if provider == "resend":
         import resend as resend_lib
@@ -171,6 +180,7 @@ def send_due_sequence_steps() -> dict:
     scheduled_at has passed and sends them using the user's email settings.
     Marks sequences as 'completed' when all steps are done.
     """
+    import uuid as _uuid
     from datetime import datetime, timezone
     from .database import SessionLocal
     from . import models
@@ -178,6 +188,7 @@ def send_due_sequence_steps() -> dict:
     db = SessionLocal()
     sent_count = 0
     failed_count = 0
+    app_url = os.getenv("APP_URL", "http://localhost:8000")
 
     try:
         now = datetime.now(timezone.utc)
@@ -213,11 +224,27 @@ def send_due_sequence_steps() -> dict:
                 .first()
             )
 
+            event_id = str(_uuid.uuid4())
+            tracking_pixel = (
+                f'<img src="{app_url}/api/t/{event_id}.gif" '
+                f'width="1" height="1" style="display:block;width:1px;height:1px;opacity:0;" alt="" />'
+            )
+
             try:
-                _send_email_via_settings(user_settings, lead.email, step.subject, step.body)
+                _send_email_via_settings(
+                    user_settings, lead.email, step.subject, step.body,
+                    tracking_pixel_html=tracking_pixel,
+                )
                 step.status = "sent"
                 step.sent_at = now
                 lead.status = "contacted"
+                db.add(models.EmailEvent(
+                    id=event_id,
+                    user_id=seq.user_id,
+                    lead_id=seq.lead_id,
+                    sequence_step_id=step.id,
+                    sent_at=now,
+                ))
                 sent_count += 1
                 logger.info(
                     "Sequence step sent: seq=%d step=%d lead=%d (%s)",

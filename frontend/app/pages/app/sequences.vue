@@ -14,6 +14,8 @@ import {
 	Clock,
 	AlertCircle,
 	SkipForward,
+	Eye,
+	EyeOff,
 } from "lucide-vue-next";
 import api from "@/services/api";
 
@@ -346,7 +348,7 @@ async function saveStep() {
 					>
 						<!-- Step header -->
 						<div class="flex items-center justify-between mb-2">
-							<div class="flex items-center gap-2">
+							<div class="flex items-center gap-2 flex-wrap">
 								<component
 									:is="stepStatusIcon(step.status)"
 									class="w-4 h-4"
@@ -366,6 +368,22 @@ async function saveStep() {
 									class="text-xs text-slate-400"
 								>
 									zaplanowano {{ formatDate(step.scheduled_at) }}
+								</span>
+								<!-- Open tracking badge -->
+								<span
+									v-if="step.status === 'sent' && step.opened_at"
+									class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-700"
+									:title="`Otwarto: ${formatDate(step.opened_at)}`"
+								>
+									<Eye class="w-3 h-3" />
+									Otwarto {{ formatDate(step.opened_at) }}
+								</span>
+								<span
+									v-else-if="step.status === 'sent' && !step.opened_at"
+									class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500"
+								>
+									<EyeOff class="w-3 h-3" />
+									Nie otwarto
 								</span>
 							</div>
 							<button

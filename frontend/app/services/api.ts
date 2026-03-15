@@ -339,4 +339,9 @@ export default {
 	getTaskStatus(taskId: string): Promise<AxiosResponse> {
 		return api.get(`/tasks/${taskId}`);
 	},
+
+	// Email open tracking events
+	getLeadEmailEvents(leadId: number): Promise<AxiosResponse> {
+		return api.get(`/leads/${leadId}/email-events`);
+	},
 };

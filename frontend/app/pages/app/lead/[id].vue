@@ -24,6 +24,9 @@ import {
 	XCircle,
 	Lock,
 	ExternalLink,
+	Eye,
+	EyeOff,
+	MailCheck,
 } from "lucide-vue-next";
 import { formatDate } from "@/utils/format.js";
 
@@ -95,6 +98,7 @@ const fetchLead = async () => {
 		} else {
 			notes.value = lead.value.notes || "";
 		}
+		await fetchEmailEvents();
 	} catch {
 		error.value = "Nie udało się załadować danych leadu.";
 	} finally {
@@ -158,6 +162,24 @@ const deleteLead = async () => {
 	}
 };
 
+// ─── Email events (open tracking) ─────────────────────────────────────────────
+const emailEvents = ref<Array<{
+	id: string;
+	sequence_step_id: number | null;
+	sent_at: string;
+	opened_at: string | null;
+}>>([]);
+
+const fetchEmailEvents = async () => {
+	if (!lead.value) return;
+	try {
+		const res = await api.getLeadEmailEvents(lead.value.id);
+		emailEvents.value = res.data;
+	} catch {
+		// non-critical — silently ignore
+	}
+};
+
 onMounted(fetchLead);
 
 // ─── Email Modal ──────────────────────────────────────────────────
@@ -194,6 +216,7 @@ const sendEmail = async () => {
 		});
 		toast.success("Email wysłany!");
 		showEmailModal.value = false;
+		await fetchEmailEvents();
 	} catch (err) {
 		toast.error(
 			err.response?.data?.detail || "Nie udało się wysłać emaila.",
@@ -624,6 +647,56 @@ const sendEmail = async () => {
 										: "Zapisz notatki"
 								}}
 							</button>
+						</div>
+					</div>
+
+					<!-- Email Activity -->
+					<div
+						v-if="emailEvents.length > 0"
+						class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm"
+					>
+						<div class="p-6 border-b border-slate-100">
+							<h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+								<MailCheck class="w-5 h-5 text-indigo-500" />
+								Historia emaili
+							</h3>
+						</div>
+						<div class="divide-y divide-slate-100">
+							<div
+								v-for="ev in emailEvents"
+								:key="ev.id"
+								class="px-6 py-3 flex items-center justify-between gap-4"
+							>
+								<div class="flex items-center gap-3 min-w-0">
+									<component
+										:is="ev.opened_at ? Eye : EyeOff"
+										class="w-4 h-4 flex-shrink-0"
+										:class="ev.opened_at ? 'text-emerald-500' : 'text-slate-400'"
+									/>
+									<div class="min-w-0">
+										<p class="text-sm text-slate-700">
+											{{ ev.sequence_step_id ? 'Email sekwencji' : 'Email ręczny' }}
+										</p>
+										<p class="text-xs text-slate-400">
+											Wysłano: {{ formatDate(ev.sent_at) }}
+										</p>
+									</div>
+								</div>
+								<span
+									v-if="ev.opened_at"
+									class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700"
+								>
+									<Eye class="w-3 h-3" />
+									Otwarto {{ formatDate(ev.opened_at) }}
+								</span>
+								<span
+									v-else
+									class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500"
+								>
+									<EyeOff class="w-3 h-3" />
+									Nie otwarto
+								</span>
+							</div>
 						</div>
 					</div>
 				</div>

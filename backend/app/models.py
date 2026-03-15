@@ -102,6 +102,18 @@ class EmailSequenceStep(Base):
     sent_at = Column(DateTime, nullable=True)
 
 
+class EmailEvent(Base):
+    """One record per sent email — stores tracking UUID + open timestamp."""
+    __tablename__ = "email_events"
+
+    id = Column(String(36), primary_key=True)          # UUID4 — tracking pixel key
+    user_id = Column(Integer, nullable=False, index=True)
+    lead_id = Column(Integer, nullable=False, index=True)
+    sequence_step_id = Column(Integer, nullable=True, index=True)  # null = manual send
+    sent_at = Column(DateTime, nullable=False)
+    opened_at = Column(DateTime, nullable=True)
+
+
 class Lead(Base):
     __tablename__ = "leads"
 
