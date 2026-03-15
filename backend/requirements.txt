@@ -16,3 +16,4 @@ python-multipart
 slowapi
 celery[redis]
 redis
+alembic
