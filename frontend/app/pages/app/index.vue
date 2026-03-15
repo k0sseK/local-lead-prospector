@@ -337,6 +337,56 @@ const runScan = async () => {
 const handleKanbanStatusUpdate = ({ leadId, newStatus }) =>
 	updateLeadStatus(leadId, newStatus);
 
+// ─── Save Scan Modal ──────────────────────────────────────────────
+const showSaveScanModal = ref(false);
+const saveScanName = ref("");
+const saveScanSchedule = ref("manual");
+const isSavingScan = ref(false);
+
+const openSaveScanModal = () => {
+	if (!searchKeyword.value || !markerPosition.value) {
+		toast.error("Wprowadź branżę i zaznacz punkt na mapie przed zapisaniem.");
+		return;
+	}
+	saveScanName.value = searchKeyword.value;
+	showSaveScanModal.value = true;
+};
+
+const saveScan = async () => {
+	if (!saveScanName.value.trim()) {
+		toast.error("Podaj nazwę dla zapisanego skanu.");
+		return;
+	}
+	isSavingScan.value = true;
+	try {
+		await api.createSavedSearch({
+			name: saveScanName.value.trim(),
+			keyword: searchKeyword.value,
+			lat: markerPosition.value.lat,
+			lng: markerPosition.value.lng,
+			radius_km: parseFloat(searchRadius.value[0]),
+			limit: parseInt(searchLimit.value, 10),
+			country_code: searchCountry.value,
+			filters: {
+				website_filter: filterWebsite.value,
+				min_rating: filterMinRating.value !== "" ? parseFloat(filterMinRating.value) : null,
+				max_rating: filterMaxRating.value !== "" ? parseFloat(filterMaxRating.value) : null,
+				min_reviews: filterMinReviews.value !== "" ? parseInt(filterMinReviews.value) : null,
+				max_reviews: filterMaxReviews.value !== "" ? parseInt(filterMaxReviews.value) : null,
+			},
+			schedule: saveScanSchedule.value,
+			auto_audit: autoAudit.value,
+		});
+		toast.success("Skan został zapisany!");
+		showSaveScanModal.value = false;
+	} catch (err) {
+		toast.error(err.response?.data?.detail || "Nie udało się zapisać skanu.");
+	} finally {
+		isSavingScan.value = false;
+	}
+};
+// ─────────────────────────────────────────────────────────────────
+
 const listSelectionMode = ref(false);
 const listSelectedIds = ref(new Set());
 const isListBulkProcessing = ref(false);
@@ -1302,6 +1352,20 @@ onMounted(() => {
 							</Button>
 						</div>
 
+						<!-- Save scan button -->
+						<button
+							type="button"
+							@click="openSaveScanModal"
+							class="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:border-brand-teal/50 hover:text-brand-teal transition-colors"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+								<polyline points="17 21 17 13 7 13 7 21"/>
+								<polyline points="7 3 7 8 15 8"/>
+							</svg>
+							Zapisz ten skan
+						</button>
+
 						<div
 							v-if="scanMessage"
 							class="mt-4 p-3 rounded-md bg-green-50 text-green-700 text-sm border border-green-200 flex items-center justify-between gap-3"
@@ -1901,4 +1965,76 @@ onMounted(() => {
 			</div>
 		</div>
 	</div>
+
+	<!-- ─── Save Scan Modal ─────────────────────────────────────────────────── -->
+	<Teleport to="body">
+		<div
+			v-if="showSaveScanModal"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4"
+		>
+			<!-- Backdrop -->
+			<div
+				class="absolute inset-0 bg-black/40 backdrop-blur-sm"
+				@click="showSaveScanModal = false"
+			/>
+			<!-- Panel -->
+			<div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-5">
+				<div class="flex items-center justify-between">
+					<h2 class="text-lg font-bold text-slate-900">Zapisz skan</h2>
+					<button
+						@click="showSaveScanModal = false"
+						class="text-slate-400 hover:text-slate-600 transition-colors"
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+					</button>
+				</div>
+
+				<div class="space-y-4">
+					<div class="space-y-1.5">
+						<label class="text-sm font-medium text-slate-700">Nazwa skanu</label>
+						<Input v-model="saveScanName" placeholder="np. Hydraulicy Kraków" />
+					</div>
+
+					<div class="space-y-1.5">
+						<label class="text-sm font-medium text-slate-700">Harmonogram</label>
+						<select
+							v-model="saveScanSchedule"
+							class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-green/30"
+						>
+							<option value="manual">Ręcznie (brak automatyzacji)</option>
+							<option value="daily">Codziennie</option>
+							<option value="weekly">Co tydzień</option>
+							<option value="monthly">Co miesiąc</option>
+						</select>
+					</div>
+
+					<!-- Summary of saved params -->
+					<div class="rounded-lg bg-slate-50 border border-slate-100 p-3 space-y-1 text-xs text-slate-500">
+						<p><span class="font-medium text-slate-700">Fraza:</span> {{ searchKeyword }}</p>
+						<p><span class="font-medium text-slate-700">Kraj:</span> {{ searchCountry.toUpperCase() }}</p>
+						<p><span class="font-medium text-slate-700">Promień:</span> {{ searchRadius[0] }} km</p>
+						<p><span class="font-medium text-slate-700">Limit:</span> {{ searchLimit }} firm</p>
+						<p v-if="autoAudit"><span class="font-medium text-slate-700">Auto-audyt AI:</span> tak</p>
+					</div>
+				</div>
+
+				<div class="flex gap-3 pt-1">
+					<Button
+						variant="outline"
+						class="flex-1"
+						@click="showSaveScanModal = false"
+					>Anuluj</Button>
+					<Button
+						class="flex-1 bg-brand-teal hover:bg-brand-teal/90 text-white"
+						:disabled="isSavingScan"
+						@click="saveScan"
+					>
+						<svg v-if="isSavingScan" class="animate-spin w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+						{{ isSavingScan ? "Zapisuję..." : "Zapisz" }}
+					</Button>
+				</div>
+			</div>
+		</div>
+	</Teleport>
+	<!-- ──────────────────────────────────────────────────────────────────────── -->
 </template>

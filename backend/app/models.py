@@ -114,6 +114,28 @@ class EmailEvent(Base):
     opened_at = Column(DateTime, nullable=True)
 
 
+class SavedSearch(Base):
+    __tablename__ = "saved_searches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    keyword = Column(String, nullable=False)
+    lat = Column(Float, nullable=False)
+    lng = Column(Float, nullable=False)
+    radius_km = Column(Float, default=5.0)
+    limit = Column(Integer, default=10)
+    country_code = Column(String(2), default="pl")
+    filters = Column(JSON, default=dict)          # {website_filter, min_rating, max_rating, min_reviews, max_reviews}
+    schedule = Column(String, default="manual")   # manual | daily | weekly | monthly
+    auto_audit = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    last_run_at = Column(DateTime, nullable=True)
+    next_run_at = Column(DateTime, nullable=True)
+    last_run_leads = Column(Integer, nullable=True)  # how many new leads the last run produced
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class Lead(Base):
     __tablename__ = "leads"
 

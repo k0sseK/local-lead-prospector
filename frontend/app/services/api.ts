@@ -344,4 +344,32 @@ export default {
 	getLeadEmailEvents(leadId: number): Promise<AxiosResponse> {
 		return api.get(`/leads/${leadId}/email-events`);
 	},
+
+	// Saved Searches
+	getSavedSearches(): Promise<AxiosResponse> {
+		return api.get("/saved-searches");
+	},
+	createSavedSearch(data: {
+		name: string;
+		keyword: string;
+		lat: number;
+		lng: number;
+		radius_km: number;
+		limit: number;
+		country_code: string;
+		filters?: Record<string, unknown>;
+		schedule: string;
+		auto_audit: boolean;
+	}): Promise<AxiosResponse> {
+		return api.post("/saved-searches", data);
+	},
+	patchSavedSearch(id: number, data: { name?: string; schedule?: string; is_active?: boolean; auto_audit?: boolean }): Promise<AxiosResponse> {
+		return api.patch(`/saved-searches/${id}`, data);
+	},
+	deleteSavedSearch(id: number): Promise<AxiosResponse> {
+		return api.delete(`/saved-searches/${id}`);
+	},
+	runSavedSearch(id: number): Promise<AxiosResponse> {
+		return api.post(`/saved-searches/${id}/run`);
+	},
 };

@@ -242,3 +242,48 @@ class SequencePatchRequest(BaseModel):
 class SequenceStepUpdate(BaseModel):
     subject: str
     body: str
+
+
+# ─── Saved Searches ────────────────────────────────────────────────────────────
+
+class SavedSearchCreate(BaseModel):
+    name: str
+    keyword: str
+    lat: float
+    lng: float
+    radius_km: float = 5.0
+    limit: int = 10
+    country_code: str = "pl"
+    filters: Optional[dict] = None
+    schedule: str = "manual"   # manual | daily | weekly | monthly
+    auto_audit: bool = False
+
+
+class SavedSearchPatch(BaseModel):
+    name: Optional[str] = None
+    schedule: Optional[str] = None
+    is_active: Optional[bool] = None
+    auto_audit: Optional[bool] = None
+
+
+class SavedSearchOut(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    keyword: str
+    lat: float
+    lng: float
+    radius_km: float
+    limit: int
+    country_code: str
+    filters: Optional[dict] = None
+    schedule: str
+    auto_audit: bool
+    is_active: bool
+    last_run_at: Optional[datetime] = None
+    next_run_at: Optional[datetime] = None
+    last_run_leads: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

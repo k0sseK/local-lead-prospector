@@ -29,6 +29,7 @@ from .routers import auth as auth_router
 from .routers import settings as settings_router
 from .routers import ai as ai_router
 from .routers import contact as contact_router
+from .routers import saved_searches as saved_searches_router
 from .quota_service import check_quota, increment_usage, get_quota_info
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ app.include_router(auth_router.router)
 app.include_router(settings_router.router)
 app.include_router(ai_router.router)
 app.include_router(contact_router.router)
+app.include_router(saved_searches_router.router)
 
 app.state.limiter = limiter
 app.add_exception_handler(429, _rate_limit_exceeded_handler)

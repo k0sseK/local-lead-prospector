@@ -11,6 +11,7 @@ import {
 	ScanSearch,
 	Download,
 	MailCheck,
+	BookmarkCheck,
 } from "lucide-vue-next";
 import { useRoute } from "vue-router";
 
@@ -25,6 +26,7 @@ const initials = computed(() => {
 const navItems = [
 	{ to: "/app", icon: LayoutDashboard, label: "Wyszukiwarka" },
 	{ to: "/app/scan-results", icon: ScanSearch, label: "Wyniki Skanowania" },
+	{ to: "/app/saved-searches", icon: BookmarkCheck, label: "Zapisane skany" },
 	{ to: "/app/sequences", icon: MailCheck, label: "Sekwencje e-mail" },
 	{ to: "/app/export", icon: Download, label: "Eksport CSV" },
 	{ to: "/app/settings", icon: Settings, label: "Ustawienia" },

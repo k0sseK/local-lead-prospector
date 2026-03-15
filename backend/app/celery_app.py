@@ -45,5 +45,10 @@ celery_app.conf.update(
             "task": "tasks.send_due_sequence_steps",
             "schedule": 1800.0,  # 30 minutes
         },
+        # Sprawdza i uruchamia zaplanowane zapisane skany co godzinę
+        "run-scheduled-searches": {
+            "task": "tasks.run_scheduled_searches",
+            "schedule": 3600.0,  # 1 hour
+        },
     },
 )
