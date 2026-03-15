@@ -68,10 +68,34 @@ async def generate_ai_analysis(raw_data: dict, company_name: str, user_settings=
         )
         audit_name = audit_template.name if audit_template else "SEO i marketing cyfrowy"
 
+        # Format technologies as a readable section for Gemini
+        technologies: dict = raw_data.get("technologies") or {}
+        CATEGORY_HINTS = {
+            "Analytics":      "brak śledzenia użytkowników i konwersji",
+            "Marketing/Ads":  "brak remarketingu i płatnych kampanii",
+            "Chat/Support":   "brak obsługi klienta online / live chat",
+            "E-commerce":     "brak platformy sklepowej",
+            "SEO Tools":      "brak narzędzi SEO on-site",
+            "Payments":       "brak systemu płatności online",
+            "CMS":            "nieznany CMS / strona statyczna",
+            "Frameworks/JS":  "brak informacji o stosie technicznym",
+            "Hosting":        "brak informacji o hostingu",
+        }
+        tech_lines = []
+        for category, hint in CATEGORY_HINTS.items():
+            found = technologies.get(category, [])
+            if found:
+                tech_lines.append(f"  {category}: {', '.join(found)}")
+            else:
+                tech_lines.append(f"  {category}: [brak] — {hint}")
+        technologies_section = "Wykryte technologie:\n" + "\n".join(tech_lines)
+
         prompt = f"""Jesteś ekspertem ds. {audit_name}. Analizujesz dane zebrane z audytu firmy "{company_name}".
 
 Oto surowe dane z audytu:
 {json.dumps(raw_data, indent=2, ensure_ascii=False)}
+
+{technologies_section}
 
 Instrukcje audytu:
 {audit_conditions}

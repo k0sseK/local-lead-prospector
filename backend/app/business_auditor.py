@@ -9,6 +9,115 @@ logger = logging.getLogger(__name__)
 
 EMAIL_REGEX = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 
+
+class TechDetector:
+    """Wappalyzer-style technology fingerprinting from HTML + headers."""
+
+    # (tech_name, [signals_in_html_or_scripts])
+    SIGNATURES: dict[str, list[tuple[str, list[str]]]] = {
+        "CMS": [
+            ("WordPress",   ["wp-content", "wp-json", "wp-includes"]),
+            ("Wix",         ["wixsite.com", "wix.com", "_wixCIDX", "wixstatic.com"]),
+            ("Squarespace", ["squarespace.com", "static1.squarespace"]),
+            ("Webflow",     ["webflow.com"]),
+            ("Shopify",     ["cdn.shopify", "myshopify.com"]),
+            ("Joomla",      ["/components/com_", "Joomla!"]),
+            ("Drupal",      ["Drupal.settings", "drupal.js"]),
+            ("PrestaShop",  ["prestashop", "PrestaShop"]),
+            ("Magento",     ["Mage.Cookies", "mage/", "MAGE_"]),
+            ("Ghost",       ["ghost.io", "ghost/core"]),
+            ("Webnode",     ["webnode.com", "webnode.cz"]),
+            ("Weebly",      ["weebly.com", "weeblysite.com"]),
+        ],
+        "Analytics": [
+            ("Google Analytics",  ["gtag/js", "ga.js", "analytics.js", "googletagmanager.com/gtag", "'G-", '"G-', "'UA-", '"UA-']),
+            ("Google Tag Manager",["gtm.js", "GTM-", "googletagmanager.com/gtm"]),
+            ("Hotjar",            ["hotjar.com", "hj.src"]),
+            ("Mixpanel",          ["mixpanel.com", "mixpanel.init"]),
+            ("Microsoft Clarity", ["clarity.ms", "clarity.js"]),
+            ("Matomo",            ["matomo.js", "piwik.js", "matomo.php"]),
+            ("Plausible",         ["plausible.io"]),
+            ("Facebook Pixel",    ["fbq(", "connect.facebook.net/en_US/fbevents"]),
+        ],
+        "Marketing/Ads": [
+            ("Google Ads",      ["googleadservices.com", "conversion.js", "google_conversion"]),
+            ("TikTok Pixel",    ["analytics.tiktok.com", "tiktok.com/i/pixel"]),
+            ("LinkedIn Insight",["snap.licdn.com", "linkedin.com/insight"]),
+        ],
+        "Chat/Support": [
+            ("Intercom",  ["intercom.io", "widget.intercom.io"]),
+            ("Zendesk",   ["zendesk.com", "zopim.com", "zopim"]),
+            ("Tawk.to",   ["tawk.to"]),
+            ("LiveChat",  ["livechatinc.com"]),
+            ("Crisp",     ["crisp.chat", "client.crisp.chat"]),
+            ("Tidio",     ["tidio.co", "tidiochat.com"]),
+        ],
+        "E-commerce": [
+            ("WooCommerce", ["woocommerce", "wc-cart", "wc_add_to_cart"]),
+            ("IdoSell",     ["iai-shop.com", "idosell.com"]),
+            ("Shoper",      ["shoper.pl"]),
+        ],
+        "Frameworks/JS": [
+            ("React",     ["react-dom", "__reactFiber", "data-reactroot"]),
+            ("Next.js",   ["__NEXT_DATA__", "_next/static"]),
+            ("Vue.js",    ["__vue", "vue.runtime", "vue.min.js"]),
+            ("Nuxt.js",   ["__nuxt", "_nuxt/"]),
+            ("Angular",   ["ng-version", "angular.min.js", "ng-app"]),
+            ("jQuery",    ["jquery.min.js", "jquery.js", "/jquery-"]),
+            ("Bootstrap", ["bootstrap.min.css", "bootstrap.min.js", "bootstrap.bundle"]),
+        ],
+        "SEO Tools": [
+            ("Yoast SEO", ["yoast", "wpseo_"]),
+            ("RankMath",  ["rank-math", "rankMath"]),
+            ("SEOPress",  ["seopress"]),
+        ],
+        "Payments": [
+            ("PayU",        ["payu.pl", "secure.payu.com", "openpayu"]),
+            ("Przelewy24",  ["przelewy24.pl", "p24.pl"]),
+            ("Stripe",      ["stripe.com/v3", "stripe.js", "js.stripe.com"]),
+            ("PayPal",      ["paypal.com/sdk", "paypalobjects.com"]),
+        ],
+    }
+
+    @classmethod
+    def detect(cls, html: str, headers: dict, soup: BeautifulSoup) -> dict[str, list[str]]:
+        results: dict[str, list[str]] = {}
+
+        # Normalize header keys to lowercase
+        norm_headers = {k.lower(): v for k, v in headers.items()}
+        server_header = norm_headers.get("server", "").lower()
+        powered_by = norm_headers.get("x-powered-by", "").lower()
+
+        # Hosting — header-based signals
+        hosting: list[str] = []
+        if "cf-ray" in norm_headers or "cloudflare" in server_header:
+            hosting.append("Cloudflare")
+        if "ovh" in server_header or "ovh" in powered_by:
+            hosting.append("OVH")
+        if "home.pl" in server_header or "home.pl" in powered_by:
+            hosting.append("home.pl")
+        if "cyberfolks" in server_header or "cyberfolks" in powered_by:
+            hosting.append("Cyberfolks")
+        if hosting:
+            results["Hosting"] = hosting
+
+        # Build extended search corpus: raw HTML + all script srcs + link hrefs
+        script_srcs = " ".join(tag.get("src", "") for tag in soup.find_all("script", src=True))
+        link_hrefs  = " ".join(tag.get("href", "") for tag in soup.find_all("link", href=True))
+        corpus = html + " " + script_srcs + " " + link_hrefs
+
+        for category, techs in cls.SIGNATURES.items():
+            found: list[str] = []
+            for tech_name, signals in techs:
+                for signal in signals:
+                    if signal in corpus:
+                        found.append(tech_name)
+                        break
+            if found:
+                results[category] = found
+
+        return results
+
 # Domeny/fragmenty które nigdy nie są prawdziwymi emailami kontaktowymi
 _FAKE_EMAIL_FRAGMENTS = [
     "example.com", "email.com", "yourdomain", "domain.com",
@@ -107,6 +216,7 @@ async def audit_lead(lead_data: dict) -> dict:
         "cms": None,
         "social_media": [],
         "has_meta_description": False,
+        "technologies": {},
     }
 
     website_uri = lead_data.get("website_uri")
@@ -177,17 +287,14 @@ async def audit_lead(lead_data: dict) -> dict:
                 if not meta_desc:
                     raw_data["missing_seo_tags"].append("meta_description")
 
-                # CMS detection
-                if "wp-content" in html_content:
-                    raw_data["cms"] = "WordPress"
-                elif "_next" in html_content:
-                    raw_data["cms"] = "Next.js"
-                elif "cdn.shopify" in html_content:
-                    raw_data["cms"] = "Shopify"
-                elif "squarespace.com" in html_content:
-                    raw_data["cms"] = "Squarespace"
-                elif "wix.com" in html_content or "wixstatic.com" in html_content:
-                    raw_data["cms"] = "Wix"
+                # Technographic fingerprinting
+                technologies = TechDetector.detect(html_content, dict(response.headers), soup)
+                raw_data["technologies"] = technologies
+
+                # CMS — keep legacy field populated from tech detection for backwards compat
+                cms_list = technologies.get("CMS", [])
+                if cms_list:
+                    raw_data["cms"] = cms_list[0]
 
                 # Social media
                 for a_tag in soup.find_all("a", href=True):

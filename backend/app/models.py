@@ -157,5 +157,6 @@ class Lead(Base):
     lead_score = Column(Integer, nullable=True)  # 0-100: jakość strony, niższy = więcej problemów = lepszy prospect
     user_id = Column(Integer, nullable=True, index=True)  # plain Integer, no FK object (SQLite-safe)
     share_token = Column(String(36), unique=True, nullable=True, index=True)
+    technologies = Column(JSON, nullable=True)  # {category: [tech_names]} from TechDetector
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     __table_args__ = (UniqueConstraint("user_id", "place_id", name="uq_leads_user_place"),)

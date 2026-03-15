@@ -128,6 +128,7 @@ async def run_full_audit(db_lead: models.Lead, db: Session, template_id: int | N
             "cms": None,
             "social_media": [],
             "has_meta_description": False,
+            "technologies": {},
         }
 
     # --- Krok 2: Analiza AI (Gemini) ---
@@ -187,6 +188,7 @@ async def run_full_audit(db_lead: models.Lead, db: Session, template_id: int | N
         "email_draft": ai_result.get("email_draft", ""),
     }
     db_lead.has_ssl = raw_data.get("has_ssl", False)
+    db_lead.technologies = raw_data.get("technologies") or {}
 
     # Nadpisuj email tylko jeśli audyt znalazł nowy i lead go jeszcze nie ma
     discovered_email = raw_data.get("email")
