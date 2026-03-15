@@ -6,10 +6,19 @@ Worker uruchamiany z katalogu backend/:
     celery -A app.celery_app worker --loglevel=info --concurrency=4
 """
 import os
+import sys
 from celery import Celery
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Upewnij się że backend/ (katalog nad app/) jest w sys.path,
+# żeby worker mógł zaimportować scraper.py (backend/scraper.py).
+# Celery worker startuje jako: celery -A app.celery_app worker
+# więc __file__ = /app/app/celery_app.py  →  parent parent = /app
+_backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _backend_root not in sys.path:
+    sys.path.insert(0, _backend_root)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 

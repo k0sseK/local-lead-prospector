@@ -7,15 +7,8 @@ Worker uruchamiany osobnym procesem (Railway service lub lokalnie).
 """
 import asyncio
 import logging
-import os
-import sys
 
-# Upewnij się, że katalog backend/ jest w PATH (potrzebne dla import scraper)
-_backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _backend_dir not in sys.path:
-    sys.path.insert(0, _backend_dir)
-
-from .celery_app import celery_app
+from .celery_app import celery_app  # sys.path naprawiony tam
 
 logger = logging.getLogger(__name__)
 
