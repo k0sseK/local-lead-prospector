@@ -372,4 +372,12 @@ export default {
 	runSavedSearch(id: number): Promise<AxiosResponse> {
 		return api.post(`/saved-searches/${id}/run`);
 	},
+
+	// Public Shareable Audit Report
+	getPublicAudit(token: string): Promise<AxiosResponse> {
+		return api.get(`/public/audit/${token}`);
+	},
+	resetShareToken(leadId: number): Promise<AxiosResponse> {
+		return api.post(`/leads/${leadId}/reset-share-token`);
+	},
 };

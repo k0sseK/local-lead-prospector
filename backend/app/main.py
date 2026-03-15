@@ -6,6 +6,7 @@ import logging
 import math
 import os
 import time
+import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 from dotenv import load_dotenv
@@ -1046,3 +1047,49 @@ def admin_get_users(
             },
         })
     return result
+
+
+# ─── Public Shareable Audit Report ───────────────────────────────────────────
+
+@app.get("/api/public/audit/{share_token}", tags=["public"])
+def get_public_audit(share_token: str, db: Session = Depends(database.get_db)):
+    """Returns public audit data for a lead identified by its share_token.
+    No authentication required — safe fields only (no email/phone/address).
+    """
+    lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.share_token == share_token)
+        .first()
+    )
+    if not lead or not lead.audited:
+        raise HTTPException(status_code=404, detail="Raport nie został znaleziony.")
+    return {
+        "company_name": lead.company_name,
+        "website_uri": lead.website_uri,
+        "rating": lead.rating,
+        "reviews_count": lead.reviews_count,
+        "industry": lead.industry,
+        "has_ssl": lead.has_ssl,
+        "lead_score": lead.lead_score,
+        "audit_report": lead.audit_report,
+    }
+
+
+@app.post("/api/leads/{lead_id}/reset-share-token", tags=["leads"])
+def reset_share_token(
+    lead_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Generates a new share_token for the lead, invalidating the old public link."""
+    lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.id == lead_id, models.Lead.user_id == current_user.id)
+        .first()
+    )
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead nie został znaleziony.")
+    lead.share_token = str(uuid.uuid4())
+    db.commit()
+    db.refresh(lead)
+    return {"share_token": lead.share_token}

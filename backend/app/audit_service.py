@@ -6,6 +6,7 @@ Router (main.py) deleguje tutaj całą logikę biznesową —
 sam odpowiada wyłącznie za HTTP: routing, 404, 500.
 """
 import logging
+import uuid
 from sqlalchemy.orm import Session
 
 from . import models
@@ -193,6 +194,9 @@ async def run_full_audit(db_lead: models.Lead, db: Session, template_id: int | N
         db_lead.email = discovered_email
 
     db_lead.audited = True
+
+    if not db_lead.share_token:
+        db_lead.share_token = str(uuid.uuid4())
 
     db.commit()
     db.refresh(db_lead)

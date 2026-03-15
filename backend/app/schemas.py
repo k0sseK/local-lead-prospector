@@ -60,6 +60,7 @@ class LeadBase(BaseModel):
     notes: Optional[str] = None
     industry: Optional[str] = None
     lead_score: Optional[int] = None
+    share_token: Optional[str] = None
 
 class LeadCreate(LeadBase):
     pass

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick } from "vue";
+import { ref, onMounted, nextTick, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { toast } from "vue-sonner";
 import api from "@/services/api";
@@ -25,6 +25,9 @@ import {
 	MessageCircle,
 	Calendar,
 	CheckCircle2,
+	Copy,
+	RefreshCw,
+	Link,
 } from "lucide-vue-next";
 
 definePageMeta({ layout: "dashboard", middleware: ["auth"] });
@@ -40,8 +43,8 @@ const error = ref(null);
 const fetchLead = async () => {
 	try {
 		loading.value = true;
-		const res = await api.getLeads();
-		lead.value = res.data.find((l) => l.id === parseInt(route.params.id));
+		const res = await api.getLead(parseInt(route.params.id));
+		lead.value = res.data;
 		if (!lead.value) {
 			error.value = "Lead nie został znaleziony.";
 		} else if (!lead.value.audited) {
@@ -51,6 +54,41 @@ const fetchLead = async () => {
 		error.value = "Nie udało się załadować danych audytu.";
 	} finally {
 		loading.value = false;
+	}
+};
+
+// ─── Share report ─────────────────────────────────────────────────────────────
+const isResettingToken = ref(false);
+
+const shareUrl = computed(() => {
+	if (!lead.value?.share_token) return null;
+	return `${window.location.origin}/audit/${lead.value.share_token}`;
+});
+
+const copyShareLink = async () => {
+	if (!shareUrl.value) {
+		toast.error("Ten lead nie ma jeszcze raportu do udostępnienia. Uruchom audyt AI.");
+		return;
+	}
+	try {
+		await navigator.clipboard.writeText(shareUrl.value);
+		toast.success("Link skopiowany do schowka!");
+	} catch {
+		toast.error("Nie udało się skopiować linku.");
+	}
+};
+
+const resetShareToken = async () => {
+	if (!confirm("Zresetować link? Poprzedni link przestanie działać.")) return;
+	isResettingToken.value = true;
+	try {
+		const res = await api.resetShareToken(lead.value.id);
+		lead.value = { ...lead.value, share_token: res.data.share_token };
+		toast.success("Nowy link wygenerowany!");
+	} catch {
+		toast.error("Nie udało się zresetować linku.");
+	} finally {
+		isResettingToken.value = false;
 	}
 };
 
@@ -138,12 +176,32 @@ function scoreRingDasharray(score) {
 					<ArrowLeft class="w-4 h-4" />
 					Powrót do szczegółów
 				</button>
-				<div class="flex items-center gap-3">
+				<div class="flex items-center gap-2">
 					<button
+						v-if="lead.share_token"
+						@click="copyShareLink"
 						class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+						title="Kopiuj link publiczny"
 					>
-						<Share2 class="w-4 h-4" />
-						Udostępnij
+						<Copy class="w-4 h-4" />
+						Udostępnij raport
+					</button>
+					<button
+						v-else
+						class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-400 cursor-default"
+						title="Brak tokenu — uruchom audyt"
+					>
+						<Link class="w-4 h-4" />
+						Brak linku
+					</button>
+					<button
+						v-if="lead.share_token"
+						@click="resetShareToken"
+						:disabled="isResettingToken"
+						class="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-500 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60"
+						title="Zresetuj link (stary przestanie działać)"
+					>
+						<RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isResettingToken }" />
 					</button>
 				</div>
 			</div>
