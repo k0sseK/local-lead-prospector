@@ -15,12 +15,14 @@ import os
 
 # ── Env overrides MUST happen before any app import ──────────────────────────
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["REDIS_URL"] = ""  # force in-memory rate limiter for tests
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 # Disable cost-alert emails during tests (quota_service returns early when unset)
 os.environ.pop("ADMIN_EMAIL", None)
 os.environ.pop("RESEND_API_KEY", None)
 
 import pytest
+from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -61,13 +63,20 @@ def _make_user(
     email: str,
     role: str = "user",
     plan: str = "free",
+    monthly_credits: int = 0,
+    credits_balance: int = 0,
 ) -> models.User:
+    from app.quota_service import PLAN_MONTHLY_ALLOC, _first_of_next_month
+    alloc = monthly_credits or PLAN_MONTHLY_ALLOC.get(plan, 15)
     user = models.User(
         email=email,
         hashed_password="$2b$12$fakehashforthisunittest0000000000000000000000",
         role=role,
         plan=plan,
         is_verified=True,
+        monthly_credits=alloc,
+        credits_balance=credits_balance,
+        credits_reset_at=_first_of_next_month(),
     )
     db.add(user)
     db.flush()  # get auto-assigned id without committing

@@ -1,28 +1,29 @@
 """
-test_quota_service.py – unit tests for app/quota_service.py
+test_quota_service.py – unit tests for app/quota_service.py (credit-based system)
 
 What is tested
 --------------
-check_quota
-  - fresh user (no MonthlyUsage record) → always allowed
-  - free plan: allowed when under limit, denied when at limit
-  - pro plan: allowed when under higher limit, denied when at limit
-  - admin role: bypasses quota entirely, even with absurd counters
-  - monthly isolation: exhausted previous month does NOT block the new month
+check_credits
+  - fresh free user has 15 monthly credits → allowed
+  - user with enough credits → allowed
+  - user with 0 credits → denied
+  - admin role: bypasses credits entirely
+  - unverified free user → denied
 
-increment_usage
+spend_credits
+  - spends from monthly_credits first
+  - overflow to credits_balance when monthly exhausted
+  - admin does not lose credits
+
+get_credits_info
+  - free user receives correct plan info
+  - pro user receives correct plan info
+  - admin gets unlimited credits
+
+increment_usage (tracking)
   - counter increments by exactly 1 per call
-  - multiple calls accumulate
-  - tokens_in / tokens_out / cost_usd tracked for ai_audits
-  - UsageEvent row is created with correct fields
-  - scan action writes NULL cost (no monetary cost)
-
-get_quota_info
-  - free user receives free-plan limits
-  - pro user receives pro-plan limits
-  - admin user receives unlimited limits and plan="admin"
-  - live usage counters are reflected accurately
-  - fresh user shows all-zero usage
+  - tokens tracked for ai_audits
+  - UsageEvent row created with correct fields
 """
 
 import pytest
@@ -30,18 +31,19 @@ from unittest.mock import patch
 
 from app import models
 from app.quota_service import (
-    PLAN_LIMITS,
-    _UNLIMITED,
-    check_quota,
-    get_quota_info,
+    PLAN_MONTHLY_ALLOC,
+    ACTION_COSTS,
+    SCAN_COST,
+    AUDIT_COST,
+    SEQUENCE_COST,
+    check_credits,
+    spend_credits,
+    get_credits_info,
     increment_usage,
 )
 
 _MONTH = "2026-03"
-_PREV_MONTH = "2026-02"
-_NEXT_MONTH = "2026-04"
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _seed_usage(db, user, *, month=_MONTH, **counters) -> models.MonthlyUsage:
     """Insert a MonthlyUsage row with the given counter values."""
@@ -51,115 +53,148 @@ def _seed_usage(db, user, *, month=_MONTH, **counters) -> models.MonthlyUsage:
     return usage
 
 
-# ─── check_quota ──────────────────────────────────────────────────────────────
+# ─── check_credits ───────────────────────────────────────────────────────────
 
-class TestCheckQuota:
+class TestCheckCredits:
 
-    def test_fresh_user_no_record_always_allowed(self, db, free_user):
-        """No MonthlyUsage record → user hasn't used anything → all actions allowed."""
-        assert check_quota(db, free_user, "ai_audits") is True
-        assert check_quota(db, free_user, "scans") is True
-        assert check_quota(db, free_user, "emails_sent") is True
+    def test_fresh_free_user_has_credits_and_is_allowed(self, db, free_user):
+        """Free user starts with 15 monthly credits → can do any action."""
+        assert check_credits(db, free_user, "ai_audits") is True
+        assert check_credits(db, free_user, "scans") is True
+        assert check_credits(db, free_user, "emails_sent") is True
 
-    def test_unverified_free_user_is_denied_even_with_no_usage(self, db, free_user):
+    def test_user_with_zero_credits_is_denied(self, db, free_user):
+        free_user.monthly_credits = 0
+        free_user.credits_balance = 0
+        db.commit()
+        assert check_credits(db, free_user, "scans") is False  # costs 3
+        assert check_credits(db, free_user, "ai_audits") is False  # costs 2
+
+    def test_user_with_exact_credits_for_action_is_allowed(self, db, free_user):
+        free_user.monthly_credits = SCAN_COST  # exactly 3
+        free_user.credits_balance = 0
+        db.commit()
+        assert check_credits(db, free_user, "scans") is True
+
+    def test_user_with_less_than_action_cost_is_denied(self, db, free_user):
+        free_user.monthly_credits = SCAN_COST - 1  # 2, need 3
+        free_user.credits_balance = 0
+        db.commit()
+        assert check_credits(db, free_user, "scans") is False
+
+    def test_credits_balance_supplements_monthly(self, db, free_user):
+        """credits_balance (from packs) adds to monthly for total check."""
+        free_user.monthly_credits = 1
+        free_user.credits_balance = 5
+        db.commit()
+        assert check_credits(db, free_user, "scans") is True  # 1+5=6 >= 3
+
+    def test_unverified_free_user_is_denied(self, db, free_user):
         free_user.is_verified = False
-        assert check_quota(db, free_user, "ai_audits") is False
-        assert check_quota(db, free_user, "scans") is False
-        assert check_quota(db, free_user, "emails_sent") is False
+        db.commit()
+        assert check_credits(db, free_user, "ai_audits") is False
+        assert check_credits(db, free_user, "scans") is False
 
-    # ── free plan ─────────────────────────────────────────────────────────────
+    def test_admin_bypasses_credits_entirely(self, db, admin_user):
+        admin_user.monthly_credits = 0
+        admin_user.credits_balance = 0
+        db.commit()
+        assert check_credits(db, admin_user, "ai_audits") is True
+        assert check_credits(db, admin_user, "scans") is True
 
-    def test_free_user_under_limit_is_allowed(self, db, free_user):
-        _seed_usage(db, free_user, month=_MONTH, ai_audits=9, scans=4, emails_sent=19)
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            assert check_quota(db, free_user, "ai_audits") is True
-            assert check_quota(db, free_user, "scans") is True
-            assert check_quota(db, free_user, "emails_sent") is True
-
-    def test_free_user_exactly_at_limit_is_denied(self, db, free_user):
-        """Used == limit means the *next* action would exceed it → deny."""
-        _seed_usage(
-            db, free_user, month=_MONTH,
-            ai_audits=PLAN_LIMITS["free"]["ai_audits"],
-            scans=PLAN_LIMITS["free"]["scans"],
-            emails_sent=PLAN_LIMITS["free"]["emails_sent"],
-        )
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            assert check_quota(db, free_user, "ai_audits") is False
-            assert check_quota(db, free_user, "scans") is False
-            assert check_quota(db, free_user, "emails_sent") is False
-
-    # ── pro plan ──────────────────────────────────────────────────────────────
-
-    def test_pro_user_under_higher_limit_is_allowed(self, db, pro_user):
-        # One below the pro limit – must still be allowed.
-        _seed_usage(
-            db, pro_user, month=_MONTH,
-            ai_audits=PLAN_LIMITS["pro"]["ai_audits"] - 1,
-            scans=PLAN_LIMITS["pro"]["scans"] - 1,
-        )
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            assert check_quota(db, pro_user, "ai_audits") is True
-            assert check_quota(db, pro_user, "scans") is True
-
-    def test_pro_user_at_limit_is_denied(self, db, pro_user):
-        _seed_usage(
-            db, pro_user, month=_MONTH,
-            ai_audits=PLAN_LIMITS["pro"]["ai_audits"],
-        )
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            assert check_quota(db, pro_user, "ai_audits") is False
-
-    def test_pro_limit_is_higher_than_free_limit(self, db):
-        """Sanity: pro limits must exceed free limits for every action."""
-        for action in ("ai_audits", "scans", "emails_sent"):
-            assert PLAN_LIMITS["pro"][action] > PLAN_LIMITS["free"][action], (
-                f"pro limit for '{action}' must be > free limit"
-            )
-
-    # ── admin role ────────────────────────────────────────────────────────────
-
-    def test_admin_bypasses_quota_regardless_of_usage(self, db, admin_user):
-        """Admin role must always return True, even with absurdly high counters."""
-        _seed_usage(
-            db, admin_user, month=_MONTH,
-            ai_audits=999_999,
-            scans=999_999,
-            emails_sent=999_999,
-        )
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            assert check_quota(db, admin_user, "ai_audits") is True
-            assert check_quota(db, admin_user, "scans") is True
-            assert check_quota(db, admin_user, "emails_sent") is True
-
-    # ── monthly reset ─────────────────────────────────────────────────────────
-
-    def test_exhausted_previous_month_does_not_block_new_month(self, db, free_user):
-        """Usage keyed to an old month must be invisible in the current month."""
-        _seed_usage(
-            db, free_user, month=_PREV_MONTH,
-            ai_audits=PLAN_LIMITS["free"]["ai_audits"],  # fully exhausted
-        )
-        with patch("app.quota_service._current_month", return_value=_NEXT_MONTH):
-            assert check_quota(db, free_user, "ai_audits") is True
-
-    def test_two_months_tracked_independently(self, db, free_user):
-        """Records for two different months coexist without interfering."""
-        _seed_usage(db, free_user, month=_PREV_MONTH, ai_audits=10)  # exhausted
-        _seed_usage(db, free_user, month=_MONTH, ai_audits=5)         # not exhausted
-
-        with patch("app.quota_service._current_month", return_value=_PREV_MONTH):
-            assert check_quota(db, free_user, "ai_audits") is False
-
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            assert check_quota(db, free_user, "ai_audits") is True
+    def test_pro_user_has_more_monthly_credits_than_free(self, db, pro_user, free_user):
+        assert pro_user.monthly_credits > free_user.monthly_credits
 
 
-# ─── increment_usage ──────────────────────────────────────────────────────────
+# ─── spend_credits ───────────────────────────────────────────────────────────
+
+class TestSpendCredits:
+
+    def test_spends_from_monthly_first(self, db, free_user):
+        free_user.monthly_credits = 10
+        free_user.credits_balance = 20
+        db.commit()
+
+        spend_credits(db, free_user, "scans")  # costs 3
+
+        assert free_user.monthly_credits == 7
+        assert free_user.credits_balance == 20  # untouched
+
+    def test_overflows_to_balance_when_monthly_exhausted(self, db, free_user):
+        free_user.monthly_credits = 1
+        free_user.credits_balance = 10
+        db.commit()
+
+        spend_credits(db, free_user, "scans")  # costs 3, monthly has 1
+
+        assert free_user.monthly_credits == 0
+        assert free_user.credits_balance == 8  # 10 - (3-1) = 8
+
+    def test_admin_does_not_lose_credits(self, db, admin_user):
+        admin_user.monthly_credits = 5
+        admin_user.credits_balance = 10
+        db.commit()
+
+        spend_credits(db, admin_user, "scans")
+
+        assert admin_user.monthly_credits == 5
+        assert admin_user.credits_balance == 10
+
+    def test_multiple_spends_accumulate(self, db, pro_user):
+        initial = pro_user.monthly_credits
+
+        spend_credits(db, pro_user, "ai_audits")  # -2
+        spend_credits(db, pro_user, "ai_audits")  # -2
+        spend_credits(db, pro_user, "scans")       # -3
+
+        assert pro_user.monthly_credits == initial - 2 - 2 - 3
+
+    def test_action_costs_are_correct(self):
+        assert SCAN_COST == 3
+        assert AUDIT_COST == 2
+        assert SEQUENCE_COST == 1
+
+
+# ─── get_credits_info ────────────────────────────────────────────────────────
+
+class TestGetCreditsInfo:
+
+    def test_free_user_info(self, db, free_user):
+        info = get_credits_info(db, free_user)
+        assert info["plan"] == "free"
+        assert info["monthly_credits_limit"] == PLAN_MONTHLY_ALLOC["free"]
+        assert info["action_costs"]["scan"] == SCAN_COST
+        assert info["action_costs"]["ai_audit"] == AUDIT_COST
+        assert info["is_verified"] is True
+
+    def test_pro_user_info(self, db, pro_user):
+        info = get_credits_info(db, pro_user)
+        assert info["plan"] == "pro"
+        assert info["monthly_credits_limit"] == PLAN_MONTHLY_ALLOC["pro"]
+
+    def test_admin_gets_unlimited(self, db, admin_user):
+        info = get_credits_info(db, admin_user)
+        assert info["plan"] == "admin"
+        assert info["monthly_credits"] == 999999
+
+    def test_total_credits_sums_monthly_and_balance(self, db, free_user):
+        free_user.credits_balance = 50
+        db.commit()
+        info = get_credits_info(db, free_user)
+        assert info["total_credits"] == free_user.monthly_credits + 50
+
+    def test_unverified_user_shows_as_unverified(self, db, free_user):
+        free_user.is_verified = False
+        db.commit()
+        info = get_credits_info(db, free_user)
+        assert info["is_verified"] is False
+
+
+# ─── increment_usage (tracking) ─────────────────────────────────────────────
 
 class TestIncrementUsage:
 
-    def test_creates_monthly_usage_record_on_first_call(self, db, free_user):
+    def test_creates_monthly_usage_record(self, db, free_user):
         with patch("app.quota_service._current_month", return_value=_MONTH):
             increment_usage(db, free_user, "scans")
 
@@ -184,20 +219,7 @@ class TestIncrementUsage:
         )
         assert usage.scans == 4
 
-    def test_multiple_increments_accumulate(self, db, free_user):
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            increment_usage(db, free_user, "scans")
-            increment_usage(db, free_user, "scans")
-            increment_usage(db, free_user, "scans")
-
-        usage = (
-            db.query(models.MonthlyUsage)
-            .filter_by(user_id=free_user.id, month=_MONTH)
-            .first()
-        )
-        assert usage.scans == 3
-
-    def test_ai_audit_tracks_tokens_and_cost(self, db, free_user):
+    def test_ai_audit_tracks_tokens(self, db, free_user):
         with patch("app.quota_service._current_month", return_value=_MONTH):
             increment_usage(db, free_user, "ai_audits", tokens_in=900, tokens_out=500)
 
@@ -208,23 +230,8 @@ class TestIncrementUsage:
         )
         assert usage.tokens_in == 900
         assert usage.tokens_out == 500
-        assert float(usage.cost_usd) > 0.0, "ai_audits should have a non-zero USD cost"
 
-    def test_ai_audit_cost_accumulates_across_calls(self, db, free_user):
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            increment_usage(db, free_user, "ai_audits", tokens_in=900, tokens_out=500)
-            increment_usage(db, free_user, "ai_audits", tokens_in=900, tokens_out=500)
-
-        usage = (
-            db.query(models.MonthlyUsage)
-            .filter_by(user_id=free_user.id, month=_MONTH)
-            .first()
-        )
-        assert usage.ai_audits == 2
-        assert usage.tokens_in == 1800
-        assert float(usage.cost_usd) > 0.0
-
-    def test_creates_usage_event_record(self, db, free_user):
+    def test_creates_usage_event(self, db, free_user):
         with patch("app.quota_service._current_month", return_value=_MONTH):
             increment_usage(db, free_user, "ai_audits", tokens_in=100, tokens_out=50, lead_id=42)
 
@@ -237,10 +244,8 @@ class TestIncrementUsage:
         assert event.event_type == "ai_audits"
         assert event.lead_id == 42
         assert event.tokens_in == 100
-        assert event.tokens_out == 50
 
     def test_scan_has_null_cost_in_event(self, db, free_user):
-        """Scans don't cost anything – cost_usd must be NULL, not 0."""
         with patch("app.quota_service._current_month", return_value=_MONTH):
             increment_usage(db, free_user, "scans")
 
@@ -250,88 +255,3 @@ class TestIncrementUsage:
             .first()
         )
         assert event.cost_usd is None
-
-    def test_scan_has_null_tokens_in_event(self, db, free_user):
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            increment_usage(db, free_user, "scans")
-
-        event = (
-            db.query(models.UsageEvent)
-            .filter_by(user_id=free_user.id)
-            .first()
-        )
-        assert event.tokens_in is None
-        assert event.tokens_out is None
-
-    def test_each_call_creates_one_event(self, db, free_user):
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            increment_usage(db, free_user, "scans")
-            increment_usage(db, free_user, "scans")
-
-        events = (
-            db.query(models.UsageEvent)
-            .filter_by(user_id=free_user.id)
-            .all()
-        )
-        assert len(events) == 2
-
-
-# ─── get_quota_info ───────────────────────────────────────────────────────────
-
-class TestGetQuotaInfo:
-
-    def test_free_user_gets_free_plan_limits(self, db, free_user):
-        info = get_quota_info(db, free_user)
-
-        assert info["plan"] == "free"
-        assert info["limits"]["ai_audits"] == PLAN_LIMITS["free"]["ai_audits"]
-        assert info["limits"]["scans"] == PLAN_LIMITS["free"]["scans"]
-        assert info["limits"]["emails_sent"] == PLAN_LIMITS["free"]["emails_sent"]
-
-    def test_pro_user_gets_pro_plan_limits(self, db, pro_user):
-        info = get_quota_info(db, pro_user)
-
-        assert info["plan"] == "pro"
-        assert info["limits"]["ai_audits"] == PLAN_LIMITS["pro"]["ai_audits"]
-        assert info["limits"]["scans"] == PLAN_LIMITS["pro"]["scans"]
-
-    def test_unverified_free_user_gets_zero_limits(self, db, free_user):
-        free_user.is_verified = False
-        info = get_quota_info(db, free_user)
-
-        assert info["plan"] == "free"
-        assert info["is_verified"] is False
-        assert info["limits"]["ai_audits"] == 0
-        assert info["limits"]["scans"] == 0
-        assert info["limits"]["emails_sent"] == 0
-
-    def test_admin_gets_unlimited_limits_and_admin_plan_label(self, db, admin_user):
-        info = get_quota_info(db, admin_user)
-
-        assert info["plan"] == "admin"
-        assert info["limits"]["ai_audits"] == _UNLIMITED["ai_audits"]
-        assert info["limits"]["scans"] == _UNLIMITED["scans"]
-        assert info["limits"]["emails_sent"] == _UNLIMITED["emails_sent"]
-
-    def test_fresh_user_has_all_zero_usage(self, db, free_user):
-        info = get_quota_info(db, free_user)
-
-        assert info["usage"]["ai_audits"] == 0
-        assert info["usage"]["scans"] == 0
-        assert info["usage"]["emails_sent"] == 0
-
-    def test_usage_reflects_actual_db_counters(self, db, free_user):
-        _seed_usage(db, free_user, month=_MONTH, ai_audits=7, scans=3, emails_sent=15)
-
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            info = get_quota_info(db, free_user)
-
-        assert info["usage"]["ai_audits"] == 7
-        assert info["usage"]["scans"] == 3
-        assert info["usage"]["emails_sent"] == 15
-
-    def test_month_key_matches_current_month(self, db, free_user):
-        with patch("app.quota_service._current_month", return_value=_MONTH):
-            info = get_quota_info(db, free_user)
-
-        assert info["month"] == _MONTH

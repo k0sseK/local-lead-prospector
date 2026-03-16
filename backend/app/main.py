@@ -22,9 +22,10 @@ from typing import List
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 
+_redis_url = os.getenv("REDIS_URL", "")
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    storage_uri=_redis_url if _redis_url else "memory://",
 )
 
 from . import models, schemas, database
