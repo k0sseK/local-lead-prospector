@@ -1,11 +1,19 @@
 import httpx
 from bs4 import BeautifulSoup
+import os
 import re
 import logging
 import time
 from urllib.parse import urljoin, urlparse
 
 logger = logging.getLogger(__name__)
+
+# ── Playwright scraper service (optional fallback for SPA sites) ─────────────
+PLAYWRIGHT_SERVICE_URL = os.getenv("PLAYWRIGHT_SERVICE_URL", "")
+PLAYWRIGHT_API_SECRET = os.getenv("PLAYWRIGHT_API_SECRET", "")
+
+# HTML shorter than this likely means the page is JS-rendered (empty SPA shell)
+_MIN_MEANINGFUL_HTML_LENGTH = 2000
 
 EMAIL_REGEX = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 
@@ -195,6 +203,64 @@ async def _try_subpages_for_email(
     return None
 
 
+def _looks_like_empty_spa(html: str, soup: BeautifulSoup) -> bool:
+    """
+    Heuristic: if body text content is very short but the HTML contains
+    JS framework markers, the page is likely a client-side rendered SPA
+    whose content didn't load via httpx.
+    """
+    if len(html) >= _MIN_MEANINGFUL_HTML_LENGTH:
+        return False
+
+    body = soup.find("body")
+    if body and len(body.get_text(strip=True)) < 200:
+        spa_markers = ["__NEXT_DATA__", "_next/static", "__nuxt", "_nuxt/",
+                       "data-reactroot", "__vue", "ng-version", "ng-app",
+                       "id=\"app\"", "id=\"root\"", "id=\"__next\""]
+        for marker in spa_markers:
+            if marker in html:
+                return True
+    return False
+
+
+async def _scrape_with_playwright(url: str) -> dict | None:
+    """
+    Calls the Playwright scraper microservice to render JS-heavy pages.
+    Returns {html, load_time_ms, final_url} or None if the service is
+    unavailable or the scrape fails.
+    """
+    if not PLAYWRIGHT_SERVICE_URL:
+        return None
+
+    headers = {}
+    if PLAYWRIGHT_API_SECRET:
+        headers["X-Internal-Secret"] = PLAYWRIGHT_API_SECRET
+
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            resp = await client.post(
+                f"{PLAYWRIGHT_SERVICE_URL}/scrape",
+                json={"url": url, "timeout": 15},
+                headers=headers,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                logger.info(
+                    "Playwright rendered %s (%d ms, %d chars)",
+                    url, data.get("load_time_ms", 0), len(data.get("html", "")),
+                )
+                return data
+            else:
+                logger.warning(
+                    "Playwright service returned %d for %s: %s",
+                    resp.status_code, url, resp.text[:200],
+                )
+    except Exception as exc:
+        logger.warning("Playwright service unreachable for %s: %s", url, exc)
+
+    return None
+
+
 async def audit_lead(lead_data: dict) -> dict:
     """
     Collects raw audit data from Google Places info and website.
@@ -217,6 +283,7 @@ async def audit_lead(lead_data: dict) -> dict:
         "social_media": [],
         "has_meta_description": False,
         "technologies": {},
+        "scraper_used": "httpx",
     }
 
     website_uri = lead_data.get("website_uri")
@@ -264,6 +331,19 @@ async def audit_lead(lead_data: dict) -> dict:
             if response.status_code == 200:
                 html_content = response.text
                 soup = BeautifulSoup(html_content, "html.parser")
+
+                # ── Playwright fallback for SPA sites ────────────────────
+                if _looks_like_empty_spa(html_content, soup):
+                    logger.info("Detected empty SPA shell for %s — trying Playwright", url)
+                    pw_result = await _scrape_with_playwright(url)
+                    if pw_result and len(pw_result.get("html", "")) > len(html_content):
+                        html_content = pw_result["html"]
+                        soup = BeautifulSoup(html_content, "html.parser")
+                        raw_data["scraper_used"] = "playwright"
+                        raw_data["load_time"] = round(pw_result["load_time_ms"] / 1000, 2)
+                        # Update SSL from final URL after redirects
+                        if pw_result.get("final_url", "").startswith("https://"):
+                            raw_data["has_ssl"] = True
 
                 # Viewport (RWD)
                 viewport = soup.find("meta", attrs={"name": "viewport"})

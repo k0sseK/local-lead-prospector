@@ -34,9 +34,26 @@ services:
             - ./backend/.env
         environment:
             - DATABASE_URL=postgresql://llp_user:llp_password@db:5432/llp_db
+            - PLAYWRIGHT_SERVICE_URL=http://playwright-service:8001
+            - PLAYWRIGHT_API_SECRET=change-this-internal-secret
         depends_on:
             db:
                 condition: service_healthy
+        networks:
+            - app-network
+
+    # ── Playwright Scraper (headless Chromium for SPA sites) ─────────────────
+    playwright-service:
+        image: llp-playwright-img:latest
+        build:
+            context: ./playwright-service
+            dockerfile: Dockerfile
+        container_name: llp-playwright
+        restart: unless-stopped
+        ports:
+            - "8001:8001"
+        environment:
+            - API_SECRET=change-this-internal-secret
         networks:
             - app-network
 

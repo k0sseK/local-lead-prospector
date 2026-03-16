@@ -25,6 +25,7 @@ A hosted version is available at [znajdzfirmy.pl](https://www.znajdzfirmy.pl).
 - SEO audit: `<title>`, `<h1>`, `<meta description>`
 - CMS fingerprinting (WordPress, Next.js, Shopify, and others)
 - Email address extraction, social media presence detection
+- Playwright fallback — headless Chromium renders SPA sites (React, Vue, Angular) that return empty HTML via httpx
 
 **AI-Powered Outreach**
 
@@ -64,7 +65,7 @@ A hosted version is available at [znajdzfirmy.pl](https://www.znajdzfirmy.pl).
 
 - Per-IP rate limiting (30 req/min, configurable)
 - Interactive API docs at `/api/docs`
-- Dockerized — three services (frontend, backend, PostgreSQL) wired together with a single `docker compose up`
+- Dockerized — four services (frontend, backend, PostgreSQL, Playwright scraper) wired together with a single `docker compose up`
 
 ---
 
@@ -134,7 +135,27 @@ LEMONSQUEEZY_WEBHOOK_SECRET=your_webhook_secret
 # Admin cost alerts (optional)
 ADMIN_EMAIL=you@yourdomain.com
 ADMIN_COST_ALERT_USD=2.0
+
+# Playwright scraper microservice (optional — SPA fallback)
+# Leave empty to disable; backend uses httpx-only scraping
+PLAYWRIGHT_SERVICE_URL=http://playwright-service:8001
+PLAYWRIGHT_API_SECRET=your-internal-secret
 ```
+
+### Playwright Scraper Service (Railway)
+
+The Playwright microservice renders JavaScript-heavy sites (React, Vue, Angular SPAs) that return empty HTML to httpx. It runs as a separate container with its own Chromium instance (~500 MB RAM).
+
+**Adding to Railway:**
+
+1. **New Service** → select your GitHub repo → set **Root Directory** to `playwright-service`
+2. Add environment variable `API_SECRET` — use the same value as `PLAYWRIGHT_API_SECRET` in the backend
+3. In the backend service, add:
+   - `PLAYWRIGHT_SERVICE_URL=http://${{playwright-service.RAILWAY_PRIVATE_DOMAIN}}:8001`
+   - `PLAYWRIGHT_API_SECRET=<your shared secret>`
+4. Railway private networking routes traffic between services in the same project — no public URL needed
+
+The backend gracefully degrades if the Playwright service is unavailable — audits fall back to httpx-only scraping.
 
 ---
 
