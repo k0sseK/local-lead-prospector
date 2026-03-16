@@ -163,12 +163,7 @@ const deleteLead = async () => {
 };
 
 // ─── Email events (open tracking) ─────────────────────────────────────────────
-const emailEvents = ref<Array<{
-	id: string;
-	sequence_step_id: number | null;
-	sent_at: string;
-	opened_at: string | null;
-}>>([]);
+const emailEvents = ref([]);
 
 const fetchEmailEvents = async () => {
 	if (!lead.value) return;
