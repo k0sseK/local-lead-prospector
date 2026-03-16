@@ -59,7 +59,7 @@ jobs:
               env:
                   DATABASE_URL: "sqlite:///./ci_test.db"
                   REDIS_URL: ""
-              run: python -c "from app.database import Base, engine; Base.metadata.create_all(bind=engine)"
+              run: python -c "from app import models; from app.database import Base, engine; Base.metadata.create_all(bind=engine)"
 
             # 4b. Start FastAPI backend in background
             - name: Start FastAPI backend
