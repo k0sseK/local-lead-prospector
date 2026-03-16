@@ -10,7 +10,6 @@ import {
 	X,
 	FileSpreadsheet,
 	Lightbulb,
-	Search as SearchIcon,
 } from "lucide-vue-next";
 
 definePageMeta({ layout: "dashboard", middleware: ["auth"] });
@@ -231,15 +230,9 @@ const estimatedSize = computed(() => {
 					class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600"
 				>
 					<Lightbulb class="w-3.5 h-3.5 text-brand-green" />
-					Audyty AI: {{ usage.usage.ai_audits }}/{{
-						usage.limits.ai_audits
+					Kredyty: {{ usage.total_credits }}/{{
+						usage.monthly_credits_limit
 					}}
-				</span>
-				<span
-					class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600"
-				>
-					<SearchIcon class="w-3.5 h-3.5 text-brand-green" />
-					Skany: {{ usage.usage.scans }}/{{ usage.limits.scans }}
 				</span>
 				<span
 					class="inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-sm font-medium"

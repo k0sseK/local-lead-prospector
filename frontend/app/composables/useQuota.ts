@@ -12,9 +12,13 @@ const STALE_MS = 5 * 60_000; // 5 minutes — quota changes only after user acti
 
 interface QuotaData {
 	plan: string;
-	month: string;
-	usage: { ai_audits: number; scans: number; emails_sent: number };
-	limits: { ai_audits: number; scans: number; emails_sent: number };
+	monthly_credits: number;
+	monthly_credits_limit: number;
+	credits_balance: number;
+	total_credits: number;
+	credits_reset_at: string | null;
+	is_verified: boolean;
+	action_costs: { scan: number; ai_audit: number; email_sequence: number };
 }
 
 export function useQuota() {
