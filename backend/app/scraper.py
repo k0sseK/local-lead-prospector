@@ -4,6 +4,7 @@ import logging
 import httpx
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -172,7 +173,13 @@ def _save_lead_if_new(place: dict, db: Session, user_id: int):
         user_id=user_id,
         status="new",
     )
-    db.add(lead)
+    try:
+        with db.begin_nested():  # SAVEPOINT — rollback tylko tego insertu, reszta sesji nienaruszona
+            db.add(lead)
+            db.flush()
+    except IntegrityError:
+        logger.debug("Skipping duplicate (IntegrityError): %s", place_id)
+        return None
     return lead
 
 
