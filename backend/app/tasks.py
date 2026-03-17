@@ -128,7 +128,7 @@ def scan_places_task(
     HTTP request wraca natychmiast z task_id.
     """
     from .database import SessionLocal
-    from scraper import scan_google_places
+    from .scraper import scan_google_places
 
     db = SessionLocal()
     try:

@@ -147,7 +147,7 @@ def _save_lead_if_new(place: dict, db: Session, user_id: int):
     Zapisuje lead do DB jeśli jeszcze nie istnieje.
     Zwraca obiekt Lead jeśli rekord został dodany, None jeśli pominięty (duplikat).
     """
-    from app.models import Lead  # opóźniony import — Lead jest w osobnym pakiecie
+    from .models import Lead  # względny import — scraper jest częścią pakietu app
 
     place_id: str = place.get("id", "")
     name: str = place.get("displayName", {}).get("text", "Unknown Name")
