@@ -90,6 +90,10 @@ def audit_lead_task(
         if not lead:
             raise ValueError(f"Lead {lead_id} nie istnieje lub nie należy do usera {user_id}")
 
+        if lead.audited:
+            logger.info("Lead %d already audited, skipping duplicate task", lead_id)
+            return {"lead_id": lead_id, "skipped": True}
+
         logger.info("Starting audit task for lead %d (user %d)", lead_id, user_id)
         asyncio.run(run_full_audit(lead, db, template_id, target_language))
         logger.info("Audit task completed for lead %d", lead_id)

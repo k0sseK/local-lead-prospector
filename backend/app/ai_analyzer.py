@@ -1,6 +1,8 @@
+import asyncio
 import json
 import logging
 import os
+import re
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
@@ -16,6 +18,31 @@ DEFAULT_AUDIT_CONDITIONS = """\
 - Jeśli brak SSL — wspomnij o ostrzeżeniach przeglądarek.
 - Jeśli wolne ładowanie (load_time > 2s) — wspomnij o współczynniku odrzuceń.
 - Jeśli brakuje tagów SEO — wspomnij o widoczności w wyszukiwarce."""
+
+
+async def _generate_with_retry(model, prompt: str, genai, max_retries: int = 2):
+    """Calls model.generate_content with automatic retry on 429 rate-limit errors."""
+    for attempt in range(max_retries + 1):
+        try:
+            return model.generate_content(
+                prompt,
+                generation_config=genai.GenerationConfig(
+                    response_mime_type="application/json",
+                    temperature=0.7,
+                ),
+            )
+        except Exception as exc:
+            error_str = str(exc)
+            if "429" not in error_str or attempt == max_retries:
+                raise
+            # Parse suggested retry delay from Gemini error message, fallback to 30s
+            match = re.search(r"retry in ([0-9.]+)s", error_str)
+            delay = float(match.group(1)) + 1 if match else 30.0
+            logger.warning(
+                "Gemini rate limit (attempt %d/%d), retrying in %.0fs",
+                attempt + 1, max_retries + 1, delay,
+            )
+            await asyncio.sleep(delay)
 
 
 async def generate_ai_analysis(raw_data: dict, company_name: str, user_settings=None, audit_template=None, target_language: str = "polskim") -> dict:
@@ -116,13 +143,7 @@ Odpowiedz WYŁĄCZNIE w formacie JSON z następującą strukturą:
   "email_draft": "treść kompletnego maila"
 }}"""
 
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-                temperature=0.7,
-            ),
-        )
+        response = await _generate_with_retry(model, prompt, genai)
 
         result = json.loads(response.text)
 
@@ -206,13 +227,7 @@ Odpowiedz WYŁĄCZNIE w formacie JSON:
 
 Dla step1 skopiuj dosłownie treść pierwszego maila podaną powyżej, ale dodaj dobry temat (subject)."""
 
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-                temperature=0.7,
-            ),
-        )
+        response = await _generate_with_retry(model, prompt, genai)
 
         result = json.loads(response.text)
         return [
