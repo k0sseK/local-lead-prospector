@@ -218,18 +218,18 @@ async function saveStep() {
 </script>
 
 <template>
-	<div class="max-w-4xl mx-auto px-4 py-8 space-y-6">
+	<div class="px-4 py-6 md:px-8 space-y-6 bg-slate-50 min-h-screen">
 		<!-- Header -->
-		<div class="flex items-center justify-between">
+		<div class="flex items-start justify-between gap-4">
 			<div>
-				<h1 class="text-2xl font-bold text-slate-900">Sekwencje e-mail</h1>
-				<p class="text-sm text-slate-500 mt-1">
+				<h1 class="text-3xl font-bold tracking-tight text-slate-900">Sekwencje e-mail</h1>
+				<p class="text-slate-500 mt-2">
 					Automatyczne follow-upy: Dzień 1 → Dzień 3 → Dzień 7
 				</p>
 			</div>
 			<button
 				@click="openModal()"
-				class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+				class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-teal text-white text-sm font-semibold hover:bg-brand-teal/90 transition-colors"
 			>
 				<Plus class="w-4 h-4" />
 				Nowa sekwencja
@@ -245,11 +245,13 @@ async function saveStep() {
 		<!-- Empty state -->
 		<div
 			v-else-if="sequences.length === 0"
-			class="text-center py-20 text-slate-400"
+			class="flex flex-col items-center justify-center py-20 text-center bg-white rounded-xl border border-slate-200"
 		>
-			<Mail class="w-10 h-10 mx-auto mb-3 opacity-40" />
-			<p class="text-base font-medium">Brak sekwencji</p>
-			<p class="text-sm mt-1">Kliknij „Nowa sekwencja", aby uruchomić follow-upy dla leada.</p>
+			<div class="w-14 h-14 bg-brand-green/10 rounded-full flex items-center justify-center mb-4">
+				<Mail class="w-7 h-7 text-brand-teal" />
+			</div>
+			<p class="text-base font-semibold text-slate-800">Brak sekwencji</p>
+			<p class="text-sm text-slate-500 mt-1 max-w-xs">Kliknij „Nowa sekwencja", aby uruchomić follow-upy dla leada.</p>
 		</div>
 
 		<!-- Sequences list -->
@@ -389,7 +391,7 @@ async function saveStep() {
 							<button
 								v-if="step.status === 'pending' && editingStep?.stepId !== step.id"
 								@click="startEditStep(seq.id, step)"
-								class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+								class="text-xs text-brand-teal hover:text-brand-teal/80 font-medium"
 							>
 								Edytuj
 							</button>
@@ -399,19 +401,19 @@ async function saveStep() {
 						<template v-if="editingStep && editingStep.stepId === step.id">
 							<input
 								v-model="editingStep.subject"
-								class="w-full mb-2 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+								class="w-full mb-2 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/30"
 								placeholder="Temat"
 							/>
 							<textarea
 								v-model="editingStep.body"
 								rows="5"
-								class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-y"
+								class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/30 resize-y"
 								placeholder="Treść wiadomości"
 							/>
 							<div class="flex gap-2 mt-2">
 								<button
 									@click="saveStep"
-									class="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700"
+									class="px-3 py-1 bg-brand-teal text-white text-xs rounded-lg hover:bg-brand-teal/90"
 								>
 									Zapisz
 								</button>
@@ -463,7 +465,7 @@ async function saveStep() {
 						<select
 							v-model="modalLeadId"
 							@change="modalLeadName = leadsWithEmail.find(l => l.id === modalLeadId)?.company_name ?? ''"
-							class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+							class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/30 bg-white"
 						>
 							<option :value="null" disabled>— wybierz leada z emailem —</option>
 							<option v-for="l in leadsWithEmail" :key="l.id" :value="l.id">
@@ -476,7 +478,7 @@ async function saveStep() {
 					<button
 						@click="generateDrafts"
 						:disabled="!modalLeadId || isGenerating"
-						class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-indigo-300 text-indigo-700 bg-indigo-50 text-sm font-medium hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+						class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-brand-green/30 text-brand-teal bg-brand-green/5 text-sm font-medium hover:bg-brand-green/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 					>
 						<Loader2 v-if="isGenerating" class="w-4 h-4 animate-spin" />
 						<Mail v-else class="w-4 h-4" />
@@ -506,7 +508,7 @@ async function saveStep() {
 								<label class="block text-xs font-medium text-slate-600 mb-1">Temat</label>
 								<input
 									v-model="drafts[activeStepTab].subject"
-									class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+									class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/30"
 									:placeholder="`Temat emaila ${activeStepTab + 1}`"
 								/>
 							</div>
@@ -515,7 +517,7 @@ async function saveStep() {
 								<textarea
 									v-model="drafts[activeStepTab].body"
 									rows="8"
-									class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-y"
+									class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/30 resize-y"
 									:placeholder="`Treść wiadomości (email ${activeStepTab + 1})`"
 								/>
 							</div>
@@ -539,7 +541,7 @@ async function saveStep() {
 					<button
 						@click="createSequence"
 						:disabled="isCreating || !modalLeadId"
-						class="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+						class="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-brand-teal text-white text-sm font-semibold hover:bg-brand-teal/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 					>
 						<Loader2 v-if="isCreating" class="w-4 h-4 animate-spin" />
 						Uruchom sekwencję
