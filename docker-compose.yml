@@ -36,6 +36,7 @@ services:
             - DATABASE_URL=postgresql://llp_user:llp_password@db:5432/llp_db
             - PLAYWRIGHT_SERVICE_URL=http://playwright-service:8001
             - PLAYWRIGHT_API_SECRET=change-this-internal-secret
+            - TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
         depends_on:
             db:
                 condition: service_healthy
@@ -63,6 +64,9 @@ services:
         build:
             context: ./frontend
             dockerfile: Dockerfile
+            args:
+                - NUXT_PUBLIC_TURNSTILE_SITE_KEY=${NUXT_PUBLIC_TURNSTILE_SITE_KEY}
+                - NUXT_PUBLIC_GOOGLE_MAPS_API_KEY=${NUXT_PUBLIC_GOOGLE_MAPS_API_KEY}
         container_name: llp-frontend
         restart: unless-stopped
         ports:
